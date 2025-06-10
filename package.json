@@ -16,5 +16,14 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cloudinary": "^2.6.1",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "cors": "^2.8.5",
+    "multer": "^2.0.1",
+    "nodemon": "^3.1.10"
   }
 }
