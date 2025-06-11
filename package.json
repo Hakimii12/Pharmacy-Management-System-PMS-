@@ -16,12 +16,13 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon Backend/main.js"
+    "dev": "nodemon Backend/main.js"
   },
   "dependencies": {
     "cloudinary": "^2.6.1",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "mongodb": "^6.17.0"
   },
   "devDependencies": {
     "cors": "^2.8.5",
