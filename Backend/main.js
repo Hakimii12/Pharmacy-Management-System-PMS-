@@ -1,6 +1,7 @@
 import express from "express"
 import dotenv from "dotenv"
 import cors from "cors";
+import cookieParser from "cookie-parser";
 const app =express();
 app.use(express.json())
 app.use(cors());
@@ -11,5 +12,5 @@ app.post("api/new/test",(req,res)=>{
     res.send("Hello World");
 })
 app.listen(process.env.PORT,()=>{
-    console.log("server is running on port 5000")
+    console.log(`server is running on port ${process.env.PORT}`)
 })
