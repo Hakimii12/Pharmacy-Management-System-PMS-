@@ -12,6 +12,8 @@ dotenv.config();
 app.post("api/new/test",(req,res)=>{
     res.send("Hello World");
 })
+//Database connection initialization
+Database();
 app.listen(process.env.PORT,()=>{
     console.log(`server is running on port ${process.env.PORT}`)
 })
