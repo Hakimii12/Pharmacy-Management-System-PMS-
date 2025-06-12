@@ -8,6 +8,7 @@ const drugSchema = new mongoose.Schema({
      batchNo:{type:String,required:true,unique:true},
      expiryDate:{type:Date,required:true},
      markup:{type:Number,required:true},
+     sellingPrice:{type:Number,required:true},
      isExpired:{type:Boolean,default:false},
      createdAt: { type: Date, default: Date.now },
      updatedAt: { type: Date, default: Date.now }
