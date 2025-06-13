@@ -3,7 +3,7 @@ const salesSchema = new mongoose.Schema({
     drug:{type:Schema.Types.ObjectId, ref:"Drug"},
     quantitySold:Number,
     profit:Number,
-    timestamp:{type:DataTransfer, default:DataTransfer.now}
+    timestamp:{type:Date, default:Date.now}
 })
 const Sales = mongoose.model("Sales",salesSchema);
 export default Sales;

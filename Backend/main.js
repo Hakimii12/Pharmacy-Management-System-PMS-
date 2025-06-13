@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.urlencoded({extended:true}));
 app.use(cookieParser());
 dotenv.config();
-app.use("/api/drug", DrugStore);
+app.use("/api", DrugStore);
 //Database connection initialization
 Database();
 app.listen(process.env.PORT,()=>{
