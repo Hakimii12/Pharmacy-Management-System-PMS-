@@ -9,7 +9,7 @@ const ProductSchema = new mongoose.Schema({
      expiryDate:{type:Date,required:true},
      markup:{type:Number,required:true},
      sellingPrice:{type:Number,required:true},
-     totalSellingPrice:{type:Number,required:true},
+     // totalSellingPrice:{type:Number,required:true},
      isExpired:{type:Boolean,default:false},
      DosageForms:{ type:String,enum:["tablet","syrup","injection","ointment"]},
      ProductType:{ type:String,enum:["medicine","cosmetic"]},

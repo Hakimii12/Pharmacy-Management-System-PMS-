@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";;
 const salesSchema = new mongoose.Schema({
-    drug:{type:Schema.Types.ObjectId, ref:"Drug"},
+    product:{type:Schema.Types.ObjectId, ref:"Product",required :true},
     quantitySold:Number,
     profit:Number,
     timestamp:{type:Date, default:Date.now}
