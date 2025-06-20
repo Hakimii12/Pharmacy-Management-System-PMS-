@@ -128,5 +128,4 @@ const NotificationCenter = () => {
     </div>
   );
 };
-
 export default NotificationCenter;
