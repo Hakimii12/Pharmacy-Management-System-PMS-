@@ -1,31 +1,31 @@
-import DrugItem from './DrugItem';
-import DrugForm from './DrugForm';
+import ProductItem from './ProductItem';
+import ProductForm from './ProductForm';
 import { FaPlus, FaSearch } from 'react-icons/fa';
-import { drugs, drugCategories } from '../../data/drugs';
-
-const DrugList = () => {
+import { products, productCategories } from '../../data/products';
+import { useState } from 'react';
+const ProductList = () => {
   const [showForm, setShowForm] = useState(false);
-  const [selectedDrug, setSelectedDrug] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
 
-  const handleEdit = (drug) => {
-    setSelectedDrug(drug);
+  const handleEdit = (product) => {
+    setSelectedProduct(product);
     setShowForm(true);
   };
 
   const handleCloseForm = () => {
     setShowForm(false);
-    setSelectedDrug(null);
+    setSelectedProduct(null);
   };
 
-  const filteredDrugs = drugs.filter(drug => {
-    const matchesSearch = drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          drug.brand.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || drug.category === selectedCategory;
-    const matchesStatus = selectedStatus === 'All' || drug.status === selectedStatus;
-    
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+    const matchesStatus = selectedStatus === 'All' || product.status === selectedStatus;
+
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -33,12 +33,12 @@ const DrugList = () => {
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">Drug Inventory</h2>
+          <h2 className="text-xl font-bold text-gray-800">Product Inventory</h2>
           <button 
             onClick={() => setShowForm(true)}
             className="mt-3 md:mt-0 flex items-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200"
           >
-            <FaPlus className="mr-2" /> Add New Drug
+            <FaPlus className="mr-2" /> Add New Product
           </button>
         </div>
       </div>
@@ -51,7 +51,7 @@ const DrugList = () => {
             </div>
             <input
               type="text"
-              placeholder="Search drugs..."
+              placeholder="Search products..."
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -65,7 +65,7 @@ const DrugList = () => {
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
               <option value="All">All Categories</option>
-              {drugCategories.map(category => (
+              {productCategories.map(category => (
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
@@ -111,25 +111,25 @@ const DrugList = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredDrugs.map(drug => (
-                <DrugItem key={drug.id} drug={drug} onEdit={handleEdit} />
+              {filteredProducts.map(product => (
+                <ProductItem key={product.id} product={product} onEdit={handleEdit} />
               ))}
             </tbody>
           </table>
         </div>
-        
-        {filteredDrugs.length === 0 && (
+
+        {filteredProducts.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-500">No drugs found matching your criteria</p>
+            <p className="text-gray-500">No products found matching your criteria</p>
           </div>
         )}
       </div>
       
       {showForm && (
-        <DrugForm drug={selectedDrug} onClose={handleCloseForm} />
+        <ProductForm product={selectedProduct} onClose={handleCloseForm} />
       )}
     </div>
   );
 };
 
-export default DrugList;
+export default ProductList;

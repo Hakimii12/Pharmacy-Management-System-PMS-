@@ -1,11 +1,7 @@
-import React from 'react'
-
+import SalesList from '../components/SalesList.jsx/SalesList'
 function Sales() {
   return (
-    <div>
-      <h1>Sales</h1>
-    </div>
+    <SalesList />
   )
 }
-
 export default Sales

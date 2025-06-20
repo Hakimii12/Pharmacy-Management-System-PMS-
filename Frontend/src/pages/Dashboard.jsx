@@ -2,7 +2,7 @@ import React from 'react';
 import SummeryCards from '../components/dashboard/SummeryCards';
 import InventoryChart from '../components/dashboard/InventoryChart';
 import { FaPills, FaMoneyBillWave, FaExclamationTriangle, FaChartLine } from 'react-icons/fa';
-import { products, inventoryStats,drugCategories} from '../data/products';
+import { products, inventoryStats} from '../data/products';
 import {salesStats,sales} from "../data/sales"
 
 const Dashboard = () => {

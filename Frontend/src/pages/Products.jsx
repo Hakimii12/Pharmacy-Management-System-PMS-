@@ -1,10 +1,11 @@
-import React from 'react'
-
+import ProductForm from '../components/Products/ProductForm'
+import ProductItem from '../components/Products/ProductItem'
+import ProductList from '../components/Products/ProductList'
 function Products() {
   return (
-    <div>
-      <h1>Products</h1>
-    </div>
+    <>
+      <ProductList /> 
+    </>
   )
 }
 

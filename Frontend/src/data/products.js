@@ -151,7 +151,7 @@ export const inventoryStats = {
   lowStock: 7
 };
 
-export const drugCategories = [
+export const productCategories = [
   "Allergy", "Antibiotic", "Pain Relief", "Diabetes", 
   "Cholesterol", "Acid Reducer", "Vitamins", "Other"
 ];
