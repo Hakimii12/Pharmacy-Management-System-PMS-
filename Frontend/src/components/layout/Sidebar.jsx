@@ -1,18 +1,16 @@
-import React from 'react';
+
 import { NavLink } from 'react-router-dom';
 import { 
-  FaHome, FaPills, FaShoppingCart, 
-  FaBoxes, FaChartLine, FaBell 
+  FaHome, FaPills, FaShoppingCart, FaChartLine, FaBell 
 } from 'react-icons/fa';
-import { FaFilePrescription } from 'react-icons/fa6';
+import { FaClipboardList } from 'react-icons/fa';
+
 
 const Sidebar = () => {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <FaHome /> },
-    { name: 'Drugs', path: '/drugs', icon: <FaPills /> },
+    { name: 'Products', path: '/products', icon: <FaPills /> },
     { name: 'Sales', path: '/sales', icon: <FaShoppingCart /> },
-    { name: 'Inventory', path: '/inventory', icon: <FaBoxes /> },
-    { name: 'Prescriptions', path: '#', icon: <FaFilePrescription /> },
     { name: 'Notifications', path: '/notifications', icon: <FaBell /> },
     { name: 'Reports', path: '/reports', icon: <FaChartLine /> },
   ];

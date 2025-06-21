@@ -1,9 +1,12 @@
-import React from 'react';
-import { FaEdit, FaTrash } from 'react-icons/fa';
-import { products } from '../../data/products';
-const ProductItem = () => {
-  const getStatusColor = () => {
-    switch ("In Stock") {
+import React, { useState } from 'react';
+import { FaEdit, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
+
+const ProductItem = ({ product, onEdit, onDelete }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProduct, setEditedProduct] = useState({ ...product });
+
+  const getStatusColor = (status) => {
+    switch (status) {
       case 'In Stock':
         return 'bg-green-100 text-green-800';
       case 'Low Stock':
@@ -17,29 +20,126 @@ const ProductItem = () => {
     }
   };
 
-  // const getExpiryStatus = () => {
-  //   const expiryDate = new Date(products.expirationDate);
-  //   const today = new Date();
-  //   const diffTime = expiryDate.getTime() - today.getTime();
-  //   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-  //   if (diffDays < 0) {
-  //     return { text: 'Expired', color: 'text-red-500' };
-  //   } else if (diffDays < 30) {
-  //     return { text: `Expires in ${diffDays} days`, color: 'text-yellow-500' };
-  //   } else {
-  //     return { text: new Date(products.expirationDate).toLocaleDateString(), color: 'text-gray-500' };
-  //   }
-  // };
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEditedProduct(prev => ({
+      ...prev,
+      [name]: name === 'price' || name === 'salePrice' 
+        ? parseFloat(value) 
+        : value
+    }));
+  };
 
-  // const expiryStatus = getExpiryStatus();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onEdit(editedProduct);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <tr className="bg-blue-50">
+        <td className="px-6 py-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              P
+            </div>
+            <div className="ml-4 space-y-2">
+              <input
+                name="name"
+                value={editedProduct.name}
+                onChange={handleChange}
+                className="w-full px-2 py-1 border rounded text-sm"
+              />
+              <input
+                name="brand"
+                value={editedProduct.brand}
+                onChange={handleChange}
+                className="w-full px-2 py-1 border rounded text-sm"
+              />
+            </div>
+          </div>
+        </td>
+        <td className="px-6 py-4">
+          <input
+            name="category"
+            value={editedProduct.category}
+            onChange={handleChange}
+            className="w-full px-2 py-1 border rounded text-sm"
+          />
+        </td>
+        <td className="px-6 py-4 space-y-2">
+          <input
+            name="stock"
+            type="number"
+            value={editedProduct.stock}
+            onChange={handleChange}
+            className="w-full px-2 py-1 border rounded text-sm"
+          />
+          <input
+            name="expirationDate"
+            type="date"
+            value={editedProduct.expirationDate}
+            onChange={handleChange}
+            className="w-full px-2 py-1 border rounded text-xs"
+          />
+        </td>
+        <td className="px-6 py-4 space-y-2">
+          <input
+            name="price"
+            type="number"
+            step="0.01"
+            value={editedProduct.price}
+            onChange={handleChange}
+            className="w-full px-2 py-1 border rounded text-sm"
+          />
+          <input
+            name="salePrice"
+            type="number"
+            step="0.01"
+            value={editedProduct.salePrice}
+            onChange={handleChange}
+            className="w-full px-2 py-1 border rounded text-xs"
+            placeholder="Sale price"
+          />
+        </td>
+        <td className="px-6 py-4">
+          <select
+            name="status"
+            value={editedProduct.status}
+            onChange={handleChange}
+            className={`w-full px-2 py-1 border rounded text-sm ${getStatusColor(editedProduct.status)}`}
+          >
+            <option value="In Stock">In Stock</option>
+            <option value="Low Stock">Low Stock</option>
+            <option value="Sold Out">Sold Out</option>
+            <option value="Expired">Expired</option>
+          </select>
+        </td>
+        <td className="px-6 py-4 space-x-2">
+          <button
+            onClick={handleSubmit}
+            className="text-green-600 hover:text-green-800"
+          >
+            <FaSave />
+          </button>
+          <button
+            onClick={() => setIsEditing(false)}
+            className="text-gray-600 hover:text-gray-800"
+          >
+            <FaTimes />
+          </button>
+        </td>
+      </tr>
+    );
+  }
 
   return (
     <tr>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            okm
+            P
           </div>
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900">Paracetamol</div>
@@ -65,12 +165,15 @@ const ProductItem = () => {
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
         <button 
-          onClick={() => onEdit(products)}
+          onClick={() => setIsEditing(true)}
           className="text-blue-600 hover:text-blue-900 mr-3"
         >
           <FaEdit />
         </button>
-        <button className="text-red-600 hover:text-red-900">
+        <button 
+          onClick={() => onDelete(product.id)}
+          className="text-red-600 hover:text-red-900"
+        >
           <FaTrash />
         </button>
       </td>
