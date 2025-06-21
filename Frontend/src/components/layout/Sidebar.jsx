@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   FaHome, FaPills, FaShoppingCart, FaChartLine, FaBell 
 } from 'react-icons/fa';
-import { FaClipboardList } from 'react-icons/fa';
+
 
 
 const Sidebar = () => {
