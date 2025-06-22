@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SalesItem from './SalesItem';
 import SalesForm from './SalesForm';
-import { FaPlus, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaFilter, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { sales } from '../../data/sales';
 
 const SalesList = () => {
@@ -9,17 +9,66 @@ const SalesList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
 
-  const filteredSales = sales.filter(sale => {
-    const matchesSearch = sale.drugName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          sale.brand.toLowerCase().includes(searchTerm.toLowerCase());
+  // Convert sales data to transaction format
+  const transactions = useMemo(() => {
+    return sales.map(sale => {
+      // If already in transaction format, return as-is
+      if (sale.items && Array.isArray(sale.items)) {
+        return sale;
+      }
+      
+      // Convert single item to transaction format
+      return {
+        id: sale.id,
+        timestamp: sale.timestamp,
+        items: [{
+          drugId: sale.drugId,
+          drugName: sale.drugName,
+          brand: sale.brand,
+          quantitySold: sale.quantitySold,
+          unitCostPrice: sale.unitCostPrice,
+          markupPercentage: sale.markupPercentage,
+          sellingPricePerUnit: sale.sellingPricePerUnit,
+          totalSellingPrice: sale.totalSellingPrice,
+          profit: sale.profit,
+          soldOut: sale.soldOut
+        }],
+        totalSale: sale.totalSellingPrice,
+        totalProfit: sale.profit,
+        soldOut: sale.soldOut
+      };
+    });
+  }, []);
+
+  const filteredSales = transactions.filter(transaction => {
+    // Search across all items in transaction
+    const hasMatchingItem = transaction.items.some(item => 
+      item.drugName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.brand.toLowerCase().includes(searchTerm.toLowerCase())
+    );
     
-    const saleDate = new Date(sale.timestamp);
-    const matchesStart = !startDate || saleDate >= new Date(startDate);
-    const matchesEnd = !endDate || saleDate <= new Date(endDate);
+    const transactionDate = new Date(transaction.timestamp);
+    const matchesStart = !startDate || transactionDate >= new Date(startDate);
+    const matchesEnd = !endDate || transactionDate <= new Date(endDate);
     
-    return matchesSearch && matchesStart && matchesEnd;
+    return hasMatchingItem && matchesStart && matchesEnd;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredSales.slice(indexOfFirstItem, indexOfLastItem);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, startDate, endDate]);
+
+  const goToNextPage = () => currentPage < totalPages && setCurrentPage(p => p + 1);
+  const goToPrevPage = () => currentPage > 1 && setCurrentPage(p => p - 1);
 
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
@@ -84,39 +133,127 @@ const SalesList = () => {
                   Date & Time
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Drug Details
+                  Transaction Details
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantity
+                  Items
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
+                  Total Sale
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Profit
+                  Total Profit
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSales.map(sale => (
-                <SalesItem key={sale.id} sale={sale} />
+              {currentItems.map(transaction => (
+                <SalesItem key={transaction.id} transaction={transaction} />
               ))}
             </tbody>
           </table>
         </div>
         
-        {filteredSales.length === 0 && (
+        {filteredSales.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">No sales records found</p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={goToPrevPage}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  currentPage === 1 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  currentPage === totalPages 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
+                  <span className="font-medium">
+                    {Math.min(indexOfLastItem, filteredSales.length)}
+                  </span>{' '}
+                  of <span className="font-medium">{filteredSales.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    onClick={goToPrevPage}
+                    disabled={currentPage === 1}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                      currentPage === 1
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="sr-only">Previous</span>
+                    <FaChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <div className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                      currentPage === totalPages
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="sr-only">Next</span>
+                    <FaChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </nav>
+              </div>
+            </div>
           </div>
         )}
       </div>
       
       {showForm && (
-        <SalesForm onClose={() => setShowForm(false)} />
+        <SalesForm 
+          onClose={() => setShowForm(false)} 
+          onSave={(saleRecords) => {
+            const newTransaction = {
+              id: Date.now(),
+              timestamp: new Date().toISOString(),
+              items: saleRecords,
+              totalSale: saleRecords.reduce((sum, item) => sum + item.totalSellingPrice, 0),
+              totalProfit: saleRecords.reduce((sum, item) => sum + item.profit, 0),
+              soldOut: saleRecords.some(item => item.soldOut)
+            };
+            
+            // Add to sales array (in real app this would be API call)
+            sales.unshift(newTransaction);
+            setShowForm(false);
+          }} 
+        />
       )}
     </div>
   );

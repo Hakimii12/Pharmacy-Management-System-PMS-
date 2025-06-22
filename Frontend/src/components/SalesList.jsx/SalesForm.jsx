@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaTimes, FaCheck, FaSearch, FaFilter, FaSortAmountDown, FaAngleLeft, FaAngleRight } from 'react-icons/fa';
+import { FaTimes, FaCheck, FaSearch, FaFilter, FaSortAmountDown, FaAngleLeft, FaAngleRight, FaTrash } from 'react-icons/fa';
 import { products } from '../../data/products';
 
 const SalesForm = ({ onSave, onClose }) => {
-  const [selectedDrug, setSelectedDrug] = useState(null);
-  const [quantity, setQuantity] = useState(1);
+  const [selectedItems, setSelectedItems] = useState([]);
   const [errors, setErrors] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -45,66 +44,126 @@ const SalesForm = ({ onSave, onClose }) => {
   // Get unique categories for filter dropdown
   const categories = ['All', ...new Set(products.map(drug => drug.category))];
 
-  // Scroll to bottom when drug is selected
+  // Scroll to bottom when new item is added
   useEffect(() => {
-    if (selectedDrug && formRef.current) {
+    if (selectedItems.length > 0 && formRef.current) {
       formRef.current.scrollTo({
         top: formRef.current.scrollHeight,
         behavior: 'smooth'
       });
     }
-  }, [selectedDrug]);
+  }, [selectedItems]);
+
+  const handleAddItem = (drug) => {
+    // Check if already added
+    const existingItem = selectedItems.find(item => item.drug.id === drug.id);
+    
+    if (existingItem) {
+      // Update quantity if already added
+      setSelectedItems(prev => 
+        prev.map(item => 
+          item.drug.id === drug.id 
+            ? { ...item, quantity: Math.min(item.quantity + 1, drug.quantity) } 
+            : item
+        )
+      );
+    } else {
+      // Add new item
+      setSelectedItems(prev => [
+        ...prev,
+        {
+          drug,
+          quantity: 1,
+          costPrice: drug.unitPrice,
+          sellingPricePerUnit: drug.unitPrice * (1 + drug.markup / 100),
+        }
+      ]);
+    }
+  };
+
+  const handleQuantityChange = (id, value) => {
+    const parsedValue = parseInt(value) || 1;
+    
+    setSelectedItems(prev => 
+      prev.map(item => {
+        if (item.drug.id === id) {
+          return { 
+            ...item, 
+            quantity: Math.max(1, Math.min(parsedValue, item.drug.quantity))
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleRemoveItem = (id) => {
+    setSelectedItems(prev => prev.filter(item => item.drug.id !== id));
+  };
 
   const calculateSaleDetails = () => {
-    if (!selectedDrug) return null;
+    let totalSale = 0;
+    let totalProfit = 0;
     
-    const costPrice = selectedDrug.unitPrice;
-    const sellingPricePerUnit = costPrice * (1 + selectedDrug.markup / 100);
-    const totalSellingPrice = sellingPricePerUnit * quantity;
-    const profit = (sellingPricePerUnit - costPrice) * quantity;
+    const detailedItems = selectedItems.map(item => {
+      const sellingPrice = item.sellingPricePerUnit * item.quantity;
+      const profit = (item.sellingPricePerUnit - item.costPrice) * item.quantity;
+      
+      totalSale += sellingPrice;
+      totalProfit += profit;
+      
+      return {
+        ...item,
+        totalSellingPrice: sellingPrice,
+        profit
+      };
+    });
     
     return {
-      costPrice,
-      sellingPricePerUnit,
-      totalSellingPrice,
-      profit
+      detailedItems,
+      totalSale,
+      totalProfit
     };
   };
 
-  const saleDetails = calculateSaleDetails();
+  const { detailedItems, totalSale, totalProfit } = calculateSaleDetails();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!selectedDrug) {
-      setErrors({ drug: 'Please select a drug' });
+    // Validate selections
+    const newErrors = {};
+    
+    if (selectedItems.length === 0) {
+      newErrors.general = 'Please select at least one product';
+    }
+    
+    selectedItems.forEach(item => {
+      if (item.quantity > item.drug.quantity) {
+        newErrors[`quantity-${item.drug.id}`] = `Only ${item.drug.quantity} units available`;
+      }
+    });
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
     
-    if (quantity <= 0) {
-      setErrors({ quantity: 'Quantity must be at least 1' });
-      return;
-    }
+    // Create sale records
+    const saleRecords = detailedItems.map(item => ({
+      drugId: item.drug.id,
+      drugName: item.drug.name,
+      brand: item.drug.brand,
+      quantitySold: item.quantity,
+      unitCostPrice: item.costPrice,
+      markupPercentage: item.drug.markup,
+      sellingPricePerUnit: item.sellingPricePerUnit,
+      totalSellingPrice: item.totalSellingPrice,
+      profit: item.profit,
+      soldOut: (item.drug.quantity - item.quantity) === 0
+    }));
     
-    if (quantity > selectedDrug.quantity) {
-      setErrors({ quantity: `Only ${selectedDrug.quantity} units available` });
-      return;
-    }
-    
-    const saleRecord = {
-      drugId: selectedDrug.id,
-      drugName: selectedDrug.name,
-      brand: selectedDrug.brand,
-      quantitySold: quantity,
-      unitCostPrice: saleDetails.costPrice,
-      markupPercentage: selectedDrug.markup,
-      sellingPricePerUnit: saleDetails.sellingPricePerUnit,
-      totalSellingPrice: saleDetails.totalSellingPrice,
-      profit: saleDetails.profit,
-      soldOut: (selectedDrug.quantity - quantity) === 0
-    };
-    
-    onSave(saleRecord);
+    onSave(saleRecords);
     onClose();
   };
 
@@ -195,18 +254,19 @@ const SalesForm = ({ onSave, onClose }) => {
             
             {/* Drug Selection Grid */}
             <div className="mb-6">
+              {errors.general && (
+                <p className="text-red-500 text-center mb-4">{errors.general}</p>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {currentItems.length > 0 ? (
                   currentItems.map(drug => (
                     <div 
                       key={drug.id}
-                      onClick={() => {
-                        setSelectedDrug(drug);
-                        setErrors({});
-                      }}
+                      onClick={() => handleAddItem(drug)}
                       className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                        selectedDrug?.id === drug.id 
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100' 
+                        selectedItems.some(item => item.drug.id === drug.id)
+                          ? 'border-green-500 bg-green-50 ring-2 ring-green-100' 
                           : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
                       }`}
                     >
@@ -306,83 +366,101 @@ const SalesForm = ({ onSave, onClose }) => {
                   </button>
                 </div>
               )}
-              
-              {errors.drug && <p className="mt-2 text-sm text-red-500">{errors.drug}</p>}
             </div>
             
-            {/* Sale Details */}
-            {selectedDrug && (
+            {/* Selected Items Section */}
+            {selectedItems.length > 0 && (
               <div className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-6">
                 <h3 className="text-lg font-bold text-blue-800 mb-4">
-                  Selling: {selectedDrug.name} ({selectedDrug.brand})
+                  Selected Products for Sale
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Quantity *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="1"
-                        max={selectedDrug.quantity}
-                        value={quantity}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 1;
-                          setQuantity(value);
-                          setErrors({});
-                        }}
-                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          errors.quantity ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      <div className="absolute right-3 top-2 text-gray-400">
-                        units
+                {detailedItems.map((item) => (
+                  <div key={item.drug.id} className="bg-white rounded-lg p-4 border border-blue-100 mb-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-gray-900">{item.drug.name} ({item.drug.brand})</h4>
+                        <p className="text-sm text-gray-500">{item.drug.category}</p>
+                      </div>
+                      <button 
+                        onClick={() => handleRemoveItem(item.drug.id)}
+                        className="text-gray-500 hover:text-red-500 p-1"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                    
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Quantity *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            max={item.drug.quantity}
+                            value={item.quantity}
+                            onChange={(e) => handleQuantityChange(item.drug.id, e.target.value)}
+                            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              errors[`quantity-${item.drug.id}`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          <div className="absolute right-3 top-2 text-gray-400">
+                            units
+                          </div>
+                        </div>
+                        {errors[`quantity-${item.drug.id}`] && (
+                          <p className="mt-1 text-sm text-red-500">{errors[`quantity-${item.drug.id}`]}</p>
+                        )}
+                        <p className="mt-1 text-sm text-gray-500">
+                          {item.drug.quantity} units available
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="text-gray-600">Unit Cost:</div>
+                            <div className="font-medium">${item.costPrice.toFixed(2)}</div>
+                            
+                            <div className="text-gray-600">Markup:</div>
+                            <div className="font-medium">{item.drug.markup}%</div>
+                            
+                            <div className="text-gray-600">Selling Price:</div>
+                            <div className="font-medium text-green-600">${item.sellingPricePerUnit.toFixed(2)}</div>
+                            
+                            <div className="text-gray-600">Quantity:</div>
+                            <div className="font-medium">{item.quantity}</div>
+                            
+                            <div className="text-gray-600 font-semibold">Total:</div>
+                            <div className="font-bold text-lg">
+                              ${item.totalSellingPrice.toFixed(2)}
+                            </div>
+                            
+                            <div className="text-gray-600 font-semibold">Profit:</div>
+                            <div className="font-bold text-green-600">
+                              ${item.profit.toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    {errors.quantity && <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>}
-                    <p className="mt-1 text-sm text-gray-500">
-                      {selectedDrug.quantity} units available
-                    </p>
                   </div>
-                  
-                  {saleDetails && (
-                    <div className="bg-white rounded-lg p-4 border border-blue-100">
-                      <h3 className="font-medium text-blue-800 mb-2">Sale Summary</h3>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="text-gray-600">Unit Cost:</div>
-                        <div className="font-medium">
-                          ${saleDetails.costPrice.toFixed(2)}
-                        </div>
-                        
-                        <div className="text-gray-600">Markup:</div>
-                        <div className="font-medium">
-                          {selectedDrug.markup}%
-                        </div>
-                        
-                        <div className="text-gray-600">Selling Price:</div>
-                        <div className="font-medium text-green-600">
-                          ${saleDetails.sellingPricePerUnit.toFixed(2)}
-                        </div>
-                        
-                        <div className="text-gray-600">Quantity:</div>
-                        <div className="font-medium">
-                          {quantity}
-                        </div>
-                        
-                        <div className="text-gray-600 font-semibold">Total Sale:</div>
-                        <div className="font-bold text-lg">
-                          ${saleDetails.totalSellingPrice.toFixed(2)}
-                        </div>
-                        
-                        <div className="text-gray-600 font-semibold">Profit:</div>
-                        <div className="font-bold text-green-600">
-                          ${saleDetails.profit.toFixed(2)}
-                        </div>
+                ))}
+                
+                {/* Grand Total */}
+                <div className="mt-6 pt-4 border-t border-blue-200">
+                  <div className="flex justify-end">
+                    <div className="text-right">
+                      <div className="text-lg font-semibold text-gray-800">
+                        Grand Total Sale: <span className="text-green-600">${totalSale.toFixed(2)}</span>
+                      </div>
+                      <div className="text-lg font-semibold text-gray-800">
+                        Total Profit: <span className="text-green-600">${totalProfit.toFixed(2)}</span>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             )}
@@ -401,16 +479,16 @@ const SalesForm = ({ onSave, onClose }) => {
             </button>
             <button
               type="submit"
-              disabled={!selectedDrug}
+              disabled={selectedItems.length === 0}
               className={`px-4 py-2 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center ${
-                selectedDrug 
+                selectedItems.length > 0 
                   ? 'bg-green-600 hover:bg-green-700' 
                   : 'bg-gray-400 cursor-not-allowed'
               }`}
               onClick={handleSubmit}
             >
               <FaCheck className="mr-2" />
-              Complete Sale
+              Complete Sale ({selectedItems.length})
             </button>
           </div>
         </div>
