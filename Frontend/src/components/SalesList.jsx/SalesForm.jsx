@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaTimes, FaCheck, FaSearch, FaFilter, FaSortAmountDown } from 'react-icons/fa';
+import { FaTimes, FaCheck, FaSearch, FaFilter, FaSortAmountDown, FaAngleLeft, FaAngleRight } from 'react-icons/fa';
 import { products } from '../../data/products';
 
 const SalesForm = ({ onSave, onClose }) => {
@@ -9,6 +9,8 @@ const SalesForm = ({ onSave, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('name');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6);
   const formRef = useRef(null);
   
   // Filter only products that are in stock
@@ -28,6 +30,17 @@ const SalesForm = ({ onSave, onClose }) => {
       if (sortBy === 'price') return a.unitPrice - b.unitPrice;
       return 0;
     });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredproducts.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredproducts.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, sortBy]);
 
   // Get unique categories for filter dropdown
   const categories = ['All', ...new Set(products.map(drug => drug.category))];
@@ -183,8 +196,8 @@ const SalesForm = ({ onSave, onClose }) => {
             {/* Drug Selection Grid */}
             <div className="mb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredproducts.length > 0 ? (
-                  filteredproducts.map(drug => (
+                {currentItems.length > 0 ? (
+                  currentItems.map(drug => (
                     <div 
                       key={drug.id}
                       onClick={() => {
@@ -247,6 +260,53 @@ const SalesForm = ({ onSave, onClose }) => {
                   </div>
                 )}
               </div>
+              
+              {/* Pagination Controls */}
+              {filteredproducts.length > itemsPerPage && (
+                <div className="flex items-center justify-center mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className={`flex items-center px-3 py-1 rounded-l-md ${
+                      currentPage === 1 
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <FaAngleLeft className="mr-1" /> Prev
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1 mx-0.5 ${
+                        currentPage === page
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`flex items-center px-3 py-1 rounded-r-md ${
+                      currentPage === totalPages 
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Next <FaAngleRight className="ml-1" />
+                  </button>
+                </div>
+              )}
+              
               {errors.drug && <p className="mt-2 text-sm text-red-500">{errors.drug}</p>}
             </div>
             
