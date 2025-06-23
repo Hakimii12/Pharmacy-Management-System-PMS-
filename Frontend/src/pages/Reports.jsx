@@ -1,5 +1,196 @@
 import React, { useState, useEffect } from 'react';
-import { FaChartLine, FaMoneyBillWave, FaFileExport, FaEdit, FaTrash, FaSearch, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { 
+  FaChartLine, FaMoneyBillWave, FaFileExport, FaEdit, FaTrash, 
+  FaSearch, FaChevronLeft, FaChevronRight, FaTimes, FaSave 
+} from 'react-icons/fa';
+
+const EditReportItemModal = ({ 
+  isOpen, 
+  onClose, 
+  item, 
+  listType, 
+  onSave 
+}) => {
+  const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    if (item) {
+      setFormData({ ...item });
+    }
+  }, [item]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData, listType);
+    onClose();
+  };
+
+  if (!isOpen || !item) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+        <div className="flex justify-between items-center px-6 py-4 border-b">
+          <h2 className="text-xl font-bold text-gray-800">Edit Report Item</h2>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <FaTimes />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+              <input
+                type="text"
+                name="brand"
+                value={formData.brand || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number</label>
+              <input
+                type="text"
+                name="batch"
+                value={formData.batch || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            
+            {/* Conditional Fields Based on Report Type */}
+            {listType === 'sold' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date Sold</label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="quantity"
+                    value={formData.quantity || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </>
+            )}
+            
+            {listType === 'zeroStock' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Sold Date</label>
+                <input
+                  type="date"
+                  name="lastSold"
+                  value={formData.lastSold || ''}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            )}
+            
+            {listType === 'lowStock' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="stock"
+                    value={formData.stock || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Threshold</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="threshold"
+                    value={formData.threshold || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </>
+            )}
+            
+            {listType === 'expired' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                <input
+                  type="date"
+                  name="expiryDate"
+                  value={formData.expiryDate || ''}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center transition-colors"
+            >
+              <FaSave className="mr-2" />
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const Reports = () => {
   // Mock data for inventory reports with additional fields
@@ -57,6 +248,11 @@ const Reports = () => {
     expired: { currentPage: 1, itemsPerPage: 5 }
   });
   
+  // State for edit modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentEditItem, setCurrentEditItem] = useState(null);
+  const [currentListType, setCurrentListType] = useState('');
+
   // Status badge component
   const StatusBadge = ({ status }) => {
     let bgColor = 'bg-blue-100 text-blue-800';
@@ -140,13 +336,31 @@ const Reports = () => {
   
   // Edit and delete handlers
   const handleEdit = (id, listType) => {
-    console.log(`Editing item ${id} from ${listType}`);
-    // In a real application, this would open a modal or form
+    let itemToEdit;
+    switch(listType) {
+      case 'sold':
+        itemToEdit = soldItems.find(item => item.id === id);
+        break;
+      case 'zeroStock':
+        itemToEdit = zeroStockItems.find(item => item.id === id);
+        break;
+      case 'lowStock':
+        itemToEdit = lowStockItems.find(item => item.id === id);
+        break;
+      case 'expired':
+        itemToEdit = expiredItems.find(item => item.id === id);
+        break;
+      default:
+        itemToEdit = null;
+    }
+    if (itemToEdit) {
+      setCurrentEditItem(itemToEdit);
+      setCurrentListType(listType);
+      setIsEditModalOpen(true);
+    }
   };
   
   const handleDelete = (id, listType) => {
-    console.log(`Deleting item ${id} from ${listType}`);
-    
     // Update the appropriate list
     switch(listType) {
       case 'sold':
@@ -164,6 +378,29 @@ const Reports = () => {
       default:
         break;
     }
+  };
+  
+  // Save edited item
+  const handleSaveEdit = (updatedItem, listType) => {
+    switch(listType) {
+      case 'sold':
+        setSoldItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        break;
+      case 'zeroStock':
+        setZeroStockItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        break;
+      case 'lowStock':
+        setLowStockItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        break;
+      case 'expired':
+        setExpiredItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        break;
+      default:
+        break;
+    }
+    setIsEditModalOpen(false);
+    setCurrentEditItem(null);
+    setCurrentListType('');
   };
   
   // Filter and paginate data
@@ -483,6 +720,15 @@ const Reports = () => {
           </div>
         </div>
       </div>
+      
+      {/* Edit Modal */}
+      <EditReportItemModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        item={currentEditItem}
+        listType={currentListType}
+        onSave={handleSaveEdit}
+      />
     </div>
   );
 };

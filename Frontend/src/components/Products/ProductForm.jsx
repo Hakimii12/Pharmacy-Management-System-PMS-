@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaSave } from 'react-icons/fa';
+import { FaTimes, FaSave, FaExclamationTriangle, FaCalculator } from 'react-icons/fa';
 import { productCategories } from '../../data/products';
 
 const ProductForm = ({ product, onSave, onClose }) => {
@@ -15,6 +15,8 @@ const ProductForm = ({ product, onSave, onClose }) => {
   });
   
   const [errors, setErrors] = useState({});
+  const [isExpired, setIsExpired] = useState(false);
+  const [status, setStatus] = useState('In Stock');
 
   useEffect(() => {
     if (product) {
@@ -28,8 +30,34 @@ const ProductForm = ({ product, onSave, onClose }) => {
         markup: product.markup,
         category: product.category
       });
+      checkExpiryStatus(product.expirationDate);
+      calculateStatus(product.quantity, product.expirationDate);
     }
   }, [product]);
+
+  const checkExpiryStatus = (date) => {
+    const expiryDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    setIsExpired(expiryDate < today);
+  };
+
+  const calculateStatus = (quantity, expirationDate) => {
+    const expiryDate = new Date(expirationDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (expiryDate < today) {
+      setStatus('Expired');
+    } else if (quantity <= 0) {
+      setStatus('Sold Out');
+    } else if (quantity <= 5) {
+      setStatus('Low Stock');
+    } else {
+      setStatus('In Stock');
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,12 +73,24 @@ const ProductForm = ({ product, onSave, onClose }) => {
         [name]: ''
       });
     }
+    
+    // Check expiry status when date changes
+    if (name === 'expirationDate') {
+      checkExpiryStatus(value);
+    }
+    
+    // Calculate status when quantity or expiration date changes
+    if (name === 'quantity' || name === 'expirationDate') {
+      const qty = name === 'quantity' ? value : formData.quantity;
+      const expDate = name === 'expirationDate' ? value : formData.expirationDate;
+      calculateStatus(qty, expDate);
+    }
   };
 
   const validate = () => {
     const newErrors = {};
     
-    if (!formData.name) newErrors.name = 'product name is required';
+    if (!formData.name) newErrors.name = 'Product name is required';
     if (!formData.brand) newErrors.brand = 'Brand is required';
     if (!formData.unitPrice || formData.unitPrice <= 0) newErrors.unitPrice = 'Unit price must be positive';
     if (!formData.quantity || formData.quantity < 0) newErrors.quantity = 'Quantity cannot be negative';
@@ -71,43 +111,57 @@ const ProductForm = ({ product, onSave, onClose }) => {
       return;
     }
     
-    // Calculate total price
-    const totalPrice = parseFloat(formData.unitPrice) * parseInt(formData.quantity);
-    
     // Create product object with calculated fields
-    const newproduct = {
+    const newProduct = {
       ...formData,
+      id: product ? product.id : Date.now(), // Keep existing ID if editing
       unitPrice: parseFloat(formData.unitPrice),
       quantity: parseInt(formData.quantity),
       markup: parseInt(formData.markup),
-      totalPrice,
-      isExpired: new Date(formData.expirationDate) < new Date()
+      status,
+      isExpired,
+      totalValue: parseFloat(formData.unitPrice) * parseInt(formData.quantity)
     };
     
     onSave(newProduct);
     onClose();
   };
 
+ const sellingPrice = formData.unitPrice 
+  ? (parseFloat(formData.unitPrice) * (1 + parseInt(formData.markup || 0) / 100)).toFixed(2)
+  : '0.00';
+
+  const totalValue = formData.unitPrice && formData.quantity 
+    ? (parseFloat(formData.unitPrice) * parseInt(formData.quantity)).toFixed(2)
+    : '0.00';
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl">
         <div className="flex justify-between items-center px-6 py-4 border-b">
           <h2 className="text-xl font-bold text-gray-800">
-            {product ? 'Edit product' : 'Add New product'}
+            {product ? 'Edit Product' : 'Add New Product'}
           </h2>
           <button 
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 transition-colors"
           >
             <FaTimes />
           </button>
         </div>
         
         <form onSubmit={handleSubmit} className="p-6">
+          {isExpired && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
+              <FaExclamationTriangle className="text-red-500 mr-2" />
+              <span className="text-red-700">Warning: This product has expired!</span>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                product Name *
+                Product Name *
               </label>
               <input
                 type="text"
@@ -249,32 +303,38 @@ const ProductForm = ({ product, onSave, onClose }) => {
           </div>
           
           <div className="mt-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-medium text-blue-800">Pricing Summary</h3>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                <div className="text-gray-600">Unit Price:</div>
-                <div className="font-medium">
-                  ${formData.unitPrice ? parseFloat(formData.unitPrice).toFixed(2) : '0.00'}
-                </div>
-                
-                <div className="text-gray-600">Markup:</div>
-                <div className="font-medium">
-                  {formData.markup || 0}%
-                </div>
-                
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h3 className="font-medium text-blue-800 mb-2">Product Summary</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-gray-600">Selling Price:</div>
                 <div className="font-medium text-green-600">
-                  ${formData.unitPrice && formData.markup 
-                    ? (parseFloat(formData.unitPrice) * (1 + parseInt(formData.markup)/100)).toFixed(2) 
-                    : '0.00'}
+                  ${sellingPrice}
                 </div>
                 
                 <div className="text-gray-600">Total Value:</div>
                 <div className="font-medium">
-                  ${formData.unitPrice && formData.quantity 
-                    ? (parseFloat(formData.unitPrice) * parseInt(formData.quantity)).toFixed(2) 
-                    : '0.00'}
+                  ${totalValue}
                 </div>
+                
+                <div className="text-gray-600">Status:</div>
+                <div className="font-medium">
+                  {status === 'Expired' ? (
+                    <span className="text-red-600">Expired</span>
+                  ) : status === 'Sold Out' ? (
+                    <span className="text-red-600">Sold Out</span>
+                  ) : status === 'Low Stock' ? (
+                    <span className="text-yellow-600">Low Stock</span>
+                  ) : (
+                    <span className="text-green-600">In Stock</span>
+                  )}
+                </div>
+                
+                {isExpired && (
+                  <>
+                    <div className="text-gray-600">Expiry Status:</div>
+                    <div className="font-medium text-red-600">Expired</div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -283,16 +343,16 @@ const ProductForm = ({ product, onSave, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center transition-colors"
             >
               <FaSave className="mr-2" />
-              {product ? 'Update Drug' : 'Add Drug'}
+              {product ? 'Update Product' : 'Add Product'}
             </button>
           </div>
         </form>
