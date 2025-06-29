@@ -1,11 +1,10 @@
 import bcrypt from 'bcryptjs';
-import jwt from "jsonwebtoken";
-import User from '../models/UserModel';
-import { GenerateToken } from '../utils/GenerateToken';
+import User from '../models/UserModel.js';
+import { GenerateToken } from '../utils/GenerateToken.js';
 // Register a new user
-export async function registerUser(req, res) {
+export async function RegisterUser(req, res) {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, role } = req.body;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
@@ -21,6 +20,7 @@ export async function registerUser(req, res) {
             name,
             email,
             password: hashedPassword,
+            role
         });
 
         await user.save();
@@ -32,7 +32,7 @@ export async function registerUser(req, res) {
 };
 
 // Sign in user
-export async function loginUser(req, res) {
+export async function LoginUser(req, res) {
     try {
         const { email, password } = req.body;
 
@@ -50,8 +50,7 @@ export async function loginUser(req, res) {
 
         // Generate JWT
         GenerateToken(user._id, user.role, res);
-
-        res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+        res.json( { id: user._id, name: user.name, email: user.email} );
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
     }
