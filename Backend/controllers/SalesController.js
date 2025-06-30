@@ -3,88 +3,95 @@ import Product from "../models/productModel.js";
 import Sales from "../models/SalesModel.js"
 import User from "../models/UserModel.js"
 import DailyBalance from "../models/DailyBalance.js";
-export const prepareSale = async (items, pharmacistId) => {
-  const preparedItems = [];
-  let grandTotal = 0;
-  
-  for (const item of items) {
-    const product = await Product.findById(item.productId);
-    
-    if (!product) throw new Error(`Product not found: ${item.productId}`);
-    if (product.quantity < item.quantity) {
-      throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
-    }
-    if (product.expiryDate < new Date()) {
-      throw new Error(`Product expired: ${product.name} (Batch: ${product.batchNo})`);
-    }
-
-    const saleAmount = product.sellingPrice * item.quantity;
-    const profit = (product.sellingPrice - product.unitPrice) * item.quantity;
-    
-    preparedItems.push({
-      productId: product._id,
-      quantity: item.quantity,
-      name:product.name,
-      brand:product.brand,
-      saleAmount,
-      profit
-    });
-    
-    grandTotal += saleAmount;
-  }
-  return {
-    transactionId: new mongoose.Types.ObjectId().toString(),
-    items: preparedItems,
-    grandTotal,
-    pharmacistId,
-    timestamp: new Date()
-  };
-};
-export const savePreparedSale = async (preparedSale) => {
+export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
   try {
+    const pharmacistId=req.user._id
+    const { items } = req.body;
+    const preparedItems = [];
+    let grandTotal = 0;
+    const transactionId = new mongoose.Types.ObjectId().toString();
+    const timestamp = new Date();
+
+    // Validate and prepare items
+    for (const item of items) {
+      const product = await Product.findById(item.productId).session(session);
+      if (!product) {
+        throw new Error(`Product not found: ${item.productId}`);
+      }
+      if (product.quantity < item.quantity) {
+        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
+      }
+      if (product.expiryDate < new Date()) {
+        throw new Error(`Product expired: ${product.name} (Batch: ${product.batchNo})`);
+      }
+
+      const saleAmount = product.sellingPrice * item.quantity;
+      const profit = (product.sellingPrice - product.unitPrice) * item.quantity;
+      
+      preparedItems.push({
+        productId: product._id,
+        name: product.name,
+        brand: product.brand,
+        quantity: item.quantity,
+        saleAmount,
+        profit
+      });
+      
+      grandTotal += saleAmount;
+    }
+
+    // Create sales records
     const salesRecords = [];
-    
-    for (const item of preparedSale.items) {
+    for (const item of preparedItems) {
       const saleRecord = new Sales({
-        transactionId: preparedSale.transactionId,
+        transactionId,
         product: item.productId,
-        name:item.name,
-        brand:item.brand,
+        name: item.name,
+        brand: item.brand,
         quantitySold: item.quantity,
         profit: item.profit,
         saleAmount: item.saleAmount,
         status: "pending",
-        pharmacist: preparedSale.pharmacistId,
-        timestamp: preparedSale.timestamp
+        pharmacist: pharmacistId,
+        timestamp
       });
       
       await saleRecord.save({ session });
       salesRecords.push(saleRecord);
     }
-    
+
     await session.commitTransaction();
-    return {
+    
+    res.status(201).json({
       success: true,
-      transactionId: preparedSale.transactionId,
-      grandTotal: preparedSale.grandTotal,
+      transactionId,
+      grandTotal,
+      items: preparedItems,
       salesRecords
-    };
+    });
   } catch (error) {
     await session.abortTransaction();
-    throw new Error(`Failed to save sale: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   } finally {
     session.endSession();
   }
 };
-export const confirmSale = async (transactionId, cashierId) => {
+
+// Cashier: Confirm sale (after payment)
+export const ConfirmSale = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
   try {
-    // Find all pending sales records for this transaction
+    const { transactionId } = req.params;
+    const cashierId = req.user.id; // Assuming authenticated user
+
     const salesRecords = await Sales.find({ 
       transactionId, 
       status: "pending" 
@@ -94,48 +101,53 @@ export const confirmSale = async (transactionId, cashierId) => {
       throw new Error("No pending transactions found");
     }
 
-    // Process each item in the transaction
     for (const record of salesRecords) {
-      // 1. Update product inventory
+      // Update product inventory
       const product = await Product.findByIdAndUpdate(
         record.product,
         { $inc: { quantity: -record.quantitySold } },
         { new: true, session }
       );
       
-      // 2. Update product expiration status if needed
+      // Update expiration status if stock depleted
       if (product.quantity <= 0) {
         product.isExpired = (product.expiryDate < new Date());
         await product.save({ session });
       }
       
-      // 3. Update sales record status
+      // Update sales record
       record.status = "completed";
       record.cashier = cashierId;
       await record.save({ session });
     }
     
     await session.commitTransaction();
-    return {
+    
+    res.json({
       success: true,
       transactionId,
-      completedAt: new Date()
-    };
+      completedAt: new Date(),
+      itemsCount: salesRecords.length
+    });
   } catch (error) {
     await session.abortTransaction();
     
-    // Mark transaction as aborted on failure
+    // Mark as aborted on failure
     await Sales.updateMany(
-      { transactionId, status: "pending" },
+      { transactionId: req.params.transactionId, status: "pending" },
       { $set: { status: "aborted" } }
     );
     
-    throw new Error(`Sale confirmation failed: ${error.message}`);
+    res.status(400).json({
+      success: false,
+      error: `Sale failed: ${error.message}`
+    });
   } finally {
     session.endSession();
   }
 };
-export const abortSale = async (transactionId) => {
+export const AbortSale = async (req,res) => {
+  const { transactionId } = req.params;
   const result = await Sales.updateMany(
     { transactionId, status: "pending" },
     { $set: { status: "aborted" } }
@@ -144,14 +156,14 @@ export const abortSale = async (transactionId) => {
   if (result.nModified === 0) {
     throw new Error("No pending transactions found to abort");
   }
-  
-  return {
-    success: true,
-    transactionId,
-    abortedAt: new Date()
-  };
+  return res.status(200).json({
+      success: true,
+      transactionId,
+      abortedAt: new Date()
+    });
 };
-export const closeDailyBalance = async (cashierId, countedAmount) => {
+export const CloseDailyBalance = async (req,res) => {
+  const {cashierId, countedAmount}=req.body;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -176,7 +188,7 @@ export const closeDailyBalance = async (cashierId, countedAmount) => {
     date: today,
     expectedAmount,
     countedAmount,
-    status: countedAmount === expectedAmount ? "verified" : "discrepancy",
+    status: countedAmount == expectedAmount ? "verified" : "discrepancy",
     transactions: transactions.map(t => t._id),
     cashier: cashierId,
     ...(countedAmount !== expectedAmount && {
@@ -185,10 +197,9 @@ export const closeDailyBalance = async (cashierId, countedAmount) => {
   });
   
   await dailyBalance.save();
-  
-  return {
+  return res.status(200).json({
     success: true,
     dailyBalance,
     transactionCount: transactions.length
-  };
+  });
 };

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 const ProductSchema = new mongoose.Schema({
+     addedBy:{type:mongoose.Schema.Types.ObjectId , ref:"User" ,required:true},
      name: {type:String , required:true,index:true},
      brand: {type:String,required:true, index:true},
      unitPrice:{type:Number , required:true},

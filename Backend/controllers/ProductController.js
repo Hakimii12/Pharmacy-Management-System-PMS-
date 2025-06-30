@@ -4,8 +4,10 @@ import Sales from "../models/SalesModel.js";
 import { updateProfitSummary} from "../utils/profitUtils.js";
 export async function CreateProduct(req,res){
     try {
+        const userId=req.user._id
     const { name, brand, unitPrice, quantity, batchNo, expiryDate, markup,DosageForms,ProductType} = req.body;
         const newProduct = new Product({
+            addedBy:userId,
             name,
             brand,
             unitPrice,
