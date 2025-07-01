@@ -1,10 +1,14 @@
 import express from "express";
-import { CreateProduct ,GetAllProducts,RecordSale} from "../controllers/ProductController.js";
+import { CreateProduct,
+  IssueToDispensary,
+  ReturnToStore,
+  GetProductHistory} from "../controllers/ProductController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 const router =  express.Router();
 
 router.post("/CreateProducts",Authenticated (), CreateProduct);
-router.get("/products", GetAllProducts);
-router.post("/sales", RecordSale);
+router.post("/issueToDispensary",Authenticated(),IssueToDispensary);
+router.post("/returnToStore", Authenticated(), ReturnToStore);
+router.get("/productHistory/:productId", Authenticated(), GetProductHistory);
 
 export default router

@@ -14,6 +14,15 @@ const ProductSchema = new mongoose.Schema({
      isExpired:{type:Boolean,default:false},
      DosageForms:{ type:String,enum:["tablet","syrup","injection","ointment"]},
      ProductType:{ type:String,enum:["medicine","cosmetic","Supplements","Medical Equipment"]},
+     distributor: {
+    name: { type: String, required: true },
+    licenseNumber: { type: String, required: true },
+    contact: String
+    },
+    inventory: {
+    store: { type: Number, default: 0 },
+    dispensary: { type: Number, default: 0 }
+    },
      createdAt: { type: Date, default: Date.now },
      updatedAt: { type: Date, default: Date.now }
 });
