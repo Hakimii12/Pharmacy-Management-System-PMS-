@@ -21,8 +21,8 @@ export const PrepareAndSaveSale = async (req, res) => {
       if (!product) {
         throw new Error(`Product not found: ${item.productId}`);
       }
-      if (product.quantity < item.quantity) {
-        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
+      if (product.inventory.dispensary < item.quantity) {
+        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.inventory.dispensary}`);
       }
       if (product.expiryDate < new Date()) {
         throw new Error(`Product expired: ${product.name} (Batch: ${product.batchNo})`);
@@ -100,12 +100,11 @@ export const ConfirmSale = async (req, res) => {
     if (!salesRecords.length) {
       throw new Error("No pending transactions found");
     }
-
     for (const record of salesRecords) {
       // Update product inventory
       const product = await Product.findByIdAndUpdate(
         record.product,
-        { $inc: { quantity: -record.quantitySold } },
+        { $inc: {'inventory.dispensary': -record.quantitySold ,quantity:-record.quantitySold} },
         { new: true, session }
       );
       
@@ -114,13 +113,11 @@ export const ConfirmSale = async (req, res) => {
         product.isExpired = (product.expiryDate < new Date());
         await product.save({ session });
       }
-      
       // Update sales record
       record.status = "completed";
       record.cashier = cashierId;
       await record.save({ session });
     }
-    
     await session.commitTransaction();
     
     res.json({

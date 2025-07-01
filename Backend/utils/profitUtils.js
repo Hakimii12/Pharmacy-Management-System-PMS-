@@ -7,6 +7,7 @@ export async function updateProfitSummary(profit,saleDate=new Date()){
         const startOfMonth = new Date(saleDate.getFullYear(),saleDate.getMonth(),1);
         const startOfYear = new Date(saleDate.getFullYear(),0,1);
         let summary = await Profit.findOne() || new Profit();
+        console.log(profit)
         if(saleDate >=startOfDay){
             summary.daily +=profit;
         }
@@ -26,11 +27,10 @@ export async function updateProfitSummary(profit,saleDate=new Date()){
 export async function recalculateAggregates(){
   try {
     const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    // Use UTC for accurate period boundaries
+    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const startOfYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
     const [daily, monthly, yearly] = await Promise.all([
       Sale.aggregate([{
