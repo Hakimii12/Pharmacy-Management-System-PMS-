@@ -3,6 +3,7 @@ import Product from "../models/productModel.js";
 import Sales from "../models/SalesModel.js"
 import User from "../models/UserModel.js"
 import DailyBalance from "../models/DailyBalance.js";
+import { updateProfitSummary } from "../utils/profitUtils.js";
 export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -100,6 +101,7 @@ export const ConfirmSale = async (req, res) => {
     if (!salesRecords.length) {
       throw new Error("No pending transactions found");
     }
+    let currentProfit=0;
     for (const record of salesRecords) {
       // Update product inventory
       const product = await Product.findByIdAndUpdate(
@@ -116,8 +118,10 @@ export const ConfirmSale = async (req, res) => {
       // Update sales record
       record.status = "completed";
       record.cashier = cashierId;
+      currentProfit +=record.profit
       await record.save({ session });
     }
+    updateProfitSummary(currentProfit,new Date());
     await session.commitTransaction();
     
     res.json({

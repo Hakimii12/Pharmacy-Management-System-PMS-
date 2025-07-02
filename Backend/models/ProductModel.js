@@ -21,10 +21,23 @@ const ProductSchema = new mongoose.Schema({
     },
     inventory: {
     store: { type: Number, default: 0 },
-    dispensary: { type: Number, default: 0 }
+    dispensary: { type: Number, default: 0 },
+    storeThreshold: { type: Number, default: 10 },
+    dispensaryThreshold: { type: Number, default: 10 }
     },
      createdAt: { type: Date, default: Date.now },
      updatedAt: { type: Date, default: Date.now }
+});
+ProductSchema.pre("save",function(next){
+     if(this.isModified("expiryDate")){
+          const today = new Date()
+          this.isExpired = this.expiryDate <=today;
+     }
+     next();
+});
+ProductSchema.post("save" , async function(doc){
+     // Send a notification or perform an action after saving a product
+     console.log("Product saved:", doc);
 });
 const Product = mongoose.model("Product", ProductSchema);
 export default Product;
