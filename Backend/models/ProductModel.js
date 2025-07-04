@@ -5,6 +5,7 @@ const ProductSchema = new mongoose.Schema({
      name: {type:String , required:true,index:true},
      brand: {type:String,required:true, index:true},
      unitPrice:{type:Number , required:true},
+     patientName:{type:String},
      quantity:{type:Number , required:true},
      totalPrice:{type:Number,required:true},
      batchNo:{type:String,required:true,unique:true},
