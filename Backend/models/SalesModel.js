@@ -1,5 +1,4 @@
 import mongoose, { Schema } from "mongoose";
-import Notification from "./NotificationModel.js";
 const salesSchema = new mongoose.Schema({
   transactionId: { type: String, required: true, index: true }, // Group multiple products
   product: { type: Schema.Types.ObjectId, ref: "Product", required: true },

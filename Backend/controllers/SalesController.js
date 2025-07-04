@@ -4,6 +4,7 @@ import Sales from "../models/SalesModel.js"
 import User from "../models/UserModel.js"
 import DailyBalance from "../models/DailyBalance.js";
 import { updateProfitSummary } from "../utils/profitUtils.js";
+import Notification from "../models/NotificationModel.js";
 export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -103,13 +104,14 @@ export const ConfirmSale = async (req, res) => {
     }
     let currentProfit=0;
     for (const record of salesRecords) {
-      // Update product inventory
-      const product = await Product.findByIdAndUpdate(
-        record.product,
-        { $inc: {'inventory.dispensary': -record.quantitySold ,quantity:-record.quantitySold} },
-        { new: true, session }
-      );
-      
+        const loc = 'dispensary';
+        const product = await Product.findByIdAndUpdate(
+          record.product,
+          { $inc: {'inventory.dispensary': -record.quantitySold ,quantity:-record.quantitySold} },
+          { new: true, session }
+        );
+        const quantity = product.inventory[loc];
+        const threshold = product.inventory[`${loc}Threshold`];
       // Update expiration status if stock depleted
       if (product.quantity <= 0) {
         product.isExpired = (product.expiryDate < new Date());
@@ -120,6 +122,31 @@ export const ConfirmSale = async (req, res) => {
       record.cashier = cashierId;
       currentProfit +=record.profit
       await record.save({ session });
+      if (quantity === 0 || quantity < threshold) {
+    const type = quantity === 0 ? 'OutOfStock' : 'LowStock';
+    const message = quantity === 0 
+      ? `Product ${product.name} is out of stock in ${loc}.`
+      : `Product ${product.name} is low in ${loc}. Current: ${quantity}, Threshold: ${threshold}.`;
+
+    // Check for existing notification
+    const existing = await Notification.findOne({
+      product: product._id,
+      location: loc,
+      type,
+      read: false
+    }).session(session);
+
+    if (!existing) {
+      const notification = new Notification({
+        type,
+        message,
+        product: product._id,
+        location: loc,
+        read: false
+      });
+      await notification.save({ session });
+    }
+  }
     }
     updateProfitSummary(currentProfit,new Date());
     await session.commitTransaction();
