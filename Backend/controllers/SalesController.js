@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Product from "../models/productModel.js";
+import Product from "../models/ProductModel.js";
 import Sales from "../models/SalesModel.js"
 import User from "../models/UserModel.js"
 import DailyBalance from "../models/DailyBalance.js";

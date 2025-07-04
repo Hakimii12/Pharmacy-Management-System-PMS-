@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import Product from "../models/productModel.js";
+import Product from "../models/ProductModel.js";
 import Notification from "../models/NotificationModel.js";
 cron.schedule("0 0 * * *", async () => { // Runs daily at midnight
   const today = new Date();

@@ -29,101 +29,50 @@ const ProductSchema = new mongoose.Schema({
      createdAt: { type: Date, default: Date.now },
      updatedAt: { type: Date, default: Date.now }
 });
-ProductSchema.pre("save",function(next){
-     if(this.isModified("expiryDate")){
-          const today = new Date()
-          this.isExpired = this.expiryDate <=today;
-     }
-     next();
+ProductSchema.pre("save", function(next){
+  if(this.isModified("expiryDate")){
+    const today = new Date();
+    this.isExpired = this.expiryDate <= today;
+  }
+  next();
 });
-ProductSchema.post("save", async function(doc) {
-  try {
-    // 1. Out of Stock Checks (separate for each location)
-    // For Store
-    if (doc.inventory.store === 0) {
-      const existingStoreOut = await Notification.findOne({
+ProductSchema.post('save', async function(doc) {
+  const locations = ['store', 'dispensary'];
+  
+  for (const loc of locations) {
+    const quantity = doc.inventory[loc];
+    const threshold = doc.inventory[`${loc}Threshold`];
+    
+    let type, message;
+    
+    if (quantity === 0) {
+      type = "OutOfStock";
+      message = `Product ${doc.name} is out of stock in ${loc}.`;
+    } else if (quantity < threshold) {
+      type = "LowStock";
+      message = `Product ${doc.name} is low in ${loc}. Current: ${quantity}, Threshold: ${threshold}.`;
+    } else {
+      continue;
+    }
+
+    // Check for existing notification
+    const existing = await Notification.findOne({
+      product: doc._id,
+      location: loc,
+      type,
+      read: false
+    });
+
+    if (!existing) {
+      await Notification.create({
+        type,
+        message,
         product: doc._id,
-        type: "OutOfStock",
-        location: "store", // Track location
+        location: loc,
         read: false
       });
-      
-      if (!existingStoreOut) {
-        await Notification.create({
-          type: "OutOfStock",
-          message: `${doc.name} is out of stock in STORE`,
-          product: doc._id,
-          location: "store" // Add location
-        });
-      }
     }
-
-    // For Dispensary
-    if (doc.inventory.dispensary === 0) {
-      const existingDispensaryOut = await Notification.findOne({
-        product: doc._id,
-        type: "OutOfStock",
-        location: "dispensary", // Track location
-        read: false
-      });
-      
-      if (!existingDispensaryOut) {
-        await Notification.create({
-          type: "OutOfStock",
-          message: `${doc.name} is out of stock in DISPENSARY`,
-          product: doc._id,
-          location: "dispensary" // Add location
-        });
-      }
-    }
-
-    // 2. Low Stock Checks (separate for each location)
-    // For Store
-    if (doc.inventory.store < doc.inventory.storeThreshold) {
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      
-      const existingStoreLow = await Notification.findOne({
-        product: doc._id,
-        type: "LowStock",
-        location: "store", // Track location
-        read: false,
-        createdAt: { $gt: oneWeekAgo }
-      });
-
-      if (!existingStoreLow) {
-        await Notification.create({
-          type: "LowStock",
-          message: `${doc.name} is LOW in STOCK in STORE (${doc.inventory.store} < ${doc.inventory.storeThreshold})`,
-          product: doc._id,
-          location: "store" // Add location
-        });
-      }
-    }
-
-    // For Dispensary
-    if (doc.inventory.dispensary < doc.inventory.dispensaryThreshold) {
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      
-      const existingDispensaryLow = await Notification.findOne({
-        product: doc._id,
-        type: "LowStock",
-        location: "dispensary", // Track location
-        read: false,
-        createdAt: { $gt: oneWeekAgo }
-      });
-
-      if (!existingDispensaryLow) {
-        await Notification.create({
-          type: "LowStock",
-          message: `${doc.name} is LOW in STOCK in DISPENSARY (${doc.inventory.dispensary} < ${doc.inventory.dispensaryThreshold})`,
-          product: doc._id,
-          location: "dispensary" // Add location
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Notification error:", error);
   }
 });
-const Product = mongoose.model("Product", ProductSchema);
+const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema);
 export default Product;
