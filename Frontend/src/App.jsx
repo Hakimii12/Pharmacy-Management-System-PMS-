@@ -1,4 +1,4 @@
-import {Routes, Route } from 'react-router-dom';
+import {Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -6,9 +6,14 @@ import Sales from './pages/Sales';
 import Inventory from './pages/Inventory';
 import Notifications from './pages/Notifications';
 import Reports from './pages/Reports';
-
+import LoginSignup from './security/LoginSignup';
+import ContextApi, { ContextProvider } from "./contexts/AppContext"
+import { useContext } from 'react';
 function App() {
+  const {isAuth} = useContext(ContextProvider)
+  console.log(isAuth)
   return (
+    isAuth ? 
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -19,6 +24,12 @@ function App() {
           <Route path="/reports" element={<Reports />} />
         </Routes>
       </Layout>
+    :
+      <Routes>
+        <Route path="/login" element={<LoginSignup />} />
+        <Route path="/signup" element={<LoginSignup />} /> {/* Add this line */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
   );
 }
 

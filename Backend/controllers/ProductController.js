@@ -1,4 +1,4 @@
-import Product from "../models/productModel.js";
+import Product from "../models/ProductModel.js";
 import Profit from "../models/ProfitModel.js";
 import Sales from "../models/SalesModel.js";
 import Transfare from "../models/Transfer.js";
@@ -8,6 +8,7 @@ export async function CreateProduct(req,res){
     try {
         const userId=req.user._id
     const { name, brand, unitPrice, quantity, batchNo, expiryDate, markup,DosageForms,ProductType,distributor} = req.body;
+    console.log(name, brand, unitPrice, quantity, batchNo, expiryDate, markup,DosageForms,ProductType,distributor)
     if (!distributor || !distributor.name || !distributor.licenseNumber) {
       return res.status(400).json({
         message: "Distributor information must include name and license number"
