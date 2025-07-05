@@ -18,7 +18,6 @@ const ProductSchema = new mongoose.Schema({
      category:{ type:String,enum:["medicine","cosmetic","Supplements","Medical Equipment"]},
      distributor: {
     name: { type: String, required: true },
-    licenseNumber: { type: String, required: true },
     contact: String
     },
     inventory: {

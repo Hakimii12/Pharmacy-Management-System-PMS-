@@ -28,15 +28,34 @@ const ProductForm = ({ product,onClose }) => {
     formData.append('unitPrice', unitPrice);
     formData.append('quantity', quantity);
     formData.append('expiryDate', expiryDate);
-    formData.append('batchNumber', batchNumber);
+    formData.append('batchNo', batchNumber);
     formData.append('markup', markup);
     formData.append('category', category);
-    formData.append('dosageForm', dosageForm);
+    formData.append('DosageForms', dosageForm);
     formData.append('distributor', JSON.stringify(distributor));
     try {
-      console.log(name,brand,unitPrice,quantity,expiryDate, batchNumber,
-        markup , category , dosageForm,distributor)
-      axios.post("http://localhost:5000/api/product/CreateProducts",formData)
+      const data = {
+        name,
+        brand,
+        unitPrice,
+        quantity,
+        expiryDate,
+        batchNo: batchNumber,
+        markup,
+        category,
+        DosageForms: dosageForm,
+        distributor: {
+          name: distributorName,
+          contact: distributorContact
+        }
+      };
+
+      axios.post("http://localhost:5000/api/product/CreateProducts", data, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      })
         .then(response => {
           console.log('Product created successfully:', response.data);
         })

@@ -7,11 +7,12 @@ import { updateProfitSummary} from "../utils/profitUtils.js";
 export async function CreateProduct(req,res){
     try {
         const userId=req.user._id
-    const { name, brand, unitPrice, quantity, batchNo, expiryDate, markup,DosageForms,ProductType,distributor} = req.body;
-    console.log(name, brand, unitPrice, quantity, batchNo, expiryDate, markup,DosageForms,ProductType,distributor)
-    if (!distributor || !distributor.name || !distributor.licenseNumber) {
+    const { name, brand, unitPrice, quantity, batchNo, expiryDate, markup,DosageForms,category,distributor} = req.body;
+    console.log(name, brand, unitPrice, quantity, batchNo, expiryDate, markup,DosageForms,category,distributor)
+    console.log(distributor,distributor.name ,distributor.contact)
+    if (!distributor || !distributor.name || !distributor.contact) {
       return res.status(400).json({
-        message: "Distributor information must include name and license number"
+        message: "Distributor information must include name and contact"
       });
     }
         const newProduct = new Product({
@@ -31,7 +32,7 @@ export async function CreateProduct(req,res){
             dispensary: 0
             },
             DosageForms,
-            ProductType,
+            category,
             distributor,
         });
         
@@ -170,7 +171,7 @@ export async function RecordSale(req, res){
 // Populate the sale with product details
 const sale = await Sales.findById(createdSale._id).populate(
   "product",
-  "name brand unitPrice sellingPrice productType dosageForms quantity"
+  "name brand unitPrice sellingPrice category dosageForms quantity"
 );
 
 // Update profit summary (daily/monthly/yearly)

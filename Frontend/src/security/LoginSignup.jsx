@@ -3,7 +3,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Logo from "../assets/hamzMesgedDrugStroe.png"
+import axios from 'axios';
+import { useContext } from 'react';
+import { ContextProvider } from '../contexts/AppContext';
 const LoginSignup = () => {
+  const {setIsAuth} = useContext(ContextProvider)
   const navigate = useNavigate();
   const location = useLocation();
   const [isLogin, setIsLogin] = useState(location.pathname !== '/signup');
@@ -26,8 +30,36 @@ const LoginSignup = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isLogin) {
+        try {
+      axios
+           .post("http://localhost:5000/api/user/login",{email: formData.email,
+          password: formData.password},
+            {
+            headers:{
+                'Content-Type':'application/json'
+            },
+            withCredentials: true
+        }).then((res)=>{
+            navigate('/')
+            console.log(res.data)
+            const user=res.data
+            localStorage.setItem('user-threads', JSON.stringify(user))
+            setIsAuth(true)
+        })
       console.log('Login data:', { email: formData.email, password: formData.password });
+        } catch (error) {
+           console.log(err) 
+        }
+
     } else {
+  axios
+      .post("",{},
+            {
+            headers:{
+                'Content-Type':'application/json'
+            },
+            withCredentials: true
+        })
       console.log('Signup data:', formData);
     }
   };

@@ -7,7 +7,7 @@ import Inventory from './pages/Inventory';
 import Notifications from './pages/Notifications';
 import Reports from './pages/Reports';
 import LoginSignup from './security/LoginSignup';
-import ContextApi, { ContextProvider } from "./contexts/AppContext"
+import  { ContextProvider } from "./contexts/AppContext"
 import { useContext } from 'react';
 function App() {
   const {isAuth} = useContext(ContextProvider)
