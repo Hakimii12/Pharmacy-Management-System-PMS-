@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaSave, FaExclamationTriangle, FaCalculator } from 'react-icons/fa';
 import axios from 'axios'
+import {toast} from "react-toastify"
 const ProductForm = ({ product,onClose }) => {
   const [name,setName] = useState('');
   const [brand,setBrand] = useState('');
@@ -57,7 +58,9 @@ const ProductForm = ({ product,onClose }) => {
         withCredentials: true
       })
         .then(response => {
-          console.log('Product created successfully:', response.data);
+          if(response.data.message){
+                toast.success(response.data.message)
+            }
         })
         .catch(error => {
           console.error('Error creating product:', error);
@@ -65,14 +68,10 @@ const ProductForm = ({ product,onClose }) => {
       setName('');
       setBrand('');
       setBatchNumber('');
-      setCategory('');
       setUnitPrice('');
       setExpiryDate('');
       setDosageForm('');
       setQuantity('');
-      setMarkup('');
-      setDistributorName('');
-      setDistributorContact('');
     } catch (error) {
       setErrors('Error sending data')
     }

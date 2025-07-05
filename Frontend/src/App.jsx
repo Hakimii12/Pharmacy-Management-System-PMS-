@@ -9,12 +9,14 @@ import Reports from './pages/Reports';
 import LoginSignup from './security/LoginSignup';
 import  { ContextProvider } from "./contexts/AppContext"
 import { useContext } from 'react';
+import  {ToastContainer} from "react-toastify"
 function App() {
   const {isAuth} = useContext(ContextProvider)
   console.log(isAuth)
   return (
     isAuth ? 
       <Layout>
+         <ToastContainer/>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/products" element={<Products />} />
