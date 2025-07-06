@@ -1,12 +1,12 @@
-import ProductItem from './ProductItem';
-import ProductForm from './ProductForm';
+import ProductItem from '../components/Products/ProductItem';
+import ProductForm from '../components/Products/ProductForm';
 import { FaPlus, FaSearch } from 'react-icons/fa';
-import { products, productCategories } from '../../data/products';
+import { products, productCategories } from '../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
-import Backstore from '../../InventoryManagament/Backstore';
+
 import axios from 'axios';
-const ProductList = () => {
+const Backstore = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,7 +57,7 @@ useEffect(()=>{
             onClick={() => setShowForm(true)}
             className="mt-3 md:mt-0 flex items-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200"
           >
-            <FaPlus className="mr-2" /> Add New Product
+            <FaPlus className="mr-2" />
           </button>
         </div>
       </div>
@@ -153,4 +153,4 @@ useEffect(()=>{
   );
 };
 
-export default ProductList;
+export default Backstore;

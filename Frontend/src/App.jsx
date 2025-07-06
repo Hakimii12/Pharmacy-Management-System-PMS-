@@ -11,8 +11,8 @@ import { useContext } from 'react';
 import { ToastContainer } from "react-toastify"
 
 // New pages
-import Backstore from './components/Products/Backstore';
-import Dispensary from './components/Products/Dispensary';
+import Backstore from './InventoryManagament/Backstore';
+import Dispensary from './InventoryManagament/Dispensary';
 import PurchaseOrder from './components/SalesList.jsx/PurchaseOrder';
 import ReceiveOrder from './components/SalesList.jsx/ReceiveOrder';
 import SalesHistory from './components/SalesList.jsx/SalesHistory';
@@ -22,6 +22,7 @@ function App() {
   return (
     isAuth ? 
       <Layout>
+        
          <ToastContainer/>
         <Routes>
           <Route path="/" element={<Dashboard />} />
