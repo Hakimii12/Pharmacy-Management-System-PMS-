@@ -8,7 +8,7 @@ export const  GenerateToken = (userId, role, res) => {
     { expiresIn: "3h" }
   );
   res.cookie("jwt", token, {
-    httpOnly: true,
+    httpOnly: false,
     maxAge: 3 * 60 * 60 * 1000,
     sameSite: "None",
     secure: true

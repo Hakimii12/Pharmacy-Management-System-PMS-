@@ -10,6 +10,7 @@ function ContextApi({children}) {
       return !!user;
     }
   )
+  
   const user=localStorage.getItem("user-threads")
   const data={
     auth,setAuth,

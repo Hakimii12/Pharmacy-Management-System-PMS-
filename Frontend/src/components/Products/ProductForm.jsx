@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaSave, FaExclamationTriangle, FaCalculator } from 'react-icons/fa';
 import axios from 'axios'
-import {toast} from "react-toastify"
+import {toast} from "react-toastify" 
 const ProductForm = ({ product,onClose }) => {
   const [name,setName] = useState('');
   const [brand,setBrand] = useState('');

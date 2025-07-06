@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FaEdit, FaTrash } from 'react-icons/fa';
-
 const ProductItem = ({ product, onEdit }) => {
-  const getStatusColor = () => {
+  console.log(product)
+   const getStatusColor = () => {
     switch (product.status) {
       case 'In Stock':
         return 'bg-green-100 text-green-800';
@@ -16,9 +16,9 @@ const ProductItem = ({ product, onEdit }) => {
         return 'bg-blue-100 text-blue-800';
     }
   };
-
+  
   const getExpiryStatus = () => {
-    const expiryDate = new Date(product.expirationDate);
+    const expiryDate = new Date(product.expiryDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalize today's date
     

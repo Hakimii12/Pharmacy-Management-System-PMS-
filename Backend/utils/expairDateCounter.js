@@ -14,6 +14,7 @@ cron.schedule("0 0 * * *", async () => { // Runs daily at midnight
 
   for (const product of expiredProducts) {
     product.isExpired = true;
+    product.status="Expired"
     await product.save();
     
     await Notification.create({

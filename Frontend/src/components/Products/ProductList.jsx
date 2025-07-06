@@ -3,13 +3,31 @@ import ProductForm from './ProductForm';
 import { FaPlus, FaSearch } from 'react-icons/fa';
 import { products, productCategories } from '../../data/products';
 import { useState } from 'react';
+import { useEffect } from 'react';
+import axios from 'axios';
 const ProductList = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
-
+  const [fetched,setFetched]=useState([])
+  async function fetchProducts(){
+  try {
+    const response = await axios.get("http://localhost:5000/api/product/allProducts",{
+      withCredentials:true
+    });
+    console.log(response.data.products)
+    setFetched(response?.data?.products)
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    throw error;
+  }
+};
+useEffect(()=>{
+  fetchProducts()
+  console.log(fetched)
+},[])
   const handleEdit = (product) => {
     setSelectedProduct(product);
     setShowForm(true);
@@ -20,7 +38,7 @@ const ProductList = () => {
     setSelectedProduct(null);
   };
 
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = fetched.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           product.brand.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;

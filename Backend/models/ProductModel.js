@@ -7,6 +7,7 @@ const ProductSchema = new mongoose.Schema({
      unitPrice:{type:Number , required:true},
      patientName:{type:String},
      quantity:{type:Number , required:true},
+     status:{type:String, enum:["In Stock","Low Stock","Sold Out","Expired"], default:"In Stock"},
      totalPrice:{type:Number,required:true},
      batchNo:{type:String,required:true,unique:true},
      expiryDate:{type:Date,required:true},
@@ -29,11 +30,23 @@ const ProductSchema = new mongoose.Schema({
      createdAt: { type: Date, default: Date.now },
      updatedAt: { type: Date, default: Date.now }
 });
-ProductSchema.pre("save", function(next){
-  if(this.isModified("expiryDate")){
+ProductSchema.pre("save", function(next) {
+  // Expiry logic
+  if (this.isModified("expiryDate")) {
     const today = new Date();
-    this.isExpired = this.expiryDate <= today;
+    this.isExpired = this.expiryDate <= today
+    this.status = "Expired";
   }
+
+  // Status logic
+  if (this.quantity === 0) {
+    this.status = "Sold Out";
+  } else if (this.inventory && this.inventory.store <= this.inventory.storeThreshold) {
+    this.status = "Low Stock";
+  } else {
+    this.status = "In Stock";
+  }
+
   next();
 });
 ProductSchema.post('save', async function(doc) {
