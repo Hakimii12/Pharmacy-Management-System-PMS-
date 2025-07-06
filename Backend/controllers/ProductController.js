@@ -47,7 +47,7 @@ export async function IssueToDispensary(req, res) {
   try {
     const userId = req.user._id;
     const { productId, quantity } = req.body;
-    console.log(productId, quantity)
+    console.log({ productId, quantity, type: typeof quantity });
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });

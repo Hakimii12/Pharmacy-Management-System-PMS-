@@ -64,13 +64,13 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
     }
 
     setIsTransferring(true);
-    const quantity = transferQuantity
+    const quantity = Number(transferQuantity)
     try {
       const endpoint = transferType === 'issue' 
         ? 'http://localhost:5000/api/product/issueToDispensary'
         : 'http://localhost:5000/api/product/returnToStore';
-      
-      const response = await axios.post(endpoint,{ productId,quantity}, {
+
+      await axios.post(endpoint,{ productId, quantity }, {
         headers: {
           'Content-Type': 'application/json',
           
