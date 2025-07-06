@@ -15,7 +15,7 @@ const ProductForm = ({ product,onClose }) => {
   const [distributorName, setDistributorName] = useState('');
   const [distributorContact, setDistributorContact] =useState('')
   const [errors, setErrors] = useState({});
-  const [isExpired, setIsExpired] = useState(false);
+  const [isExpired, setIsExpired] = useState(true);
   const categories =["medicine","cosmetic","Supplements","Medical Equipment","Other",]
   const handleSubmit = (e) => {
     e.preventDefault();
