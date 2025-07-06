@@ -32,21 +32,22 @@ const ProductSchema = new mongoose.Schema({
 });
 ProductSchema.pre("save", function(next) {
   // Expiry logic
+     const today = new Date();
   if (this.isModified("expiryDate")) {
     const today = new Date();
     this.isExpired = this.expiryDate <= today
     this.status = "Expired";
   }
-
   // Status logic
   if (this.quantity === 0) {
     this.status = "Sold Out";
   } else if (this.inventory && this.inventory.store <= this.inventory.storeThreshold) {
     this.status = "Low Stock";
-  } else {
+  } else if(this.isExpired = this.expiryDate <= today){
+    this.status = "Expired";
+  }else{
     this.status = "In Stock";
   }
-
   next();
 });
 ProductSchema.post('save', async function(doc) {

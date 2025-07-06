@@ -152,6 +152,5 @@ export const inventoryStats = {
 };
 
 export const productCategories = [
-  "Allergy", "Antibiotic", "Pain Relief", "Diabetes", 
-  "Cholesterol", "Acid Reducer", "Vitamins", "Other"
+  "medicine","cosmetic","Supplements","Medical Equipment"
 ];
