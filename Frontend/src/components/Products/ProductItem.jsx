@@ -63,10 +63,18 @@ const ProductItem = ({ product, onEdit }) => {
           <div className="text-sm font-extralight text-gray-500">{product.batchNo}</div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <div className={`text-sm ${product.quantity <= 5 ? 'text-yellow-600 font-medium' : 'text-gray-900'}`}>
+          <div className={`text-lg font-bold ${product.quantity <= 5 ? 'text-yellow-600' : 'text-gray-900'}`}>
             {product.quantity}
           </div>
-          <div className={`text-xs ${expiryStatus.color}`}>
+          <div className="flex gap-2 mt-1">
+            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+              Store: {product.inventory?.store ?? 0}
+            </span>
+            <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+              Dispensary: {product.inventory?.dispensary ?? 0}
+            </span>
+          </div>
+          <div className={`text-xs mt-1 ${expiryStatus.color}`}>
             {expiryStatus.text}
           </div>
         </td>
@@ -104,19 +112,19 @@ const ProductItem = ({ product, onEdit }) => {
       </tr>
       {showDetails && (
         <tr>
-          <td colSpan={6} className="bg-gray-50 px-6 py-4">
-            <div className="text-sm text-gray-700">
-              <strong>Distributor:</strong> {product.distributor?.name} <br />
-              <strong>Contact:</strong> {product.distributor?.contact} <br />
-              <strong>Dosage Form:</strong> {product.DosageForms} <br />
-              <strong>Category:</strong> {product.category} <br />
-              <strong>Patient Name:</strong> {product.patientName || 'N/A'} <br />
-              <strong>Store:</strong> {product.inventory?.store} <br />
-              <strong>Dispensary:</strong> {product.inventory?.dispensary} <br />
-              <strong>Store Threshold:</strong> {product.inventory?.storeThreshold} <br />
-              <strong>Dispensary Threshold:</strong> {product.inventory?.dispensaryThreshold} <br />
-              <strong>Created At:</strong> {new Date(product.createdAt).toLocaleString()} <br />
-              <strong>Updated At:</strong> {new Date(product.updatedAt).toLocaleString()}
+          <td colSpan={6} className="bg-gray-50 px-6 py-4 transition-all duration-300 animate-fade-in-down">
+            <div className="text-sm text-gray-700 grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-8">
+              <div><strong>Distributor:</strong> {product.distributor?.name}</div>
+              <div><strong>Contact:</strong> {product.distributor?.contact}</div>
+              <div><strong>Dosage Form:</strong> {product.DosageForms}</div>
+              <div><strong>Category:</strong> {product.category}</div>
+              <div><strong>Patient Name:</strong> {product.patientName || 'N/A'}</div>
+              <div><strong>Store:</strong> {product.inventory?.store}</div>
+              <div><strong>Dispensary:</strong> {product.inventory?.dispensary}</div>
+              <div><strong>Store Threshold:</strong> {product.inventory?.storeThreshold}</div>
+              <div><strong>Dispensary Threshold:</strong> {product.inventory?.dispensaryThreshold}</div>
+              <div><strong>Created At:</strong> {new Date(product.createdAt).toLocaleString()}</div>
+              <div><strong>Updated At:</strong> {new Date(product.updatedAt).toLocaleString()}</div>
             </div>
           </td>
         </tr>

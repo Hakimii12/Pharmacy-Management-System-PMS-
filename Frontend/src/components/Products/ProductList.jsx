@@ -4,6 +4,7 @@ import { FaPlus, FaSearch } from 'react-icons/fa';
 import { products, productCategories } from '../../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
+import Backstore from './Backstore';
 import axios from 'axios';
 const ProductList = () => {
   const [showForm, setShowForm] = useState(false);
@@ -133,6 +134,7 @@ useEffect(()=>{
                 <ProductItem key={product.id} product={product} onEdit={handleEdit} />
               ))}
             </tbody>
+            
           </table>
         </div>
 
