@@ -11,7 +11,7 @@ import { useContext } from 'react';
 import { ToastContainer } from "react-toastify"
 
 // New pages
-import Backstore from './InventoryManagament/Backstore';
+import BackstoreList from './InventoryManagament/BackstoreList';
 import Dispensary from './InventoryManagament/Dispensary';
 import PurchaseOrder from './components/SalesList.jsx/PurchaseOrder';
 import ReceiveOrder from './components/SalesList.jsx/ReceiveOrder';
@@ -29,7 +29,7 @@ function App() {
           
           {/* Inventory Management Routes */}
           <Route path="/products" element={<Products />} />
-          <Route path="/backstore" element={<Backstore />} />
+          <Route path="/backstore" element={<BackstoreList />} />
           <Route path="/dispensary" element={<Dispensary />} />
           
           {/* Sales Routes */}

@@ -1,5 +1,5 @@
-import ProductItem from '../components/Products/ProductItem';
-import ProductForm from '../components/Products/ProductForm';
+import BackstoreForm from './BackstoreForm';
+import BackstoreItem from './BackstoreItem';
 import { FaPlus, FaSearch } from 'react-icons/fa';
 import { products, productCategories } from '../data/products';
 import { useState } from 'react';
@@ -15,7 +15,7 @@ const Backstore = () => {
   const [fetched,setFetched]=useState([])
   async function fetchProducts(){
   try {
-    const response = await axios.get("http://localhost:5000/api/product/allProducts",{
+    const response = await axios.get("http://localhost:5000/api/product/storeProducts",{
       withCredentials:true
     });
     console.log(response.data.products)
@@ -131,7 +131,7 @@ useEffect(()=>{
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map(product => (
-                <ProductItem key={product.id} product={product} onEdit={handleEdit} />
+                <BackstoreItem key={product.id} product={product} onEdit={handleEdit} />
                 
               ))}
             </tbody>
@@ -147,7 +147,7 @@ useEffect(()=>{
       </div>
       
       {showForm && (
-        <ProductForm product={selectedProduct} onClose={handleCloseForm} />
+        <BackstoreForm product={selectedProduct} onClose={handleCloseForm} />
       )}
     </div>
   );
