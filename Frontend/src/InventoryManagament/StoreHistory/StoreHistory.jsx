@@ -2,12 +2,14 @@
 import React, { useState } from 'react';
 import { FaTrash, FaSearch, FaCalendarAlt, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import InventorySummaryCard from './StockResult';
+import { useEffect } from 'react';
+import axios from 'axios';
 const DetailedHistoryTable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
-
+  const [historyData,setHistoryData]=useState([])
   // Toggle row expansion
   const toggleRow = (id) => {
     setExpandedRows(prev => ({
@@ -17,98 +19,112 @@ const DetailedHistoryTable = () => {
   };
 
   // Sample data for the history table
-  const historyData = [
-    {
-      id: 1,
-      productName: "Paracetamol",
-      category: "Medicine",
-      brand: "Panadol",
-      batchNumber: "PAN202312",
-      quantityIssued: 5,
-      dateIssued: "2026-05-04",
-      issuedBy: "Dr. Johnson",
-      quantityLeft: 45,
-      totalQuantity: 50,
-      issuedPrice: 55.99,
-      unitPrice: 50.25,
-      totalIssuedPrice: 279.95,
-      totalUnitPrice: 251.25
-    },
-    {
-      id: 2,
-      productName: "Ibuprofen",
-      category: "Medicine",
-      brand: "Advil",
-      batchNumber: "ADV202310",
-      quantityIssued: 20,
-      dateIssued: "2025-06-12",
-      issuedBy: "Nurse Sarah",
-      quantityLeft: 80,
-      totalQuantity: 100,
-      issuedPrice: 58.50,
-      unitPrice: 52.75,
-      totalIssuedPrice: 1170.00,
-      totalUnitPrice: 1055.00
-    },
-    {
-      id: 3,
-      productName: "Amoxicillin",
-      category: "Antibiotic",
-      brand: "Amoxil",
-      batchNumber: "AMX202311",
-      quantityIssued: 15,
-      dateIssued: "2025-04-30",
-      issuedBy: "Dr. Roberts",
-      quantityLeft: 35,
-      totalQuantity: 50,
-      issuedPrice: 512.72,
-      unitPrice: 485.25,
-      totalIssuedPrice: 7690.80,
-      totalUnitPrice: 7278.75
-    },
-    {
-      id: 4,
-      productName: "Loratadine",
-      category: "Antihistamine",
-      brand: "Claritin",
-      batchNumber: "CLR202312",
-      quantityIssued: 8,
-      dateIssued: "2026-07-22",
-      issuedBy: "Pharmacist Mike",
-      quantityLeft: 42,
-      totalQuantity: 50,
-      issuedPrice: 57.25,
-      unitPrice: 51.80,
-      totalIssuedPrice: 458.00,
-      totalUnitPrice: 414.40
-    },
-    {
-      id: 5,
-      productName: "Omeprazole",
-      category: "Antacid",
-      brand: "Prilosec",
-      batchNumber: "PRI202205",
-      quantityIssued: 12,
-      dateIssued: "2025-03-15",
-      issuedBy: "Dr. Johnson",
-      quantityLeft: 38,
-      totalQuantity: 50,
-      issuedPrice: 59.99,
-      unitPrice: 54.25,
-      totalIssuedPrice: 719.88,
-      totalUnitPrice: 651.00
-    },
-  ];
-
+//   const historyData = [
+//     {
+//       id: 1,
+//       productName: "Paracetamol",
+//       category: "Medicine",
+//       brand: "Panadol",
+//       batchNumber: "PAN202312",
+//       quantityIssued: 5,
+//       dateIssued: "2026-05-04",
+//       issuedBy: "Dr. Johnson",
+//       quantityLeft: 45,
+//       totalQuantity: 50,
+//       issuedPrice: 55.99,
+//       unitPrice: 50.25,
+//       totalIssuedPrice: 279.95,
+//       totalUnitPrice: 251.25
+//     },
+//     {
+//       id: 2,
+//       productName: "Ibuprofen",
+//       category: "Medicine",
+//       brand: "Advil",
+//       batchNumber: "ADV202310",
+//       quantityIssued: 20,
+//       dateIssued: "2025-06-12",
+//       issuedBy: "Nurse Sarah",
+//       quantityLeft: 80,
+//       totalQuantity: 100,
+//       issuedPrice: 58.50,
+//       unitPrice: 52.75,
+//       totalIssuedPrice: 1170.00,
+//       totalUnitPrice: 1055.00
+//     },
+//     {
+//       id: 3,
+//       productName: "Amoxicillin",
+//       category: "Antibiotic",
+//       brand: "Amoxil",
+//       batchNumber: "AMX202311",
+//       quantityIssued: 15,
+//       dateIssued: "2025-04-30",
+//       issuedBy: "Dr. Roberts",
+//       quantityLeft: 35,
+//       totalQuantity: 50,
+//       issuedPrice: 512.72,
+//       unitPrice: 485.25,
+//       totalIssuedPrice: 7690.80,
+//       totalUnitPrice: 7278.75
+//     },
+//     {
+//       id: 4,
+//       productName: "Loratadine",
+//       category: "Antihistamine",
+//       brand: "Claritin",
+//       batchNumber: "CLR202312",
+//       quantityIssued: 8,
+//       dateIssued: "2026-07-22",
+//       issuedBy: "Pharmacist Mike",
+//       quantityLeft: 42,
+//       totalQuantity: 50,
+//       issuedPrice: 57.25,
+//       unitPrice: 51.80,
+//       totalIssuedPrice: 458.00,
+//       totalUnitPrice: 414.40
+//     },
+//     {
+//       id: 5,
+//       productName: "Omeprazole",
+//       category: "Antacid",
+//       brand: "Prilosec",
+//       batchNumber: "PRI202205",
+//       quantityIssued: 12,
+//       dateIssued: "2025-03-15",
+//       issuedBy: "Dr. Johnson",
+//       quantityLeft: 38,
+//       totalQuantity: 50,
+//       issuedPrice: 59.99,
+//       unitPrice: 54.25,
+//       totalIssuedPrice: 719.88,
+//       totalUnitPrice: 651.00
+//     },
+//   ];
+   async function fetchStoreSummery(){
+    try {
+       await axios.get("http://localhost:5000/api/product/productToDispensary",{
+        withCredentials:true
+      }).then((res) => {
+        console.log(res.data.history)
+        setHistoryData(res.data.history);
+      });  
+    } catch (error) {
+        console.log(error)
+    }
+   }
+   useEffect(()=>{
+    fetchStoreSummery()
+   },[])
   // Filter data based on search term and date range
-  const filteredData = historyData.filter(item => {
+  const filteredData = historyData?.filter(item => {
     // Search term filter (case-insensitive)
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
-      item.productName.toLowerCase().includes(searchLower) ||
-      item.brand.toLowerCase().includes(searchLower) ||
-      item.batchNumber.toLowerCase().includes(searchLower) ||
-      item.issuedBy.toLowerCase().includes(searchLower);
+      item?.product?.name?.toLowerCase().includes(searchLower) ||
+      item?.product?.brand?.toLowerCase().includes(searchLower) ||
+      item?.product?.batchNo?.toLowerCase().includes(searchLower) ||
+      item.user?.name?.toLowerCase().includes(searchLower);
     
     // Date range filter
     const itemDate = new Date(item.dateIssued);
@@ -342,30 +358,30 @@ const DetailedHistoryTable = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-800 font-bold">{item.productName.charAt(0)}</span>
+                          <span className="text-blue-800 font-bold">{item?.product?.name?.charAt(0)}</span>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{item.productName}</div>
+                          <div className="text-sm font-medium text-gray-900">{item?.product?.name}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{item.category}</div>
+                      <div className="text-sm text-gray-900">{item?.product?.category}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{item.brand}</div>
+                      <div className="text-sm text-gray-900">{item?.product?.brand}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 font-mono">{item.batchNumber}</div>
+                      <div className="text-sm text-gray-900 font-mono">{item?.product?.batchNo}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 font-semibold">{item.quantityIssued}</div>
+                      <div className="text-sm text-gray-900 font-semibold">{item?.quantity}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{formatDisplayDate(item.dateIssued)}</div>
+                      <div className="text-sm text-gray-900">{formatDisplayDate(item?.date)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{item.issuedBy}</div>
+                      <div className="text-sm text-gray-900">{item?.user?.name} <span className='text-xs text-gray-400'>({item?.user?.role})</span></div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 

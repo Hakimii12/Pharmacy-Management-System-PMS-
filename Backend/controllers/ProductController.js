@@ -98,6 +98,7 @@ export async function ReturnToStore(req, res) {
     const { productId, quantity } = req.body;
     
     const product = await Product.findById(productId);
+
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
@@ -141,13 +142,11 @@ export async function ReturnToStore(req, res) {
     return res.status(500).json({ message: error.message });
   }
 }
-export async function GetProductHistory(req, res) {
+export async function GetIssuedDispensary(req, res) {
   try {
-    
-
     const history = await Transfare.find({type: "ISSUE_TO_DISPENSARY"})
       .populate('user', 'name email role')
-      .populate('product','name brand batchNo expiryDate unitPrice sellingPrice  ')
+      .populate('product','name role brand batchNo expiryDate unitPrice sellingPrice category ')
       .sort({ date: -1 });
     return res.json({ history });
     

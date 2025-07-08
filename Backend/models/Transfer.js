@@ -19,6 +19,12 @@ const TransfareSchema = new mongoose.Schema({
     type:Number,
     required:true
    },
+   quantityLeft:Number,
+   totalQuantity:Number,
+   issuedPrice:Number,
+   unitPrice:Number,
+   totalIssuedPrice:Number,
+   totalUnitPrice:Number,
     date: {
     type: Date,
     default: Date.now
