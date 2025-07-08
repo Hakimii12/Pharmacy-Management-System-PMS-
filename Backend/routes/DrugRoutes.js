@@ -5,7 +5,8 @@ import { CreateProduct,
   GetAllProducts,
   GetDispensaryProduct,
   GetStoreProduct,
-  GetIssuedDispensary} from "../controllers/ProductController.js";
+  GetIssuedDispensary,
+  GetCountedStore} from "../controllers/ProductController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 const router =  express.Router();
 router.get("/allProducts", Authenticated(), GetAllProducts);
@@ -15,5 +16,6 @@ router.post("/returnToStore", Authenticated(), ReturnToStore);
 router.get("/productToDispensary", Authenticated(), GetIssuedDispensary);
 router.get("/storeProducts", Authenticated(), GetStoreProduct);
 router.get("/dispensaryProducts", Authenticated(), GetDispensaryProduct);
+router.get("/getCountedStore",Authenticated(),GetCountedStore)
 
 export default router

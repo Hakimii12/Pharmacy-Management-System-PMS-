@@ -213,3 +213,76 @@ export async function GetDispensaryProduct(req,res){
     return res.status(500).json({message:error.message})
   }
 }
+export async function GetCountedStore(req,res){
+   try {
+    const results = await Product.aggregate([
+      {
+        $match: {
+          "inventory.store": { $gt: 0 }  // Only products with store inventory
+        }
+      },
+      {
+        $addFields: {
+          // Calculate financial values per product
+          inventoryValue: { $multiply: ["$unitPrice", "$inventory.store"] },
+          sellingValue: { $multiply: ["$sellingPrice", "$inventory.store"] },
+          
+          // Stock status flags
+          isLowStore: {
+            $and: [
+              { $lt: ["$inventory.store", "$inventory.storeThreshold"] },
+              { $gt: ["$inventory.store", 0] }
+            ]
+          },
+          isExpired: { $lte: ["$expiryDate", new Date()] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          // Inventory counts
+          totalInStore: { $sum: 1 },
+          lowInStore: { $sum: { $cond: ["$isLowStore", 1, 0] } },
+          expiredInStore: { $sum: { $cond: ["$isExpired", 1, 0] } },
+          
+          // Financial aggregates
+          totalInventoryValue: { $sum: "$inventoryValue" },
+          totalSellingValue: { $sum: "$sellingValue" },
+          potentialProfit: { 
+            $sum: { 
+              $subtract: [
+                { $multiply: ["$sellingPrice", "$inventory.store"] },
+                { $multiply: ["$unitPrice", "$inventory.store"] }
+              ]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalInStore: 1,
+          lowInStore: 1,
+          expiredInStore: 1,
+          totalInventoryValue: 1,
+          totalSellingValue: 1,
+          potentialProfit: 1
+        }
+      }
+    ]);
+
+    // Handle empty results
+    const summary = results.length > 0 ? results[0] : {
+      totalInStore: 0,
+      lowInStore: 0,
+      expiredInStore: 0,
+      totalInventoryValue: 0,
+      totalSellingValue: 0,
+      potentialProfit: 0
+    };
+
+    res.json(summary);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}

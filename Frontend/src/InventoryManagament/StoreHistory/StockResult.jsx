@@ -1,19 +1,32 @@
 // src/components/InventorySummaryCard.jsx
-import React from 'react';
-import { FaBoxes, FaMoneyBillWave, FaChartLine, FaPills } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { FaBoxes, FaMoneyBillWave } from 'react-icons/fa';
+import axios from 'axios';
 
 const InventorySummaryCard = () => {
-  // Sample data - replace with your actual data
-  const inventoryData = {
-    totalPriceInStore: 125847.95,
-    totalUnitPrice: 98752.40,
-    totalProducts: 143,
-    lowStockItems: 12,
-    expiredItems: 5,
-    profitMargin: 27.42
-  };
+  const [inventoryData, setInventoryData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Format currency
+  async function fetchInventorySummary() {
+    try {
+      const res = await axios.get(
+        "http://localhost:5000/api/product/GetCountedStore",
+        { withCredentials: true }
+      );
+      setInventoryData(res.data);
+    } catch (err) {
+      console.error("Error fetching inventory data:", err);
+      setError("Failed to load inventory data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchInventorySummary();
+  }, []);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -23,84 +36,101 @@ const InventorySummaryCard = () => {
     }).format(amount);
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto flex justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto py-12 text-center text-red-500">
+        {error}
+      </div>
+    );
+  }
+
+  if (!inventoryData) {
+    return null;
+  }
+
   return (
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Price in Store Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-blue-500">
-            <div className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-                  <FaMoneyBillWave size={24} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Total Price in Store</p>
-                  <p className="text-2xl font-bold text-gray-800">
-                    {formatCurrency(inventoryData.totalPriceInStore)}
-                  </p>
-                </div>
+    <div className="max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Total Price in Store Card */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-blue-500">
+          <div className="p-6">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                <FaMoneyBillWave size={24} />
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-500">
-                  Current market value of all inventory
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Price in Store</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {formatCurrency(inventoryData.totalSellingValue)}
                 </p>
               </div>
             </div>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-500">
+                Current market value of all inventory
+              </p>
+            </div>
           </div>
+        </div>
 
-          {/* Total Unit Price Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-purple-500">
-            <div className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
-                  <FaMoneyBillWave size={24} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Total Unit Price</p>
-                  <p className="text-2xl font-bold text-gray-800">
-                    {formatCurrency(inventoryData.totalUnitPrice)}
-                  </p>
-                </div>
+        {/* Total Unit Price Card */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-purple-500">
+          <div className="p-6">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
+                <FaMoneyBillWave size={24} />
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-500">
-                  Total cost basis of all inventory
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Unit Price</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {formatCurrency(inventoryData.totalInventoryValue)}
                 </p>
               </div>
             </div>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-500">
+                Total cost basis of all inventory
+              </p>
+            </div>
           </div>
+        </div>
 
-          {/* Products Summary Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-orange-500">
-            <div className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-orange-100 text-orange-600 mr-4">
-                  <FaBoxes size={24} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Products Summary</p>
-                  <p className="text-2xl font-bold text-gray-800">
-                    {inventoryData.totalProducts}
-                  </p>
-                </div>
+        {/* Products Summary Card */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-orange-500">
+          <div className="p-6">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-orange-100 text-orange-600 mr-4">
+                <FaBoxes size={24} />
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex justify-between text-xs">
-                  <span className="text-yellow-600">
-                    {inventoryData.lowStockItems} low stock
-                  </span>
-                  <span className="text-red-600">
-                    {inventoryData.expiredItems} expired
-                  </span>
-                  <span className="text-red-600">
-                    {inventoryData.expiredItems} expired
-                  </span>
-                </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Products Summary</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {inventoryData.totalInStore}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="flex justify-between text-xs">
+                <span className="text-yellow-600">
+                  {inventoryData.lowInStore} low stock
+                </span>
+                <span className="text-red-600">
+                  {inventoryData.expiredInStore} expired
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
   );
 };
 
