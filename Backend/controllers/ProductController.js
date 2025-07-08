@@ -213,75 +213,95 @@ export async function GetDispensaryProduct(req,res){
     return res.status(500).json({message:error.message})
   }
 }
-export async function GetCountedStore(req,res){
-   try {
+export async function GetCountedStore(req, res) {
+  try {
     const results = await Product.aggregate([
       {
-        $match: {
-          "inventory.store": { $gt: 0 }  // Only products with store inventory
-        }
-      },
-      {
-        $addFields: {
-          // Calculate financial values per product
-          inventoryValue: { $multiply: ["$unitPrice", "$inventory.store"] },
-          sellingValue: { $multiply: ["$sellingPrice", "$inventory.store"] },
-          
-          // Stock status flags
-          isLowStore: {
-            $and: [
-              { $lt: ["$inventory.store", "$inventory.storeThreshold"] },
-              { $gt: ["$inventory.store", 0] }
-            ]
-          },
-          isExpired: { $lte: ["$expiryDate", new Date()] }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          // Inventory counts
-          totalInStore: { $sum: 1 },
-          lowInStore: { $sum: { $cond: ["$isLowStore", 1, 0] } },
-          expiredInStore: { $sum: { $cond: ["$isExpired", 1, 0] } },
-          
-          // Financial aggregates
-          totalInventoryValue: { $sum: "$inventoryValue" },
-          totalSellingValue: { $sum: "$sellingValue" },
-          potentialProfit: { 
-            $sum: { 
-              $subtract: [
-                { $multiply: ["$sellingPrice", "$inventory.store"] },
-                { $multiply: ["$unitPrice", "$inventory.store"] }
-              ]
+        $facet: {
+          inStoreProducts: [
+            { $match: { "inventory.store": { $gt: 0 } } },
+            {
+              $addFields: {
+                inventoryValue: { $multiply: ["$unitPrice", "$inventory.store"] },
+                sellingValue: { $multiply: ["$sellingPrice", "$inventory.store"] },
+                isLowStore: {
+                  $and: [
+                    { $lt: ["$inventory.store", "$inventory.storeThreshold"] },
+                    { $gt: ["$inventory.store", 0] },
+                    { $gt: ["$expiryDate", new Date()] }
+                  ]
+                },
+                isExpired:{$and:[
+                  { $lte: ["$expiryDate", new Date()] },
+                  { $gt: ["$inventory.store", 0] }
+                ]} 
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                totalInStore: { $sum: 1 },
+                lowInStore: { $sum: { $cond: ["$isLowStore", 1, 0] } },
+                expiredInStore: { $sum: { $cond: ["$isExpired", 1, 0] } },
+                totalInventoryValue: { $sum: "$inventoryValue" },
+                totalSellingValue: { $sum: "$sellingValue" },
+                potentialProfit: {
+                  $sum: {
+                    $subtract: ["$sellingValue", "$inventoryValue"]
+                  }
+                }
+              }
             }
-          }
+          ],
+          outOfStockProducts: [
+            { $match: { "inventory.store": 0 } },
+            { $count: "count" },
+          ]
         }
       },
       {
         $project: {
-          _id: 0,
-          totalInStore: 1,
-          lowInStore: 1,
-          expiredInStore: 1,
-          totalInventoryValue: 1,
-          totalSellingValue: 1,
-          potentialProfit: 1
+          summary: {
+            $mergeObjects: [
+              { $ifNull: [{ $arrayElemAt: ["$inStoreProducts", 0] }, {}] },
+              {
+                outOfStockInStore: {
+                  $ifNull: [{ $arrayElemAt: ["$outOfStockProducts.count", 0] }, 0]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [
+              {
+                totalInStore: 0,
+                lowInStore: 0,
+                expiredInStore: 0,
+                totalInventoryValue: 0,
+                totalSellingValue: 0,
+                potentialProfit: 0,
+                outOfStockInStore: 0
+              },
+              "$summary"
+            ]
+          }
         }
       }
     ]);
 
-    // Handle empty results
-    const summary = results.length > 0 ? results[0] : {
+    res.json(results[0] || {
       totalInStore: 0,
       lowInStore: 0,
       expiredInStore: 0,
       totalInventoryValue: 0,
       totalSellingValue: 0,
-      potentialProfit: 0
-    };
-
-    res.json(summary);
+      potentialProfit: 0,
+      outOfStockInStore: 0
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

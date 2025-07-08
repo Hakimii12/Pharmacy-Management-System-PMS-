@@ -15,6 +15,7 @@ const InventorySummaryCard = () => {
         { withCredentials: true }
       );
       setInventoryData(res.data);
+      console.log(res.data)
     } catch (err) {
       console.error("Error fetching inventory data:", err);
       setError("Failed to load inventory data");
@@ -121,6 +122,9 @@ const InventorySummaryCard = () => {
               <div className="flex justify-between text-xs">
                 <span className="text-yellow-600">
                   {inventoryData.lowInStore} low stock
+                </span>
+                <span className="text-gray-500">
+                  {inventoryData.outOfStockInStore} stock out
                 </span>
                 <span className="text-red-600">
                   {inventoryData.expiredInStore} expired
