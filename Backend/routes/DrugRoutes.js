@@ -12,7 +12,7 @@ router.get("/allProducts", Authenticated(), GetAllProducts);
 router.post("/CreateProducts",Authenticated (), CreateProduct);
 router.post("/issueToDispensary",Authenticated(),IssueToDispensary);
 router.post("/returnToStore", Authenticated(), ReturnToStore);
-router.get("/productHistory/:productId", Authenticated(), GetProductHistory);
+router.get("/productHistory", Authenticated(), GetProductHistory);
 router.get("/storeProducts", Authenticated(), GetStoreProduct);
 router.get("/dispensaryProducts", Authenticated(), GetDispensaryProduct);
 

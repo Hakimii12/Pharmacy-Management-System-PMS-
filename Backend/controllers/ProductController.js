@@ -68,7 +68,13 @@ export async function IssueToDispensary(req, res) {
       product: productId,
       user: userId,
       type: 'ISSUE_TO_DISPENSARY',
-      quantity: quantity
+      quantity: quantity,
+      quantityLeft: product.inventory.store,
+      totalQuantity: product.quantity,
+      issuedPrice:product.sellingPrice,
+      unitPrice:product.unitPrice,
+      totalIssuedPrice:product.sellingPrice * quantity,
+      totalUnitPrice:product.unitPrice * quantity
     });
 
     await Promise.all([product.save(), transfare.save()]);
@@ -111,7 +117,13 @@ export async function ReturnToStore(req, res) {
       product: productId,
       user: userId,
       type: 'RETURN_TO_STORE',
-      quantity: quantity
+      quantity: quantity,
+      quantityLeft: product.inventory.dispensary,
+      totalQuantity: product.quantity,
+      issuedPrice: product.sellingPrice,
+      unitPrice: product.unitPrice,
+      totalIssuedPrice: product.sellingPrice * quantity,
+      totalUnitPrice: product.unitPrice * quantity
     });
 
     await Promise.all([product.save(), transfare.save()]);
@@ -131,13 +143,12 @@ export async function ReturnToStore(req, res) {
 }
 export async function GetProductHistory(req, res) {
   try {
-    const { productId } = req.params;
+    
 
-    const history = await Transfare.find({ product: productId })
+    const history = await Transfare.find({type: "ISSUE_TO_DISPENSARY"})
       .populate('user', 'name email role')
       .populate('product','name brand batchNo expiryDate unitPrice sellingPrice  ')
       .sort({ date: -1 });
-     console.log(history)
     return res.json({ history });
     
   } catch (error) {
