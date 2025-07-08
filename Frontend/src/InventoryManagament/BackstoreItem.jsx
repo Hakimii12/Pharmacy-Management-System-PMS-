@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -8,9 +8,10 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess }) => {
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [isTransferring, setIsTransferring] = useState(false);
   const [error, setError] = useState('');
+  const [addedBy,setAddedBy] = useState([])
   let status = "In Store"
   const getStatusColor = () => {
-   if (product.inventory.store<=product.inventory.storeThreshold &&product.inventory.store!=0){
+   if (product.inventory.store <= product.inventory.storeThreshold && product.inventory.store != 0 && product.isExpired==false) {
          status = "Low Store"
     return 'bg-yellow-100 text-yellow-800'
    }
@@ -53,7 +54,25 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess }) => {
       };
     }
   };
-
+async function AddedByUser(){
+      try {
+      let id =product?.addedBy
+      const endpoint = `http://localhost:5000/api/user/user/${id}`
+      await axios.get(endpoint,{
+        headers: {
+          'Content-Type': 'application/json',   
+        },
+        withCredentials: true
+      }).then((response)=>{
+        setAddedBy(response.data);
+      })
+    } catch (error) {
+      console.log(err)
+    }
+}
+useEffect(() => {
+  AddedByUser();
+}, [product?.addedBy]);
   const handleTransfer = async (productId,transferQuantity) => {
     setError('');
     if (!transferQuantity || transferQuantity <= 0) {
@@ -65,7 +84,6 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess }) => {
       setError(`Cannot transfer more than available (${availableQuantity})`);
       return;
     }
-
     setIsTransferring(true);
     const quantity = Number(transferQuantity)
     try {
@@ -90,7 +108,7 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess }) => {
   };
 
   const expiryStatus = getExpiryStatus();
-  const sellingPrice = product.unitPrice * (1 + product.markup / 100);
+  const sellingPrice = product.sellingPrice;
 
   return (
     <>
@@ -120,8 +138,8 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess }) => {
           </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">${product.unitPrice.toFixed(2)}</div>
-          <div className="text-xs text-green-600">${sellingPrice.toFixed(2)} sale</div>
+          <div className="text-sm text-gray-900">{product.unitPrice.toFixed(2)} <span className="text-xs text-green-600">ETB</span></div>
+          <div className="text-xs text-green-600">{sellingPrice.toFixed(2)} sale <span>ETB</span></div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor()}`}>
@@ -266,13 +284,11 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess }) => {
               <div><strong>Contact:</strong> {product.distributor?.contact}</div>
               <div><strong>Dosage Form:</strong> {product.DosageForms}</div>
               <div><strong>Category:</strong> {product.category}</div>
-              <div><strong>Patient Name:</strong> {product.patientName || 'N/A'}</div>
               <div><strong>Store:</strong> {product.inventory?.store}</div>
-              <div><strong>Dispensary:</strong> {product.inventory?.dispensary}</div>
               <div><strong>Store Threshold:</strong> {product.inventory?.storeThreshold}</div>
               <div><strong>Dispensary Threshold:</strong> {product.inventory?.dispensaryThreshold}</div>
-              <div><strong>Created At:</strong> {new Date(product.createdAt).toLocaleString()}</div>
-              <div><strong>Updated At:</strong> {new Date(product.updatedAt).toLocaleString()}</div>
+              <div><strong>Launched At:</strong> {new Date(product.createdAt).toLocaleString()}</div>
+              <div><strong>Launched By:</strong> {addedBy?.name} <span className='text-sm text-blue-500'>({addedBy?.role})</span></div>
             </div>
           </td>
         </tr>

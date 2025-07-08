@@ -4,7 +4,6 @@ import { FaPlus, FaSearch } from 'react-icons/fa';
 import { products, productCategories } from '../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
-
 import axios from 'axios';
 const Backstore = () => {
   const [showForm, setShowForm] = useState(false);

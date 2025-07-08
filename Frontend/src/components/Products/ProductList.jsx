@@ -17,7 +17,6 @@ const ProductList = () => {
     const response = await axios.get("http://localhost:5000/api/product/allProducts",{
       withCredentials:true
     });
-    console.log(response.data.products)
     setFetched(response?.data?.products)
   } catch (error) {
     console.error("Error fetching products:", error);
@@ -26,7 +25,6 @@ const ProductList = () => {
 };
 useEffect(()=>{
   fetchProducts()
-  console.log(fetched)
 },[])
   const handleEdit = (product) => {
     setSelectedProduct(product);

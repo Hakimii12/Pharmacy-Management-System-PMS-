@@ -16,6 +16,7 @@ import Dispensary from './InventoryManagament/Dispensary';
 import PurchaseOrder from './components/SalesList.jsx/PurchaseOrder';
 import ReceiveOrder from './components/SalesList.jsx/ReceiveOrder';
 import SalesHistory from './components/SalesList.jsx/SalesHistory';
+import StoreHistory from './InventoryManagament/StoreHistory/StoreHistory';
 
 function App() {
   const {isAuth} = useContext(ContextProvider)
@@ -31,7 +32,7 @@ function App() {
           <Route path="/products" element={<Products />} />
           <Route path="/backstore" element={<BackstoreList />} />
           <Route path="/dispensary" element={<Dispensary />} />
-          
+          <Route path="/store-history" element={<StoreHistory />} />
           {/* Sales Routes */}
           <Route path="/purchase-order" element={<PurchaseOrder />} />
           <Route path="/receive-order" element={<ReceiveOrder />} />

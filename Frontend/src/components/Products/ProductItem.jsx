@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useEffect } from 'react';
 const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -9,6 +10,7 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [isTransferring, setIsTransferring] = useState(false);
   const [error, setError] = useState('');
+  const [addedBy , setAddedBy] = useState([]);
 
   const getStatusColor = () => {
     switch (product.status) {
@@ -46,7 +48,25 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
       };
     }
   };
-
+async function AddedByUser(){
+      try {
+      let id =product?.addedBy
+      const endpoint = `http://localhost:5000/api/user/user/${id}`
+      await axios.get(endpoint,{
+        headers: {
+          'Content-Type': 'application/json',   
+        },
+        withCredentials: true
+      }).then((response)=>{
+        setAddedBy(response.data);
+      })
+    } catch (error) {
+      console.log(err)
+    }
+}
+useEffect(() => {
+  AddedByUser();
+}, [product?.addedBy]);
   const handleTransfer = async (productId,transferQuantity) => {
     setError('');
     if (!transferQuantity || transferQuantity <= 0) {
@@ -79,6 +99,7 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
       });
        toast.success("successfully transferred")
       setIsTransferModalOpen(false);
+      
       if (onTransferSuccess) onTransferSuccess();
     } catch (err) {
       setError('failed to transfer');
@@ -87,6 +108,7 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
     } finally {
       setIsTransferring(false);
     }
+    fetchProducts()
   };
 
   const expiryStatus = getExpiryStatus();
@@ -127,8 +149,8 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
           </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">${product.unitPrice.toFixed(2)}</div>
-          <div className="text-xs text-green-600">${sellingPrice.toFixed(2)} sale</div>
+          <div className="text-sm text-gray-900">{product.unitPrice.toFixed(2)} <span className='text-xs text-green-600'>ETB</span></div>
+          <div className="text-xs text-green-600">{sellingPrice.toFixed(2)} <span>ETB</span> sale</div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor()}`}>
@@ -300,13 +322,12 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
               <div><strong>Contact:</strong> {product.distributor?.contact}</div>
               <div><strong>Dosage Form:</strong> {product.DosageForms}</div>
               <div><strong>Category:</strong> {product.category}</div>
-              <div><strong>Patient Name:</strong> {product.patientName || 'N/A'}</div>
               <div><strong>Store:</strong> {product.inventory?.store}</div>
               <div><strong>Dispensary:</strong> {product.inventory?.dispensary}</div>
               <div><strong>Store Threshold:</strong> {product.inventory?.storeThreshold}</div>
               <div><strong>Dispensary Threshold:</strong> {product.inventory?.dispensaryThreshold}</div>
-              <div><strong>Created At:</strong> {new Date(product.createdAt).toLocaleString()}</div>
-              <div><strong>Updated At:</strong> {new Date(product.updatedAt).toLocaleString()}</div>
+              <div><strong>Launched At:</strong> {new Date(product.createdAt).toLocaleString()}</div>
+              <div><strong>Launched By:</strong> {addedBy?.name} <span className='text-sm text-blue-500'>({addedBy?.role})</span></div>
             </div>
           </td>
         </tr>

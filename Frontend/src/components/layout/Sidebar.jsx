@@ -10,7 +10,9 @@ import { useState } from 'react';
 const Sidebar = () => {
   const [openDropdown, setOpenDropdown] = useState({
     inventory: false,
-    sales: false
+    sales: false,
+    backstore: false,
+    dispensary: false
   });
   const location = useLocation();
 
@@ -25,8 +27,22 @@ const Sidebar = () => {
       icon: <FaPills />,
       subItems: [
         { name: 'All Stock', path: '/products', icon: <FaBox /> },
-        { name: 'Backstore', path: '/backstore', icon: <FaStore /> },
-        { name: 'Dispensary', path: '/dispensary', icon: <FaCashRegister /> },
+        { 
+          name: 'Backstore', 
+          icon: <FaStore />,
+          subItems: [
+            { name: 'Store', path: '/backstore', icon: <FaStore /> },
+            { name: 'Store History', path: '/store-history', icon: <FaHistory /> }
+          ]
+        },
+        { 
+          name: 'Dispensary', 
+          icon: <FaCashRegister />,
+          subItems: [
+            { name: 'Dispensary', path: '/dispensary', icon: <FaCashRegister /> },
+            { name: 'Dispensary History', path: '/dispensary-history', icon: <FaHistory /> }
+          ]
+        },
       ]
     },
     { 
@@ -36,15 +52,22 @@ const Sidebar = () => {
         { name: 'Purchase Order', path: '/purchase-order', icon: <FaClipboardList /> },
         { name: 'Receive Order', path: '/receive-order', icon: <FaTruckLoading /> },
         { name: 'History', path: '/sales-history', icon: <FaHistory /> },
+        
       ]
     },
     { name: 'Notifications', path: '/notifications', icon: <FaBell /> },
     { name: 'Reports', path: '/reports', icon: <FaChartLine /> },
   ];
 
-  // Check if any subitem in a group is active
-  const isGroupActive = (subItems) => {
-    return subItems.some(item => location.pathname === item.path);
+  // Recursive function to check if any child is active
+  const isGroupActive = (items) => {
+    return items.some(item => {
+      if (item.subItems) {
+        return isGroupActive(item.subItems);
+      } else {
+        return location.pathname === item.path;
+      }
+    });
   };
 
   return (
@@ -81,18 +104,58 @@ const Sidebar = () => {
                 {openDropdown[item.name.toLowerCase().replace(' ', '-')] && (
                   <div className="ml-4 pl-2 border-l border-blue-600">
                     {item.subItems.map((subItem) => (
-                      <NavLink
-                        key={subItem.name}
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `flex items-center px-4 py-2 mt-1 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
-                            isActive ? 'bg-blue-900 text-white' : 'text-blue-200'
-                          }`
-                        }
-                      >
-                        <span className="mr-3 text-sm">{subItem.icon}</span>
-                        <span className="text-sm font-medium">{subItem.name}</span>
-                      </NavLink>
+                      <div key={subItem.name}>
+                        {subItem.subItems ? (
+                          <>
+                            <button
+                              onClick={() => toggleDropdown(subItem.name.toLowerCase().replace(' ', '-'))}
+                              className={`flex items-center justify-between w-full px-4 py-2 mt-1 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
+                                isGroupActive(subItem.subItems) ? 'bg-blue-900 text-white' : 'text-blue-200'
+                              }`}
+                            >
+                              <div className="flex items-center">
+                                <span className="mr-3 text-sm">{subItem.icon}</span>
+                                <span className="text-sm font-medium">{subItem.name}</span>
+                              </div>
+                              {openDropdown[subItem.name.toLowerCase().replace(' ', '-')] ? 
+                                <FaChevronUp className="text-xs" /> : 
+                                <FaChevronDown className="text-xs" />
+                              }
+                            </button>
+                            
+                            {openDropdown[subItem.name.toLowerCase().replace(' ', '-')] && (
+                              <div className="ml-4 pl-2 border-l border-blue-600">
+                                {subItem.subItems.map((nestedItem) => (
+                                  <NavLink
+                                    key={nestedItem.name}
+                                    to={nestedItem.path}
+                                    className={({ isActive }) =>
+                                      `flex items-center px-4 py-2 mt-1 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
+                                        isActive ? 'bg-blue-900 text-white' : 'text-blue-200'
+                                      }`
+                                    }
+                                  >
+                                    <span className="mr-3 text-xs">{nestedItem.icon}</span>
+                                    <span className="text-xs font-medium">{nestedItem.name}</span>
+                                  </NavLink>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <NavLink
+                            to={subItem.path}
+                            className={({ isActive }) =>
+                              `flex items-center px-4 py-2 mt-1 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
+                                isActive ? 'bg-blue-900 text-white' : 'text-blue-200'
+                              }`
+                            }
+                          >
+                            <span className="mr-3 text-sm">{subItem.icon}</span>
+                            <span className="text-sm font-medium">{subItem.name}</span>
+                          </NavLink>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
