@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import User from "./UserModel.js";
 const salesSchema = new mongoose.Schema({
   transactionId: { type: String, required: true, index: true }, // Group multiple products
   product: { type: Schema.Types.ObjectId, ref: "Product", required: true },

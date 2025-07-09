@@ -199,7 +199,7 @@ export async function GetAllProducts(req,res){
 }
 export async function GetStoreProduct(req,res){
   try {
-    const products = await Product.find({"inventory.store":{$gte:0}});
+    const products = await Product.find({"inventory.store":{$gt:0}});
     return res.json({ products });
   } catch (error) {
     return res.status(500).json({message:error.message})
@@ -207,7 +207,7 @@ export async function GetStoreProduct(req,res){
 }
 export async function GetDispensaryProduct(req,res){
   try {
-    const products = await Product.find({"inventory.dispensary":{$gte:0}});
+    const products = await Product.find({"inventory.dispensary":{$gt:0}});
     return res.json({ products });
   } catch (error) {
     return res.status(500).json({message:error.message})

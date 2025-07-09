@@ -1,46 +1,21 @@
 // src/components/SalesList.jsx/PurchaseOrder.jsx (Pharmacist Page)
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ProductList from './SalesComponent/ProductList';
 import OrderCart from './SalesComponent/OrderCart';
-
-const PurchaseOrder = () => {
-  // Dummy data for products
-  const [products] = useState([
-    {
-      id: '1',
-      name: 'Amoxicillin',
-      brand: 'Generic',
-      category: 'Medicine',
-      dosageForm: 'Capsule',
-      batchNo: 'B12345',
-      unitPrice: 1.5,
-      sellingPrice: 3.0,
-      quantity: 100,
-    },
-    {
-      id: '2',
-      name: 'Vitamin C',
-      brand: 'NatureMade',
-      category: 'Supplement',
-      dosageForm: 'Tablet',
-      batchNo: 'VC6789',
-      unitPrice: 0.8,
-      sellingPrice: 2.5,
-      quantity: 200,
-    },
-    {
-      id: '3',
-      name: 'Hand Sanitizer',
-      brand: 'Purell',
-      category: 'Sanitary',
-      dosageForm: 'Liquid',
-      batchNo: 'HS1011',
-      unitPrice: 1.2,
-      sellingPrice: 4.0,
-      quantity: 150,
-    },
-  ]);
-
+import axios from 'axios';
+import { toast } from 'react-toastify';
+  const PurchaseOrder = () => {
+const [products,setProdcuts]=useState([])
+async function FetchItems(){
+  const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
+      withCredentials:true
+    }).then((res)=>{
+      setProdcuts(res.data.products)
+    })
+}
+useEffect(()=>{
+  FetchItems()
+},[])
   const [filters, setFilters] = useState({
     name: '',
     brand: '',
@@ -50,6 +25,7 @@ const PurchaseOrder = () => {
   
   const [orderItems, setOrderItems] = useState([]);
   const [patientName, setPatientName] = useState('');
+  console.log(orderItems)
 
   const filteredProducts = products.filter(product => {
     return (
@@ -67,10 +43,10 @@ const PurchaseOrder = () => {
 
   const addToOrder = (product) => {
     setOrderItems(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      const existing = prev.find(item => item._id === product._id);
       if (existing) {
         return prev.map(item => 
-          item.id === product.id 
+          item._id === product._id 
             ? { ...item, quantity: item.quantity + 1 } 
             : item
         );
@@ -82,24 +58,47 @@ const PurchaseOrder = () => {
   const updateQuantity = (id, quantity) => {
     if (quantity < 1) return;
     setOrderItems(prev => 
-      prev.map(item => item.id === id ? { ...item, quantity } : item)
+      prev.map(item => item._id === id ? { ...item, quantity } : item)
     );
   };
 
   const removeItem = (id) => {
-    setOrderItems(prev => prev.filter(item => item.id !== id));
+    setOrderItems(prev => prev.filter(item => item._id !== id));
   };
 
-  const handleSubmitOrder = () => {
-    if (!patientName.trim() || orderItems.length === 0) return;
-    
-    // In real implementation, this would send to backend
-    alert(`Order sent to cashier for ${patientName}`);
-    
-    // Reset form
+ const [isSubmitting, setIsSubmitting] = useState(false);
+
+// Modify handleSubmitOrder function
+const handleSubmitOrder = async () => {
+  if (!patientName.trim() || orderItems.length === 0 || isSubmitting) return;
+  
+  setIsSubmitting(true);
+  
+  try {
+    // Transform order items to required format
+    const payload = {
+      items: orderItems.map(item => ({
+        quantity: item.quantity.toString(), // Convert to string as per requirement
+        productId: item._id
+      }))
+    };
+
+    // Send to backend
+    const response = await axios.post(
+      "http://localhost:5000/api/sales/sales",
+      payload,
+      { withCredentials: true }
+    );
+     console.log(response)
+    // Reset form on success
     setOrderItems([]);
     setPatientName('');
-  };
+    toast.success(`Order sent to cashier for ${patientName}`)
+  } catch (error) {
+    toast.error(error.response.data.error)
+    setIsSubmitting(false)  
+;}
+};
 
   return (
     <div className="space-y-6">
@@ -195,16 +194,16 @@ const PurchaseOrder = () => {
                 Total: ${orderItems.reduce((sum, item) => sum + (item.quantity * item.sellingPrice), 0).toFixed(2)}
               </span>
               <button
-                onClick={handleSubmitOrder}
-                disabled={!patientName.trim() || orderItems.length === 0}
-                className={`px-4 py-2 rounded ${
-                  patientName.trim() && orderItems.length > 0
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Send to Cashier
-              </button>
+            onClick={()=>{handleSubmitOrder()}}
+            disabled={!patientName.trim() || orderItems.length === 0 || isSubmitting}
+            className={`px-4 py-2 rounded ${
+              patientName.trim() && orderItems.length > 0 && !isSubmitting
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            {isSubmitting ? 'Sending...' : 'Send to Cashier'}
+          </button>
             </div>
           </div>
         </div>

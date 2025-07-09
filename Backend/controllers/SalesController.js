@@ -231,3 +231,14 @@ export const CloseDailyBalance = async (req,res) => {
     transactionCount: transactions.length
   });
 };
+export async function GetAllPendingStatus(req,res){
+  try {
+    const PendingTransaction = await Sales.find({status:"pending"})
+    .populate('product', 'name brand batchNo sellingPrice category')
+    .populate('pharmacist', 'name email role')
+    .populate('cashier', 'name email role')
+    res.status(200).json(PendingTransaction)
+  } catch (error) {
+    res.status(500).json({massage:error.message})
+  }
+}
