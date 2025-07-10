@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 import User from "./UserModel.js";
 const salesSchema = new mongoose.Schema({
   transactionId: { type: String, required: true, index: true }, // Group multiple products
+  patientName:{type:String,required:true},
   product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
   quantitySold: { type: Number, required: true },
   profit: { type: Number, required: true },

@@ -146,7 +146,7 @@ export async function GetIssuedDispensary(req, res) {
   try {
     const history = await Transfare.find({type: "ISSUE_TO_DISPENSARY"})
       .populate('user', 'name email role')
-      .populate('product','name role brand batchNo expiryDate unitPrice sellingPrice category ')
+      .populate('product','name brand batchNo expiryDate unitPrice sellingPrice category ')
       .sort({ date: -1 });
     return res.json({ history });
     

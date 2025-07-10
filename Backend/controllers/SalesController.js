@@ -11,7 +11,7 @@ export const PrepareAndSaveSale = async (req, res) => {
   
   try {
     const pharmacistId=req.user._id
-    const { items } = req.body;
+    const { items,patientName } = req.body;
     const preparedItems = [];
     let grandTotal = 0;
     const transactionId = new mongoose.Types.ObjectId().toString();
@@ -52,6 +52,7 @@ export const PrepareAndSaveSale = async (req, res) => {
         transactionId,
         product: item.productId,
         name: item.name,
+        patientName,
         brand: item.brand,
         quantitySold: item.quantity,
         profit: item.profit,
@@ -64,7 +65,6 @@ export const PrepareAndSaveSale = async (req, res) => {
       await saleRecord.save({ session });
       salesRecords.push(saleRecord);
     }
-
     await session.commitTransaction();
     
     res.status(201).json({
@@ -233,11 +233,10 @@ export const CloseDailyBalance = async (req,res) => {
 };
 export async function GetAllPendingStatus(req,res){
   try {
-    const PendingTransaction = await Sales.find({status:"pending"})
-    .populate('product', 'name brand batchNo sellingPrice category')
-    .populate('pharmacist', 'name email role')
-    .populate('cashier', 'name email role')
-    res.status(200).json(PendingTransaction)
+    const PendingTransaction = await Sales.find({status:"pending"}).populate('pharmacist', 'name email role')
+    .populate('product','name brand batchNo sellingPrice category')
+    const pendingOrders = transformSalesRecords(PendingTransaction);
+    res.status(200).json(pendingOrders)
   } catch (error) {
     res.status(500).json({massage:error.message})
   }

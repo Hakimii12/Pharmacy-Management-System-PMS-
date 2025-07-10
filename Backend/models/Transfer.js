@@ -1,13 +1,15 @@
 import mongoose from "mongoose";
+import User from "./UserModel.js";
+import Product from "./ProductModel.js";
 const TransfareSchema = new mongoose.Schema({
    product :{
          type:mongoose.Schema.Types.ObjectId,
          ref:'Product',
-         required:true
+         required:true,
    },
    user:{
     type:mongoose.Schema.Types.ObjectId,
-    ref:'user',
+    ref:'User',
     required:true
    },
    type:{
