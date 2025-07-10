@@ -81,7 +81,7 @@ const HistoryTable = ({ history, onUndoProduct }) => {
                               <td className="px-4 py-2 whitespace-nowrap text-sm">{item.category}</td>
                               <td className="px-4 py-2 whitespace-nowrap text-sm">{item.dosageForm}</td>
                               <td className="px-4 py-2 whitespace-nowrap text-sm">{item.quantity}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">${item.unitPrice.toFixed(2)}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm">${item.sellingPrice.toFixed(2)}</td>
                               <td className="px-4 py-2 whitespace-nowrap text-sm">${item.total.toFixed(2)}</td>
                               <td className="px-4 py-2 whitespace-nowrap text-sm">
                                 {order.status === 'completed' && (

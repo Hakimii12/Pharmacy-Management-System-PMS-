@@ -77,13 +77,14 @@ const handleSubmitOrder = async () => {
   try {
     // Transform order items to required format
     const payload = {
+      patientName:patientName,
       items: orderItems.map(item => ({
         quantity: item.quantity.toString(), // Convert to string as per requirement
-        productId: item._id
+        productId: item._id,
+
       }))
     };
 
-    // Send to backend
     const response = await axios.post(
       "http://localhost:5000/api/sales/sales",
       payload,

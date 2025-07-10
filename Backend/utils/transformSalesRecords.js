@@ -23,7 +23,7 @@ function transformSalesRecords(records) {
       name: record.product.name,
       brand: record.product.brand,
       category: record.product.category,
-      dosageForm: "N/A", // Not in your schema
+      dosageForm: record.product.dosageForm, // Not in your schema
       quantitySold: record.quantitySold,
       saleAmount: record.saleAmount / record.quantitySold, // Per unit price
       total: record.saleAmount
@@ -35,3 +35,4 @@ function transformSalesRecords(records) {
 
   return Object.values(groupedOrders);
 }
+export default transformSalesRecords

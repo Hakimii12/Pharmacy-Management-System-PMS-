@@ -5,6 +5,7 @@ import User from "../models/UserModel.js"
 import DailyBalance from "../models/DailyBalance.js";
 import { updateProfitSummary } from "../utils/profitUtils.js";
 import Notification from "../models/NotificationModel.js";
+import transformSalesRecords from "../utils/transformSalesRecords.js"
 export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -59,6 +60,7 @@ export const PrepareAndSaveSale = async (req, res) => {
         saleAmount: item.saleAmount,
         status: "pending",
         pharmacist: pharmacistId,
+        dosageForm:item.dosageForm,
         timestamp
       });
       
@@ -239,5 +241,59 @@ export async function GetAllPendingStatus(req,res){
     res.status(200).json(pendingOrders)
   } catch (error) {
     res.status(500).json({massage:error.message})
+  }
+}
+export async function GetAbortAndComplatedSale(req, res) {
+  try {
+  
+    const TransactionHistory = await Sales.find({
+      $or: [{ status: "completed" }, { status: "aborted" }]
+    })
+      .populate('pharmacist', 'name email role')
+      .populate('product', 'name brand batchNo sellingPrice DosageForms category unitPrice') // Added unitPrice
+      .populate('cashier', 'name email role');
+
+    // Group transactions by transactionId
+    const groupedTransactions = {};
+    
+    TransactionHistory.forEach(record => {
+      const tid = record.transactionId;
+      
+      if (!groupedTransactions[tid]) {
+        groupedTransactions[tid] = {
+          id: tid,
+          patientName: record.patientName,
+          items: [],
+          totalAmount: 0,
+          timestamp: record.timestamp,
+          pharmacist: record.pharmacist.name,
+          cashier: record.cashier?.name || null, 
+          status: record.status
+        };
+      }
+
+      // Add item details
+      groupedTransactions[tid].items.push({
+        productId: record.product._id,
+        name: record.product.name,
+        brand: record.product.brand,
+        category: record.product.category,
+        dosageForm: record.product.DosageForms,
+        quantity: record.quantitySold,
+        unitPrice: record.product.unitPrice, 
+        sellingPrice: record.product.sellingPrice,
+        total: record.saleAmount
+      });
+
+      // Update transaction total
+      groupedTransactions[tid].totalAmount += record.saleAmount;
+    });
+
+    // Convert to array
+    const result = Object.values(groupedTransactions);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 }
