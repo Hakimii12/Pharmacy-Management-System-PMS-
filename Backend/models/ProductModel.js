@@ -5,7 +5,6 @@ const ProductSchema = new mongoose.Schema({
      name: {type:String , required:true,index:true},
      brand: {type:String,required:true, index:true},
      unitPrice:{type:Number , required:true},
-     patientName:{type:String},
      quantity:{type:Number , required:true},
      status:{type:String, enum:["In Stock","Low Stock","Sold Out","Expired"], default:"In Stock"},
      totalPrice:{type:Number,required:true},
@@ -33,24 +32,29 @@ const ProductSchema = new mongoose.Schema({
 ProductSchema.pre("save", function(next) {
   // Expiry logic
      const today = new Date();
+     today.setHours(0, 0, 0, 0);
   if (this.isModified("expiryDate")) {
     const today = new Date();
+    today.setHours(0, 0, 0, 0)
     this.isExpired = this.expiryDate <= today
     this.status = "Expired";
   }
   // Status logic
   if (this.quantity === 0) {
     this.status = "Sold Out";
-  } else if (this.inventory && this.inventory.store <= this.inventory.storeThreshold) {
+  } else if (this.inventory && this.inventory.store <= this.inventory.storeThreshold && this.expiryDate > today) {
     this.status = "Low Stock";
-  } else if(this.isExpired = this.expiryDate <= today){
+  } else if(this.expiryDate <= today){
     this.status = "Expired";
-  }else{
+    this.isExpired=this.expiryDate <= today
+  }else if(this.inventory.store > this.inventory.storeThreshold && this.expiryDate > today ){
     this.status = "In Stock";
   }
   next();
 });
 ProductSchema.post('save', async function(doc) {
+  const today = new Date();
+     today.setHours(0, 0, 0, 0);
   const locations = ['store', 'dispensary'];
   
   for (const loc of locations) {
@@ -62,12 +66,18 @@ ProductSchema.post('save', async function(doc) {
     if (quantity === 0) {
       type = "OutOfStock";
       message = `Product ${doc.name} is out of stock in ${loc}.`;
-    } else if (quantity < threshold) {
+    } else if (quantity < threshold && doc.expiryDate > today ) {
       type = "LowStock";
       message = `Product ${doc.name} is low in ${loc}. Current: ${quantity}, Threshold: ${threshold}.`;
-    } else {
+    } 
+    else if(doc.expiryDate <= today || doc.isExpired){
+      type ="Expired";
+      message = `Product ${doc.name} is Expired.`;
+    }
+    else {
       continue;
     }
+    
 
     // Check for existing notification
     const existing = await Notification.findOne({
@@ -85,6 +95,28 @@ ProductSchema.post('save', async function(doc) {
         location: loc,
         read: false
       });
+    }
+  }
+  const threeMonthFromNow = new Date(today);
+  threeMonthFromNow.setMonth(threeMonthFromNow.getMonth() + 3)
+  if(!doc.isExpired && doc.expiryDate > today){
+    const isNearExpiry = doc.expiryDate <=threeMonthFromNow;
+    if(isNearExpiry){
+      const existingNearExpiry = await Notification.findOne({
+        product: doc._id,
+        type: "NearExpiry",
+        location: "both",
+        read: false
+      })
+       if (!existingNearExpiry) {
+        await Notification.create({
+          type: "NearExpiry",
+          message: `Product ${doc.name} expires on ${doc.expiryDate.toDateString()}.`,
+          product: doc._id,
+          location: "both",
+          read: false
+        });
+      }
     }
   }
 });

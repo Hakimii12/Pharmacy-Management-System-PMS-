@@ -128,7 +128,7 @@ useEffect(()=>{
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map(product => (
-                <ProductItem key={product.id} product={product} onEdit={handleEdit} />
+                <ProductItem key={product._id} product={product} onEdit={handleEdit} />
                 
               ))}
             </tbody>

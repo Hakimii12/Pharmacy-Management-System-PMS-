@@ -108,7 +108,6 @@ useEffect(() => {
     } finally {
       setIsTransferring(false);
     }
-    fetchProducts()
   };
 
   const expiryStatus = getExpiryStatus();

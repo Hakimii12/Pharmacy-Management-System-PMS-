@@ -115,83 +115,83 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
   const title = getNotificationTitle();
   const timeAgo = formatTime(notification.timestamp);
 
-  if (isEditing) {
-    return (
-      <div className={`border rounded-xl mb-3 overflow-hidden ${borderColor} bg-white`}>
-        <div className="flex">
-          <div className={`${bgColor} ${iconColor} p-4 flex items-center justify-center`}>
-            {icon}
-          </div>
+  // if (isEditing) {
+  //   return (
+  //     <div className={`border rounded-xl mb-3 overflow-hidden ${borderColor} bg-white`}>
+  //       <div className="flex">
+  //         <div className={`${bgColor} ${iconColor} p-4 flex items-center justify-center`}>
+  //           {icon}
+  //         </div>
           
-          <div className="flex-1 p-4">
-            <div className="flex justify-between items-start">
-              <h3 className="font-semibold text-gray-800">{title}</h3>
-              <span className="text-xs text-gray-500 whitespace-nowrap">
-                {timeAgo}
-              </span>
-            </div>
+  //         <div className="flex-1 p-4">
+  //           <div className="flex justify-between items-start">
+  //             <h3 className="font-semibold text-gray-800">{title}</h3>
+  //             <span className="text-xs text-gray-500 whitespace-nowrap">
+  //               {timeAgo}
+  //             </span>
+  //           </div>
             
-            <div className="mt-3 space-y-3">
-              {(notification.type === 'LOW_STOCK' || notification.type === 'SOLD_OUT') && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">New Stock</label>
-                    <input
-                      name="stock"
-                      type="number"
-                      min="0"
-                      value={editedData.stock}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Price</label>
-                    <input
-                      name="price"
-                      type="number"
-                      step="0.01"
-                      value={editedData.price}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                    />
-                  </div>
-                </div>
-              )}
+  //           <div className="mt-3 space-y-3">
+  //             {(notification.type === 'LOW_STOCK' || notification.type === 'SOLD_OUT') && (
+  //               <div className="grid grid-cols-2 gap-2">
+  //                 <div>
+  //                   <label className="block text-sm text-gray-600 mb-1">New Stock</label>
+  //                   <input
+  //                     name="stock"
+  //                     type="number"
+  //                     min="0"
+  //                     value={editedData.stock}
+  //                     onChange={handleEditChange}
+  //                     className="w-full px-3 py-2 border rounded-lg text-sm"
+  //                   />
+  //                 </div>
+  //                 <div>
+  //                   <label className="block text-sm text-gray-600 mb-1">Price</label>
+  //                   <input
+  //                     name="price"
+  //                     type="number"
+  //                     step="0.01"
+  //                     value={editedData.price}
+  //                     onChange={handleEditChange}
+  //                     className="w-full px-3 py-2 border rounded-lg text-sm"
+  //                   />
+  //                 </div>
+  //               </div>
+  //             )}
               
-              {notification.type === 'NEAR_EXPIRY' && (
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Expiration Date</label>
-                  <input
-                    name="expirationDate"
-                    type="date"
-                    value={editedData.expirationDate}
-                    onChange={handleEditChange}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
-                </div>
-              )}
-            </div>
+  //             {notification.type === 'NEAR_EXPIRY' && (
+  //               <div>
+  //                 <label className="block text-sm text-gray-600 mb-1">Expiration Date</label>
+  //                 <input
+  //                   name="expirationDate"
+  //                   type="date"
+  //                   value={editedData.expirationDate}
+  //                   onChange={handleEditChange}
+  //                   className="w-full px-3 py-2 border rounded-lg text-sm"
+  //                 />
+  //               </div>
+  //             )}
+  //           </div>
             
-            <div className="flex justify-end mt-4 space-x-2">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="flex items-center text-sm text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg border border-gray-300"
-              >
-                <FaTimes className="mr-1" /> Cancel
-              </button>
-              <button
-                onClick={handleEditSubmit}
-                className="flex items-center text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg"
-              >
-                <FaSave className="mr-1" /> Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  //           <div className="flex justify-end mt-4 space-x-2">
+  //             <button
+  //               onClick={() => setIsEditing(false)}
+  //               className="flex items-center text-sm text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg border border-gray-300"
+  //             >
+  //               <FaTimes className="mr-1" /> Cancel
+  //             </button>
+  //             <button
+  //               onClick={handleEditSubmit}
+  //               className="flex items-center text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg"
+  //             >
+  //               <FaSave className="mr-1" /> Save Changes
+  //             </button>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className={`border rounded-xl mb-3 overflow-hidden ${borderColor} ${
@@ -223,14 +223,14 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
           {/* Action buttons */}
           <div className="flex justify-between items-center mt-3">
             <div className="space-x-2">
-              {(notification.type === 'LOW_STOCK' || notification.type === 'SOLD_OUT') && (
+              {/* {(notification.type === 'LOW_STOCK' || notification.type === 'SOLD_OUT') && (
                 <button
                   onClick={() => setIsEditing(true)}
                   className="flex items-center text-sm text-gray-600 hover:text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
                 >
                   <FaEdit className="mr-1" /> Edit
                 </button>
-              )}
+              )} */}
               
               {(notification.type === 'EXPIRED' || notification.type === 'NEAR_EXPIRY') && (
                 <button
