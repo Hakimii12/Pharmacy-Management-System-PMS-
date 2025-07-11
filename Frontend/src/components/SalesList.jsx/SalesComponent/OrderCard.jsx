@@ -1,6 +1,5 @@
 // src/components/SalesList.jsx/components/OrderCard.jsx
 import React from 'react';
-
 const OrderCard = ({ order, onComplete, onAbort }) => {
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -23,7 +22,7 @@ const OrderCard = ({ order, onComplete, onAbort }) => {
               <div>
                 <span className="font-medium">{item.name}</span>
                 <div className="text-xs text-gray-500">
-                  {item.brand} • {item.category} • Qty: {item.quantity}
+                  {item.brand} • {item.category} • Qty: {item.quantitySold}
                 </div>
               </div>
               <div>

@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import HistoryTable from './SalesComponent/HistoryTable';
 import axios from 'axios';
 import { useEffect } from 'react';
+import Loading from '../Loading/Loading';
 
 const SalesHistory = () => {
   const [history,setHistory]=useState([])
+  const [loading,setLoading]=useState(false)
   async function FetchTransactionHistory(){
+    setLoading(true)
     try {
         const res= await axios.get("http://localhost:5000/api/sales/sales/allTransactionHistory",{
           withCredentials:true
@@ -13,94 +16,17 @@ const SalesHistory = () => {
           console.log(res)
           setHistory(res.data)
         })
+        setLoading(false)
     } catch (error) {
       console.log(error)
+      setLoading(false)
+    } finally{
+      setLoading(false)
     }
   }
   useEffect(()=>{
     FetchTransactionHistory()
-  })
-  // const [history, setHistory] = useState([
-  //   {
-  //     id: 'order-123',
-  //     patientName: 'John Doe',
-  //     items: [
-  //       {
-  //         productId: '1',
-  //         name: 'Amoxicillin',
-  //         brand: 'Generic',
-  //         category: 'Medicine',
-  //         dosageForm: 'Capsule',
-  //         quantity: 2,
-  //         unitPrice: 1.5,
-  //         sellingPrice: 3.0,
-  //         total: 6.0
-  //       },
-  //       {
-  //         productId: '1',
-  //         name: 'Amoxicillin',
-  //         brand: 'Generic',
-  //         category: 'Medicine',
-  //         dosageForm: 'Capsule',
-  //         quantity: 2,
-  //         unitPrice: 1.5,
-  //         sellingPrice: 3.0,
-  //         total: 6.0
-  //       },
-  //       {
-  //         productId: '1',
-  //         name: 'Amoxicillin',
-  //         brand: 'Generic',
-  //         category: 'Medicine',
-  //         dosageForm: 'Capsule',
-  //         quantity: 2,
-  //         unitPrice: 1.5,
-  //         sellingPrice: 3.0,
-  //         total: 6.0
-  //       },
-  //       {
-  //         productId: '2',
-  //         name: 'Vitamin C',
-  //         brand: 'NatureMade',
-  //         category: 'Supplement',
-  //         dosageForm: 'Tablet',
-  //         quantity: 1,
-  //         unitPrice: 0.8,
-  //         sellingPrice: 2.5,
-  //         total: 2.5
-  //       }
-  //     ],
-  //     totalAmount: 8.5,
-  //     timestamp: '2023-07-15T10:30:00Z',
-  //     pharmacist: 'Dr. Smith',
-  //     cashier: 'Cashier 1',
-  //     status: 'completed',
-  //     completedAt: '2023-07-15T10:45:00Z'
-  //   },
-  //   {
-  //     id: 'order-456',
-  //     patientName: 'Jane Smith',
-  //     items: [
-  //       {
-  //         productId: '3',
-  //         name: 'Hand Sanitizer',
-  //         brand: 'Purell',
-  //         category: 'Sanitary',
-  //         dosageForm: 'Liquid',
-  //         quantity: 3,
-  //         unitPrice: 1.2,
-  //         sellingPrice: 4.0,
-  //         total: 12.0
-  //       }
-  //     ],
-  //     totalAmount: 12.0,
-  //     timestamp: '2023-07-15T11:15:00Z',
-  //     pharmacist: 'Dr. Johnson',
-  //     status: 'aborted',
-  //     abortedAt: '2023-07-15T11:30:00Z'
-  //   }
-  // ]);
-
+  },[])
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -212,11 +138,11 @@ const SalesHistory = () => {
           </div>
         </div>
       </div>
-      
-      <HistoryTable 
+      {loading? <Loading/>:<HistoryTable 
         history={filteredHistory} 
         onUndoProduct={handleUndoProduct} 
-      />
+      />}
+      
     </div>
   );
 };

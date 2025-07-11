@@ -4,14 +4,27 @@ import ProductList from './SalesComponent/ProductList';
 import OrderCart from './SalesComponent/OrderCart';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import Loading from '../Loading/Loading';
   const PurchaseOrder = () => {
 const [products,setProdcuts]=useState([])
+const [loading,setLoading]=useState(false)
 async function FetchItems(){
-  const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
+  setLoading(true)
+  try {
+    const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
       withCredentials:true
     }).then((res)=>{
       setProdcuts(res.data.products)
+      setLoading(false)
     })
+  } catch (error) {
+    console.log(error)
+    setLoading(false)
+  }
+  finally{
+ setLoading(false)
+  }
+    
 }
 useEffect(()=>{
   FetchItems()
@@ -162,11 +175,11 @@ const handleSubmitOrder = async () => {
                 </select>
               </div>
             </div>
-            
-            <ProductList 
+            {loading ? <Loading/>:<ProductList 
               products={filteredProducts} 
               onAdd={addToOrder} 
-            />
+            />}
+            
           </div>
         </div>
         

@@ -4,22 +4,29 @@ import OrderCard from './SalesComponent/OrderCard';
 import axios from 'axios';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
+import Loading from "../Loading/Loading"
 const ReceiveOrder = () => {
   const [pendingOrders,setPendingOrders]=useState([])
+  const [loading,setLoading]=useState(false)
   async function FetchingPendingOrders(){
+    setLoading(true)
   try {
         await axios.get("http://localhost:5000/api/sales/sales/pendingStatusItems",{
       withCredentials:true
     }).then((res)=>{
       setPendingOrders(res.data)
+      setLoading(false)
     })
   } catch (error) {
     console.error(error)
+    setLoading(false)
+  } finally{
+    setLoading(false)
   }
   }
   useEffect(()=>{
       FetchingPendingOrders()
-  })
+  },[])
   // const pendingOrders = [
   //   {
   //     id: 'order-123',
@@ -140,13 +147,14 @@ const ReceiveOrder = () => {
   // ];
 
   const completeOrder = async(orderId) => {
-    console.log(orderId)
+    setLoading(true)
     try {
       await axios.post(`http://localhost:5000/api/sales/sales/confirm/${orderId}`,{},{
         withCredentials:true
       }).then((res)=>{
-        console.log(res)
+        FetchingPendingOrders()
         toast.success("Order confirmed")
+        setLoading(false)
       })
     } catch (error) {
       console.error(error)
@@ -157,14 +165,33 @@ const ReceiveOrder = () => {
       // sessionStorage.clear();
       // setIsAuth(false);
     }
+    finally{
+      setLoading(false)
+    }
   };
 
-  const abortOrder = (orderId) => {
-    alert(`Order ${orderId} aborted`);
+  const abortOrder = async (orderId) => {
+    setLoading(true)
+    try {
+       await axios.post(`http://localhost:5000/api/sales/sales/abort/${orderId}`,{},{
+        withCredentials:true
+      }).then((res)=>{
+        FetchingPendingOrders()
+        toast.success("Order Aborted")
+        setLoading(false)
+      })
+    } catch (error) {
+      console.log(error)
+      toast.error("system having some trouble")
+      setLoading(false)
+    }
+    finally{
+      setLoading(false)
+    }
     // In real implementation, this would call your AbortSale API
   };
 
-  return (
+  return loading ? (<Loading/>):(
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Pending Orders</h1>
       
@@ -174,7 +201,7 @@ const ReceiveOrder = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pendingOrders.map(order => (
+          {pendingOrders.map(order =>(
             <OrderCard 
               key={order.id}
               order={order}

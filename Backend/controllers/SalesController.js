@@ -123,6 +123,7 @@ export const ConfirmSale = async (req, res) => {
       record.status = "completed";
       record.cashier = cashierId;
       currentProfit +=record.profit
+      record.completedAt = new Date();
       await record.save({ session });
       if (quantity === 0 || quantity < threshold) {
     const type = quantity === 0 ? 'OutOfStock' : 'LowStock';
@@ -176,21 +177,49 @@ export const ConfirmSale = async (req, res) => {
     session.endSession();
   }
 };
-export const AbortSale = async (req,res) => {
-  const { transactionId } = req.params;
-  const result = await Sales.updateMany(
-    { transactionId, status: "pending" },
-    { $set: { status: "aborted" } }
-  );
+export const AbortSale = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   
-  if (result.nModified === 0) {
-    throw new Error("No pending transactions found to abort");
-  }
-  return res.status(200).json({
+  try {
+    const { transactionId } = req.params;
+    const cashierId = req.user._id; // User who aborted the sale
+
+    const salesRecords = await Sales.find({ 
+      transactionId, 
+      status: "pending" 
+    }).session(session);
+
+    if (!salesRecords.length) {
+      throw new Error("No pending transactions found");
+    }
+
+    for (const record of salesRecords) {
+      // Update sales record
+      record.status = "aborted";
+      record.abortedAt = new Date();
+      record.cashier = cashierId; // Optional: track who aborted
+      await record.save({ session });
+    }
+
+    await session.commitTransaction();
+    
+    res.json({
       success: true,
       transactionId,
-      abortedAt: new Date()
+      abortedAt: new Date(),
+      itemsCount: salesRecords.length
     });
+  } catch (error) {
+    await session.abortTransaction();
+    
+    res.status(400).json({
+      success: false,
+      error: `Sale abort failed: ${error.message}`
+    });
+  } finally {
+    session.endSession();
+  }
 };
 export const CloseDailyBalance = async (req,res) => {
   const {cashierId, countedAmount}=req.body;
@@ -255,10 +284,8 @@ export async function GetAbortAndComplatedSale(req, res) {
 
     // Group transactions by transactionId
     const groupedTransactions = {};
-    
     TransactionHistory.forEach(record => {
       const tid = record.transactionId;
-      
       if (!groupedTransactions[tid]) {
         groupedTransactions[tid] = {
           id: tid,

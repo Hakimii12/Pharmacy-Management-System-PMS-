@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 const Loading = ({
   type = 'spinner', // 'spinner', 'dots', 'progress', 'fullscreen'
-  size = 24,
+  size = 100,
   color = '#0ea5e9',
   text = '',
   progress = 0,
