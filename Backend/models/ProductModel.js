@@ -111,7 +111,7 @@ ProductSchema.post('save', async function(doc) {
        if (!existingNearExpiry) {
         await Notification.create({
           type: "NearExpiry",
-          message: `Product ${doc.name} expires on ${doc.expiryDate.toDateString()}.`,
+          message: `Product ${doc.name}_${doc.brand} expires on ${doc.expiryDate.toDateString()}.`,
           product: doc._id,
           location: "both",
           read: false

@@ -2,27 +2,65 @@ import React, { useState } from 'react';
 import NotificationItem from './NotificationItem';
 import { FaBell, FaCheck, FaTrash } from 'react-icons/fa';
 import { notifications } from '../../data/notifications';
+import axios from 'axios';
+import { useEffect } from 'react';
 
 const NotificationCenter = () => {
   const [activeTab, setActiveTab] = useState('all');
-  const [notifs, setNotifs] = useState(notifications);
-
+  const [notifs, setNotifs] = useState([]);
+  async function FetchNotification(){
+    try {
+      res= await axios.get('http://localhost:5000/api/notify/notification',{
+      withCredentials:true
+     }).then((res)=>{
+      console.log(res.data)
+      setNotifs(res.data)
+     })
+    } catch (error) {
+      console.log(error)
+    }
+     
+  }
+  useEffect(()=>{
+    FetchNotification()
+  },[])
   const filteredNotifs = activeTab === 'all' 
     ? notifs 
-    : notifs.filter(n => n.type === activeTab.toUpperCase());
+    : notifs.filter(n => n.type.toUpperCase() === activeTab.toUpperCase());
 
-  const markAsRead = (id) => {
+  const markAsRead = async(id) => {
+    try {
+      res=await axios.put(`http://localhost:5000/api/notify/notification/${id}`,{withCredentials:true})
+      .then((res)=>{
+        console.log(res)
+      })
+    } catch (error) {
+      console.log(error)
+    }
     setNotifs(notifs.map(n => 
-      n.id === id ? { ...n, read: true } : n
+      n._id === id ? { ...n, read: true } : n
     ));
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async() => {
+    res = await axios.put('http://localhost:5000/api/notify/MarkAsReadAll',{
+      withCredentials:true
+    }).then((res)=>{
+      console.log(res)
+    })
     setNotifs(notifs.map(n => ({ ...n, read: true })));
   };
 
-  const deleteNotification = (id) => {
-    setNotifs(notifs.filter(n => n.id !== id));
+  const deleteNotification = async(id) => {
+    try {
+      res=await axios.delete(`http://localhost:5000/api/notify/removeNotification/${id}`,{withCredentials:true})
+      .then((res)=>{
+        console.log(res)
+      })
+    } catch (error) {
+      console.log(error)
+    }
+    setNotifs(notifs.filter(n => n._id !== id));
   };
 
   const unreadCount = notifs.filter(n => !n.read).length;
@@ -30,9 +68,10 @@ const NotificationCenter = () => {
   const getTabTitle = (tab) => {
     switch(tab) {
       case 'all': return 'All Notifications';
-      case 'sold_out': return 'Sold Out Alerts';
-      case 'expired': return 'Expired Drugs';
-      case 'low_stock': return 'Low Stock';
+      case 'OutOfStock': return 'Sold Out Alerts';
+      case 'Expired': return 'Expired Drugs';
+      case 'LowStock': return 'Low Stock';
+      case 'NearExpiry':return 'nearly expire'
       default: return 'Notifications';
     }
   };
@@ -74,31 +113,32 @@ const NotificationCenter = () => {
           </button>
           <button 
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-              activeTab === 'sold_out' 
+
+              activeTab === 'OutOfStock' 
                 ? 'bg-red-100 text-red-700' 
                 : 'text-gray-500 hover:bg-gray-100'
             }`}
-            onClick={() => setActiveTab('sold_out')}
+            onClick={() => setActiveTab('OutOfStock')}
           >
             Sold Out
           </button>
           <button 
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-              activeTab === 'expired' 
+              activeTab === 'Expired' 
                 ? 'bg-gray-100 text-gray-700' 
                 : 'text-gray-500 hover:bg-gray-100'
             }`}
-            onClick={() => setActiveTab('expired')}
+            onClick={() => setActiveTab('Expired')}
           >
             Expired
           </button>
           <button 
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-              activeTab === 'low_stock' 
+              activeTab === 'LowStock' 
                 ? 'bg-yellow-100 text-yellow-700' 
                 : 'text-gray-500 hover:bg-gray-100'
             }`}
-            onClick={() => setActiveTab('low_stock')}
+            onClick={() => setActiveTab('LowStock')}
           >
             Low Stock
           </button>
@@ -116,7 +156,7 @@ const NotificationCenter = () => {
           ) : (
             filteredNotifs.map(notification => (
               <NotificationItem 
-                key={notification.id}
+                key={notification._id}
                 notification={notification}
                 onMarkAsRead={markAsRead}
                 onDelete={deleteNotification}

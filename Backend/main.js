@@ -7,6 +7,7 @@ import DrugStore from "./routes/DrugRoutes.js";
 import SalesRoutes from "./routes/SalesRoutes.js"
 import UserRoutes from "./routes/UserRoutes.js";
 import "./utils/expairDateCounter.js"
+import NotificationRoutes from "./routes/NotificationRoutes.js"
 const app =express();
 app.use(express.json())
 app.use(cors({
@@ -21,6 +22,7 @@ dotenv.config();
 app.use("/api/product", DrugStore);
 app.use("/api/sales", SalesRoutes);
 app.use("/api/user", UserRoutes);
+app.use("/api/notify", NotificationRoutes);
 //Database connection initialization
 Database();
 app.listen(process.env.PORT,()=>{

@@ -11,7 +11,6 @@ import {
   FaTimes,
   FaSave
 } from 'react-icons/fa';
-
 const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState({
@@ -22,28 +21,28 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
   // Get appropriate icon and color based on notification type
   const getNotificationIcon = () => {
     switch (notification.type) {
-      case 'SOLD_OUT':
+      case 'OutOfStock':
         return {
           icon: <FaTimesCircle className="text-xl" />,
           bgColor: 'bg-red-100',
           iconColor: 'text-red-600',
           borderColor: 'border-red-200'
         };
-      case 'EXPIRED':
+      case 'Expired':
         return {
           icon: <FaExclamationCircle className="text-xl" />,
           bgColor: 'bg-gray-100',
           iconColor: 'text-gray-600',
           borderColor: 'border-gray-200'
         };
-      case 'LOW_STOCK':
+      case 'LowStock':
         return {
           icon: <FaExclamationTriangle className="text-xl" />,
           bgColor: 'bg-yellow-100',
           iconColor: 'text-yellow-600',
           borderColor: 'border-yellow-200'
         };
-      case 'NEAR_EXPIRY':
+      case 'NearExpiry':
         return {
           icon: <FaExclamationTriangle className="text-xl" />,
           bgColor: 'bg-orange-100',
@@ -63,13 +62,13 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
   // Get notification title based on type
   const getNotificationTitle = () => {
     switch (notification.type) {
-      case 'SOLD_OUT':
+      case 'OutOfStock':
         return 'Sold Out';
-      case 'EXPIRED':
+      case 'Expired':
         return 'Expired Drug';
-      case 'LOW_STOCK':
+      case 'LowStock':
         return 'Low Stock';
-      case 'NEAR_EXPIRY':
+      case 'NearExpiry':
         return 'Near Expiry';
       case 'NEW_DRUG':
         return 'New Drug Added';
@@ -78,9 +77,9 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
     }
   };
 
-  // Format timestamp
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
+  // Format createdAt
+  const formatTime = (createdAt) => {
+    const date = new Date(createdAt);
     const now = new Date();
     const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
     
@@ -113,7 +112,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
 
   const { icon, bgColor, iconColor, borderColor } = getNotificationIcon();
   const title = getNotificationTitle();
-  const timeAgo = formatTime(notification.timestamp);
+  const timeAgo = formatTime(notification.createdAt);
 
   // if (isEditing) {
   //   return (
@@ -232,7 +231,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
                 </button>
               )} */}
               
-              {(notification.type === 'EXPIRED' || notification.type === 'NEAR_EXPIRY') && (
+              {(notification.type === 'Expired' || notification.type === 'NearExpiry') && (
                 <button
                   onClick={() => onDelete(notification.id)}
                   className="flex items-center text-sm text-gray-600 hover:text-red-600 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
@@ -245,14 +244,14 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
             <div className="space-x-2">
               {!notification.read && (
                 <button
-                  onClick={() => onMarkAsRead(notification.id)}
+                  onClick={() => onMarkAsRead(notification._id)}
                   className="flex items-center text-sm text-gray-600 hover:text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
                 >
                   <FaCheck className="mr-1" /> Mark as Read
                 </button>
               )}
               <button
-                onClick={() => onDelete(notification.id)}
+                onClick={() => onDelete(notification._id)}
                 className="flex items-center text-sm text-gray-600 hover:text-red-600 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
               >
                 <FaTrash className="mr-1" /> Delete
@@ -263,7 +262,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
       </div>
       
       {/* Additional context for certain notification types */}
-      {notification.type === 'LOW_STOCK' && (
+      {notification.type === 'LowStock' && (
         <div className="bg-yellow-50 px-4 py-2 text-sm border-t border-yellow-100">
           <div className="flex items-center">
             <FaExclamationTriangle className="text-yellow-500 mr-2" />
@@ -272,7 +271,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
         </div>
       )}
       
-      {notification.type === 'NEAR_EXPIRY' && (
+      {notification.type === 'NearExpiry' && (
         <div className="bg-orange-50 px-4 py-2 text-sm border-t border-orange-100">
           <div className="flex items-center">
             <FaExclamationTriangle className="text-orange-500 mr-2" />
@@ -281,7 +280,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
         </div>
       )}
       
-      {notification.type === 'EXPIRED' && (
+      {notification.type === 'Expired' && (
         <div className="bg-red-50 px-4 py-2 text-sm border-t border-red-100">
           <div className="flex items-center">
             <FaExclamationCircle className="text-red-500 mr-2" />
