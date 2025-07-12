@@ -17,14 +17,13 @@ import PurchaseOrder from './components/SalesList.jsx/PurchaseOrder';
 import ReceiveOrder from './components/SalesList.jsx/ReceiveOrder';
 import SalesHistory from './components/SalesList.jsx/SalesHistory';
 import StoreHistory from './InventoryManagament/StoreHistory/StoreHistory';
+import CloseDailyBalance from './components/SalesList.jsx/CloseDailyBalance/CloseDailyBalance';
 
 function App() {
   const {isAuth} = useContext(ContextProvider)
-  return (
-    isAuth ? 
+  return isAuth ? (
       <Layout>
-        
-         <ToastContainer/>
+        <ToastContainer/>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           
@@ -37,17 +36,18 @@ function App() {
           <Route path="/purchase-order" element={<PurchaseOrder />} />
           <Route path="/receive-order" element={<ReceiveOrder />} />
           <Route path="/sales-history" element={<SalesHistory />} />
-          
+          <Route path='/close-daily-balance' element={<CloseDailyBalance/>}/>
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/reports" element={<Reports />} />
         </Routes>
-      </Layout>
-    :
-      <Routes>
+      </Layout>)
+    :(<>
+    <ToastContainer/>
+    <Routes>
         <Route path="/login" element={<LoginSignup />} />
         <Route path="/signup" element={<LoginSignup />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      </Routes></> 
   );
 }
 

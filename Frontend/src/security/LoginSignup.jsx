@@ -1,11 +1,11 @@
-// src/components/LoginSignup.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Logo from "../assets/hamzMesgedDrugStroe.png"
 import axios from 'axios';
 import { useContext } from 'react';
 import { ContextProvider } from '../contexts/AppContext';
+import { toast } from 'react-toastify';
 const LoginSignup = () => {
   const {setIsAuth} = useContext(ContextProvider)
   const navigate = useNavigate();
@@ -18,7 +18,9 @@ const LoginSignup = () => {
     role: 'pharmacist',
     remember: false
   });
-
+  useEffect(() => {
+    setIsLogin(location.pathname === '/login');
+  }, [location.pathname]);
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -41,29 +43,45 @@ const LoginSignup = () => {
             withCredentials: true
         }).then((res)=>{
             navigate('/')
-            console.log(res.data)
             const user=res.data
+            console.log(user)
             localStorage.setItem('user-threads', JSON.stringify(user))
             setIsAuth(true)
+            toast.success(`welcome back ${user.name}`)
+            console.log(res)
+        }).catch((error)=>{
+          console.log(error.response.data)
+          toast.error(error.response.data||"error occured");
         })
-      console.log('Login data:', { email: formData.email, password: formData.password });
         } catch (error) {
-           console.log(err) 
+           console.log(res.response.data)
+           toast.error(error.response?.data?.message || "An error occurred"); 
         }
 
     } else {
-  axios
-      .post("",{},
-            {
-            headers:{
-                'Content-Type':'application/json'
-            },
-            withCredentials: true
+      axios
+        .post("http://localhost:5000/api/user/register", {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          role: formData.role
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
         })
-      console.log('Signup data:', formData);
+        .then((res) => {
+          navigate('/login'); 
+          toast.success(`You have successfully registered!!`);
+          console.log(res);
+        })
+        .catch((error) => {
+          console.log(error.response?.data);
+          toast.error(error.response?.data?.message || "Registration failed");
+        });
     }
-  };
-
+  }
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-blue-100">
       <motion.div 
@@ -130,13 +148,13 @@ const LoginSignup = () => {
           
           {/* Form */}
           <div className="p-6">
-            <motion.form
+          <motion.form
               key={isLogin ? 'login' : 'signup'}
-              initial={{ opacity: 0, x: isLogin ? -20 : 20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
               onSubmit={handleSubmit}
-            >
+> 
               {!isLogin && (
                 <>
                   <motion.div

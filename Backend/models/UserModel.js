@@ -18,9 +18,15 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['pharmacist', 'casher', 'manager'],
+        enum: ['pharmacist', 'casher', 'admin','superAdmin'],
         required: true
     },
+    status: { 
+        type: String, 
+        enum: ['approved', 'pending', 'rejected', 'suspended'], 
+        default: "pending" 
+      },
+      suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: {
         type: Date,
         default: Date.now
