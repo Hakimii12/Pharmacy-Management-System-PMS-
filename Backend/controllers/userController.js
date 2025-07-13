@@ -102,29 +102,42 @@ export async function LoginUser(req, res) {
     }
 };
 export async function GetUser(req,res){
-    try {
-         const id = req.params.id;
-         const user = await User.findById(id);
-         if (!user) {
-             return res.status(404).json({ message: 'User not found' });
-         }
-         res.json({ id: user._id, name: user.name, email: user.email, role:user.role});
-    } catch (error) {
-        res.status(500).json({ message:error.message})
-    }
+  try {
+       const id = req.params.id;
+       const user = await User.findById(id);
+       if (!user) {
+           return res.status(404).json({ message: 'User not found' });
+       }
+       res.json({ id: user._id, name: user.name, email: user.email, role:user.role});
+  } catch (error) {
+      res.status(500).json({ message:error.message})
+  }
 }
 export async function Logout(req, res) {
-    try {
-      res.clearCookie("jwt", {
-        httpOnly: true,
-        sameSite: "strict",
-        path: "/",
-      });
-      return res.status(200).json({ message: "Successfully logged out" });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
+  try {
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      sameSite: "strict",
+      path: "/",
+    });
+    return res.status(200).json({ message: "Successfully logged out" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
+}
+export async function GetAllUser(req,res){
+  try {
+    const user = await User.find({});
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(user);
+} catch (error) {
+   res.status(500).json({ message:error.message})
+}
+}
+
+
 export async function Approval(req, res) {
     const {userStatus ,id  } = req.params;
     const user = await User.findById(id).select("-password");

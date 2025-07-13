@@ -5,11 +5,7 @@ import {
   FaInfoCircle, 
   FaTimesCircle,
   FaCheck,
-  FaTrash,
-  FaBell,
-  FaEdit,
-  FaTimes,
-  FaSave
+  FaTrash
 } from 'react-icons/fa';
 const NotificationItem = ({ notification, onMarkAsRead, onDelete, onEdit }) => {
   const [isEditing, setIsEditing] = useState(false);

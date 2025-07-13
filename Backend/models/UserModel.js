@@ -32,5 +32,5 @@ const userSchema = new mongoose.Schema({
         default: Date.now
     }
 });
-const User = mongoose.models.User || mongoose.model('User', userSchema);
+const User = mongoose.models?.User || mongoose.model("User", userSchema);
 export default User;

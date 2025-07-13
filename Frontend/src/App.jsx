@@ -18,7 +18,8 @@ import ReceiveOrder from './components/SalesList.jsx/ReceiveOrder';
 import SalesHistory from './components/SalesList.jsx/SalesHistory';
 import StoreHistory from './InventoryManagament/StoreHistory/StoreHistory';
 import CloseDailyBalance from './components/SalesList.jsx/CloseDailyBalance/CloseDailyBalance';
-
+import UserAdminstration from './pages/userAdminstration/UserAdminstration';
+import Logout from "./security/Logout"
 function App() {
   const {isAuth} = useContext(ContextProvider)
   return isAuth ? (
@@ -37,8 +38,13 @@ function App() {
           <Route path="/receive-order" element={<ReceiveOrder />} />
           <Route path="/sales-history" element={<SalesHistory />} />
           <Route path='/close-daily-balance' element={<CloseDailyBalance/>}/>
+          {/* Notifications */}
           <Route path="/notifications" element={<Notifications />} />
+          {/* Reports */}
           <Route path="/reports" element={<Reports />} />
+          {/* Logout */}
+          <Route path="/logout" element={<Logout />} />
+          <Route path="/user-managment" element={<UserAdminstration />} />
         </Routes>
       </Layout>)
     :(<>

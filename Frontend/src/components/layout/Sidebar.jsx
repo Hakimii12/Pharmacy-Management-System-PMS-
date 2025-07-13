@@ -3,11 +3,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { 
   FaHome, FaPills, FaShoppingCart, FaChartLine, FaBell, 
   FaChevronDown, FaChevronUp, FaBox, FaStore, FaCashRegister,
-  FaClipboardList, FaTruckLoading, FaHistory,
+  FaClipboardList, FaTruckLoading, FaHistory, FaUser,
 } from 'react-icons/fa';
 import { useState } from 'react';
 import { FiSettings } from 'react-icons/fi';
-
+import { AiOutlineUser, AiOutlineLogout } from 'react-icons/ai';
 const Sidebar = () => {
   const [openDropdown, setOpenDropdown] = useState({
     inventory: false,
@@ -59,7 +59,15 @@ const Sidebar = () => {
     },
     { name: 'Notifications', path: '/notifications', icon: <FaBell /> },
     { name: 'Reports', path: '/reports', icon: <FaChartLine /> },
-    { name: 'Setting', path: '/Setting', icon: <FiSettings /> },
+    { 
+      name: 'Setting', 
+      icon: <FiSettings />,
+      subItems: [
+        { name: 'User Managment', path: '/user-managment', icon: <AiOutlineUser /> },
+        { name: 'Logout', path: '/logout', icon: <AiOutlineLogout /> },
+        
+      ]
+    }
   ];
 
   // Recursive function to check if any child is active

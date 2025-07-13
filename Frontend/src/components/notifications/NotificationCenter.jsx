@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import NotificationItem from './NotificationItem';
 import { FaBell, FaCheck, FaTrash } from 'react-icons/fa';
-import { notifications } from '../../data/notifications';
 import axios from 'axios';
 import { useEffect } from 'react';
 

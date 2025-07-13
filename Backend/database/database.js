@@ -11,17 +11,14 @@ async function Database() {
       socketTimeoutMS: 45000,
       connectTimeoutMS: 30000
     });
-    
     console.log("Successfully connected to the database");
-
     const adminExists = await User.findOne({ role: 'superAdmin' });
     if (!adminExists) {
       const admin = new User({
-        name: 'superAdmin',
-        email: 'hamzaMasjid@drug.com',
+        name: 'Hamza Masjid',
+        email: 'hamzamasjid@drug.com',
         password: await bcrypt.hash("demo123", 10),
-        role: 'admin',
-        title: 'System Administrator',
+        role: 'superAdmin',
         status: 'approved',
       });
       await admin.save();

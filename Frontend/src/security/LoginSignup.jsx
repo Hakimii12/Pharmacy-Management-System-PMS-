@@ -149,11 +149,11 @@ const LoginSignup = () => {
           {/* Form */}
           <div className="p-6">
           <motion.form
-              key={isLogin ? 'login' : 'signup'}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              onSubmit={handleSubmit}
+            key={isLogin ? 'login' : 'signup'}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            onSubmit={handleSubmit}
 > 
               {!isLogin && (
                 <>
