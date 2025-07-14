@@ -1,95 +1,116 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaSave, FaExclamationTriangle, FaCalculator } from 'react-icons/fa';
-import axios from 'axios'
-import {toast} from "react-toastify" 
-const ProductForm = ({ product,onClose }) => {
-  const [name,setName] = useState('');
-  const [brand,setBrand] = useState('');
-  const [unitPrice , setUnitPrice] = useState('');
-  const [quantity , setQuantity] = useState('');
-  const [expiryDate , setExpiryDate] = useState('');
-  const [batchNumber , setBatchNumber] = useState('');
-  const [markup , setMarkup] = useState('');
-  const [category,setCategory] = useState('');
-  const [dosageForm, setDosageForm] = useState('');
-  const [distributorName, setDistributorName] = useState('');
-  const [distributorContact, setDistributorContact] =useState('')
+import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+
+const ProductForm = ({ product, onClose, onSuccess }) => {
+  // State initialization with product data if available
+  const [name, setName] = useState(product?.name || '');
+  const [brand, setBrand] = useState(product?.brand || '');
+  const [unitPrice, setUnitPrice] = useState(product?.unitPrice || '');
+  const [quantity, setQuantity] = useState(product?.quantity || '');
+  const [expiryDate, setExpiryDate] = useState(
+    product?.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
+  );
+  const [batchNumber, setBatchNumber] = useState(product?.batchNo || '');
+  const [markup, setMarkup] = useState(product?.markup || '');
+  const [category, setCategory] = useState(product?.category || '');
+  const [dosageForm, setDosageForm] = useState(product?.DosageForms || '');
+  const [distributorName, setDistributorName] = useState(product?.distributor?.name || '');
+  const [distributorContact, setDistributorContact] = useState(product?.distributor?.contact || '');
   const [errors, setErrors] = useState({});
-  const [isExpired, setIsExpired] = useState(true);
-  const categories =["medicine","cosmetic","Supplements","Medical Equipment","Other",]
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const distributor={
-      name:distributorName,
-      contact:distributorContact
-    }
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('brand', brand);
-    formData.append('unitPrice', unitPrice);
-    formData.append('quantity', quantity);
-    formData.append('expiryDate', expiryDate);
-    formData.append('batchNo', batchNumber);
-    formData.append('markup', markup);
-    formData.append('category', category);
-    formData.append('DosageForms', dosageForm);
-    formData.append('distributor', JSON.stringify(distributor));
-    try {
-      const data = {
-        name,
-        brand,
-        unitPrice,
-        quantity,
-        expiryDate,
-        batchNo: batchNumber,
-        markup,
-        category,
-        DosageForms: dosageForm,
-        distributor: {
-          name: distributorName,
-          contact: distributorContact
-        }
-      };
 
-      axios.post("http://localhost:5000/api/product/CreateProducts", data, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        withCredentials: true
-      })
-        .then(response => {
-          if(response.data.message){
-                toast.success(response.data.message)
-            }
-        })
-        .catch(error => {
-          console.error('Error creating product:', error);
-        });
-      setName('');
-      setBrand('');
-      setBatchNumber('');
-      setUnitPrice('');
-      setExpiryDate('');
-      setDosageForm('');
-      setQuantity('');
-    } catch (error) {
-      setErrors('Error sending data')
-    }
-  };
-
- const sellingPrice = unitPrice 
-  ? (parseFloat(unitPrice) * (1 + parseInt(markup || 0) / 100)).toFixed(2)
-  : '0.00';
-
-  const totalValue = unitPrice && quantity
-    ? (parseFloat(unitPrice) * parseInt(quantity)).toFixed(2)
-    : '0.00';
-  const dosageForms = [
+  const categories = ["medicine", "cosmetic", "Supplements", "Medical Equipment", "Other"];
+  const dosageFormsOptions = [
     { value: 'tablet', label: 'Tablet' },
     { value: 'syrup', label: 'Syrup' },
     { value: 'injection', label: 'Injection' },
     { value: 'ointment', label: 'Ointment' }
   ];
+
+  useEffect(() => {
+    // Reset form when switching between create and edit
+    if (product) {
+      setName(product.name || '');
+      setBrand(product.brand || '');
+      setUnitPrice(product.unitPrice || '');
+      setQuantity(product.quantity || '');
+      setExpiryDate(
+        product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
+      );
+      setBatchNumber(product.batchNo || '');
+      setMarkup(product.markup || '');
+      setCategory(product.category || '');
+      setDosageForm(product.DosageForms || '');
+      setDistributorName(product.distributor?.name || '');
+      setDistributorContact(product.distributor?.contact || '');
+    }
+  }, [product]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const distributor = {
+      name: distributorName,
+      contact: distributorContact
+    };
+
+    const data = {
+      name,
+      brand,
+      unitPrice: parseFloat(unitPrice),
+      quantity: parseInt(quantity),
+      expiryDate,
+      batchNo: batchNumber,
+      markup: parseFloat(markup),
+      category,
+      DosageForms: dosageForm,
+      distributor
+    };
+
+    try {
+      if (product) {
+        // Update existing product
+        const response = await axios.put(
+          `http://localhost:5000/api/product/updateProduct/${product._id}`,
+          data,
+          {
+            headers: { 'Content-Type': 'application/json' },
+            withCredentials: true
+          }
+        );
+        toast.success(response.data.message || 'Product updated successfully');
+      } else {
+        // Create new product
+        const response = await axios.post(
+          "http://localhost:5000/api/product/CreateProducts",
+          data,
+          {
+            headers: { 'Content-Type': 'application/json' },
+            withCredentials: true
+          }
+        );
+        toast.success(response.data.message || 'Product created successfully');
+      }
+
+      if (onSuccess) onSuccess(); // Refresh data in parent component
+      onClose(); // Close the form
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(error.response?.data?.message || 'An error occurred');
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+      }
+    }
+  };
+
+  const sellingPrice = unitPrice 
+    ? (parseFloat(unitPrice) * (1 + parseFloat(markup || 0) / 100)).toFixed(2)
+    : '0.00';
+
+  const totalValue = unitPrice && quantity
+    ? (parseFloat(unitPrice) * parseInt(quantity)).toFixed(2)
+    : '0.00';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -107,38 +128,28 @@ const ProductForm = ({ product,onClose }) => {
         </div>
         <div className="overflow-y-auto flex-1">
           <form onSubmit={handleSubmit} className="p-6">
-            {isExpired && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-                <FaExclamationTriangle className="text-red-500 mr-2" />
-                <span className="text-red-700">Warning: This product has expired!</span>
-              </div>
-            )}
-
-            {/* Always show category selector first */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Category *
               </label>
               <select
-                name="category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.category ? 'border-red-500' : 'border-gray-300'
                 }`}
+                required
               >
                 <option value="">Select a category</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
               {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
             </div>
 
-            {/* Only show the rest of the form if a category is selected */}
             {category && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Product Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Product Name *
@@ -146,7 +157,6 @@ const ProductForm = ({ product,onClose }) => {
                   <input
                     type="text"
                     required
-                    name="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -157,43 +167,39 @@ const ProductForm = ({ product,onClose }) => {
                   {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
                 </div>
 
-                {/* Only show Brand and Dosage Form if category is medicine */}
                 {category === "medicine" && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Brand *
-                      </label>
-                      <input
-                        type="text"
-                        name="brand"
-                        value={brand}
-                        onChange={(e) => setBrand(e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          errors.brand ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Enter brand name"
-                      />
-                      {errors.brand && <p className="mt-1 text-sm text-red-500">{errors.brand}</p>}
-                    </div>
-                  </>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Brand *
+                    </label>
+                    <input
+                      type="text"
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.brand ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter brand name"
+                    />
+                    {errors.brand && <p className="mt-1 text-sm text-red-500">{errors.brand}</p>}
+                  </div>
                 )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit Price ($) *
+                    Unit Price (ETB) *
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     min="0.01"
-                    name="unitPrice"
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.unitPrice ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter unit price"
+                    required
                   />
                   {errors.unitPrice && <p className="mt-1 text-sm text-red-500">{errors.unitPrice}</p>}
                 </div>
@@ -205,13 +211,13 @@ const ProductForm = ({ product,onClose }) => {
                   <input
                     type="number"
                     min="0"
-                    name="quantity"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.quantity ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter quantity"
+                    required
                   />
                   {errors.quantity && <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>}
                 </div>
@@ -222,14 +228,14 @@ const ProductForm = ({ product,onClose }) => {
                   </label>
                   <input
                     type="date"
-                    name="expirationDate"
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.expirationDate ? 'border-red-500' : 'border-gray-300'
+                      errors.expiryDate ? 'border-red-500' : 'border-gray-300'
                     }`}
+                    required
                   />
-                  {errors.expirationDate && <p className="mt-1 text-sm text-red-500">{errors.expirationDate}</p>}
+                  {errors.expiryDate && <p className="mt-1 text-sm text-red-500">{errors.expiryDate}</p>}
                 </div>
 
                 <div>
@@ -238,13 +244,13 @@ const ProductForm = ({ product,onClose }) => {
                   </label>
                   <input
                     type="text"
-                    name="batchNumber"
                     value={batchNumber}
                     onChange={(e) => setBatchNumber(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.batchNumber ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter batch number"
+                    required
                   />
                   {errors.batchNumber && <p className="mt-1 text-sm text-red-500">{errors.batchNumber}</p>}
                 </div>
@@ -256,33 +262,32 @@ const ProductForm = ({ product,onClose }) => {
                   <input
                     type="number"
                     min="0"
-                    name="markup"
                     value={markup}
                     onChange={(e) => setMarkup(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.markup ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter markup percentage"
+                    required
                   />
                   {errors.markup && <p className="mt-1 text-sm text-red-500">{errors.markup}</p>}
                 </div>
 
-                {/* Only show Dosage Form if category is medicine */}
                 {category === "medicine" && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Dosage Form *
                     </label>
                     <select
-                      name="dosageForm"
                       value={dosageForm}
                       onChange={(e) => setDosageForm(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors.dosageForm ? 'border-red-500' : 'border-gray-300'
                       }`}
+                      required
                     >
                       <option value="">Select dosage form</option>
-                      {dosageForms.map(form => (
+                      {dosageFormsOptions.map(form => (
                         <option key={form.value} value={form.value}>
                           {form.label}
                         </option>
@@ -294,7 +299,6 @@ const ProductForm = ({ product,onClose }) => {
                   </div>
                 )}
 
-                {/* Distributor fields */}
                 <div className="space-y-4 md:col-span-2">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -302,15 +306,16 @@ const ProductForm = ({ product,onClose }) => {
                     </label>
                     <input
                       type="text"
-                      name="distributor.name"
+                      value={distributorName}
                       onChange={(e) => setDistributorName(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors['distributor.name'] ? 'border-red-500' : 'border-gray-300'
+                        errors.distributorName ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter distributor name"
+                      required
                     />
-                    {errors['distributor.name'] && (
-                      <p className="mt-1 text-sm text-red-500">{errors['distributor.name']}</p>
+                    {errors.distributorName && (
+                      <p className="mt-1 text-sm text-red-500">{errors.distributorName}</p>
                     )}
                   </div>
                   <div>
@@ -319,22 +324,22 @@ const ProductForm = ({ product,onClose }) => {
                     </label>
                     <input
                       type="tel"
-                      name="distributor.contact"
+                      value={distributorContact}
                       onChange={(e) => setDistributorContact(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors['distributor.contact'] ? 'border-red-500' : 'border-gray-300'
+                        errors.distributorContact ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter contact information"
+                      required
                     />
-                    {errors['distributor.contact'] && (
-                      <p className="mt-1 text-sm text-red-500">{errors['distributor.contact']}</p>
+                    {errors.distributorContact && (
+                      <p className="mt-1 text-sm text-red-500">{errors.distributorContact}</p>
                     )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Product Summary and Footer only if category is selected */}
             {category && (
               <>
                 <div className="mt-6">
@@ -343,18 +348,12 @@ const ProductForm = ({ product,onClose }) => {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="text-gray-600">Selling Price:</div>
                       <div className="font-medium text-green-600">
-                        ${sellingPrice}
+                        {sellingPrice} <span className="text-xs">ETB</span>
                       </div>
                       <div className="text-gray-600">Total Value:</div>
                       <div className="font-medium">
-                        ${totalValue}
+                        {totalValue} <span className="text-xs">ETB</span>
                       </div>
-                      {isExpired && (
-                        <>
-                          <div className="text-gray-600">Expiry Status:</div>
-                          <div className="font-medium text-red-600">Expired</div>
-                        </>
-                      )}
                     </div>
                   </div>
                 </div>

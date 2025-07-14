@@ -1,7 +1,7 @@
 // src/components/DetailedHistoryTable.jsx
 import React, { useState } from 'react';
 import { FaTrash, FaSearch, FaCalendarAlt, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-import InventorySummaryCard from './StockResult';
+import InventorySummaryCard from './DispensaryResult';
 import { useEffect } from 'react';
 import axios from 'axios';
 const DetailedHistoryTable = () => {
@@ -18,10 +18,9 @@ const DetailedHistoryTable = () => {
     }));
   };
 
-
    async function fetchStoreSummery(){
     try {
-       await axios.get("http://localhost:5000/api/product/productToDispensary",{
+       await axios.get("http://localhost:5000/api/product/getRetrunToStore",{
         withCredentials:true
       }).then((res) => {
         console.log(res.data.history)
@@ -36,6 +35,7 @@ const DetailedHistoryTable = () => {
    },[])
   // Filter data based on search term and date range
   const filteredData = historyData?.filter(item => {
+    console.log(item)
     // Search term filter (case-insensitive)
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -94,8 +94,8 @@ const DetailedHistoryTable = () => {
       <div className="p-4 bg-blue-50 border-b">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Product Issuance History</h2>
-            <p className="text-sm text-gray-600 mt-1">Detailed tracking of all product issuance records</p>
+            <h2 className="text-xl font-bold text-gray-800">Product Returned to store History</h2>
+            <p className="text-sm text-gray-600 mt-1">Detailed tracking of all product returned records</p>
           </div>
           <button 
             onClick={clearFilters}
@@ -244,13 +244,13 @@ const DetailedHistoryTable = () => {
                 Batch
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Qty Issued
+                Qty Returned
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date Issued
+                Date Returned
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Issued By
+                Returned By
               </th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -260,17 +260,17 @@ const DetailedHistoryTable = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredData.length > 0 ? (
               filteredData.map((item) => (
-                <React.Fragment key={item.id}>
-                  <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleRow(item.id)}>
+                <React.Fragment key={item._id}>
+                  <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleRow(item._id)}>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <button 
                         className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-100"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleRow(item.id);
+                          toggleRow(item._id);
                         }}
                       >
-                        {expandedRows[item.id] ? <FaChevronUp /> : <FaChevronDown />}
+                        {expandedRows[item._id] ? <FaChevronUp /> : <FaChevronDown />}
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -313,7 +313,7 @@ const DetailedHistoryTable = () => {
                   </tr>
                   
                   {/* Expanded row for additional details */}
-                  {expandedRows[item.id] && (
+                  {expandedRows[item._id] && (
                     <tr className="bg-blue-50">
                       <td colSpan="9" className="px-6 py-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

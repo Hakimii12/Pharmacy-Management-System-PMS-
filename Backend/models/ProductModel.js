@@ -3,7 +3,7 @@ import Notification from "../models/NotificationModel.js";
 const ProductSchema = new mongoose.Schema({
      addedBy:{type:mongoose.Schema.Types.ObjectId , ref:"User" ,required:true},
      name: {type:String , required:true,index:true},
-     brand: {type:String,required:true, index:true},
+     brand: {type:String, index:true},
      unitPrice:{type:Number , required:true},
      quantity:{type:Number , required:true},
      status:{type:String, enum:["In Stock","Low Stock","Sold Out","Expired"], default:"In Stock"},
@@ -14,7 +14,7 @@ const ProductSchema = new mongoose.Schema({
      sellingPrice:{type:Number,required:true},
      // totalSellingPrice:{type:Number,required:true},
      isExpired:{type:Boolean,default:false},
-     DosageForms:{ type:String,enum:["tablet","syrup","injection","ointment"]},
+     DosageForms:{ type:String,enum:["tablet","syrup","injection","ointment","-"]},
      category:{ type:String,enum:["medicine","cosmetic","Supplements","Medical Equipment"]},
      distributor: {
     name: { type: String, required: true },
