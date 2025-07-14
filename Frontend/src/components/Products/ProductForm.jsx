@@ -72,7 +72,7 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
       if (product) {
         // Update existing product
         const response = await axios.put(
-          `http://localhost:5000/api/product/updateProduct/${product._id}`,
+          `http://localhost:5000/api/product/update/${product._id}`,
           data,
           {
             headers: { 'Content-Type': 'application/json' },

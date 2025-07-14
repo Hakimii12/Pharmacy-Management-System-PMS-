@@ -5,6 +5,7 @@ import { products, productCategories } from '../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
+import Loading from '../components/Loading/Loading';
 const Dispensary = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -12,21 +13,26 @@ const Dispensary = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [fetched,setFetched]=useState([])
+  const [isLoading,setIsLoading]=useState(false)
   async function fetchProducts(){
+    setIsLoading(true)
   try {
     const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
       withCredentials:true
     });
     console.log(response.data.products)
     setFetched(response?.data?.products)
+    setIsLoading(false)
   } catch (error) {
     console.error("Error fetching products:", error);
+    setIsLoading(false)
     throw error;
+  } finally{
+    setIsLoading(false)
   }
 };
 useEffect(()=>{
   fetchProducts()
-  console.log(fetched)
 },[])
   const handleEdit = (product) => {
     setSelectedProduct(product);
@@ -103,8 +109,7 @@ useEffect(()=>{
             </select>
           </div>
         </div>
-        
-        <div className="overflow-x-auto">
+        {isLoading ? (<Loading/>):<div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -136,7 +141,8 @@ useEffect(()=>{
             </tbody>
             
           </table>
-        </div>
+        </div>}
+        
 
         {filteredProducts.length === 0 && (
           <div className="text-center py-8">

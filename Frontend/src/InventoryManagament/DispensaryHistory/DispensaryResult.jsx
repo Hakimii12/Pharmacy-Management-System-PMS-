@@ -11,7 +11,7 @@ const InventorySummaryCard = () => {
   async function fetchInventorySummary() {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/product/GetCountedStore",
+        "http://localhost:5000/api/product/getCountedDispensary",
         { withCredentials: true }
       );
       setInventoryData(res.data);
@@ -103,7 +103,6 @@ const InventorySummaryCard = () => {
             </div>
           </div>
         </div>
-
         {/* Products Summary Card */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-orange-500">
           <div className="p-6">
@@ -114,20 +113,20 @@ const InventorySummaryCard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-500">Products Summary</p>
                 <p className="text-2xl font-bold text-gray-800">
-                  {inventoryData.totalInStore}
+                  {inventoryData.totalInDispensary}
                 </p>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100">
               <div className="flex justify-between text-xs">
                 <span className="text-yellow-600">
-                  {inventoryData.lowInStore} low stock
+                  {inventoryData.lowInDispensary} low stock
                 </span>
                 <span className="text-gray-500">
-                  {inventoryData.outOfStockInStore} stock out
+                  {inventoryData.outOfStockInDispensary} stock out
                 </span>
                 <span className="text-red-600">
-                  {inventoryData.expiredInStore} expired
+                  {inventoryData.expiredInDispensary} expired
                 </span>
               </div>
             </div>
@@ -137,5 +136,4 @@ const InventorySummaryCard = () => {
     </div>
   );
 };
-
 export default InventorySummaryCard;

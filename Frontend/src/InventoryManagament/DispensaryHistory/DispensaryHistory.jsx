@@ -4,12 +4,14 @@ import { FaTrash, FaSearch, FaCalendarAlt, FaChevronDown, FaChevronUp } from 're
 import InventorySummaryCard from './DispensaryResult';
 import { useEffect } from 'react';
 import axios from 'axios';
+import Loading from '../../components/Loading/Loading';
 const DetailedHistoryTable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
   const [historyData,setHistoryData]=useState([])
+  const [isLoading,setIsLoading]=useState(false)
   // Toggle row expansion
   const toggleRow = (id) => {
     setExpandedRows(prev => ({
@@ -19,15 +21,20 @@ const DetailedHistoryTable = () => {
   };
 
    async function fetchStoreSummery(){
+    setIsLoading(true)
     try {
        await axios.get("http://localhost:5000/api/product/getRetrunToStore",{
         withCredentials:true
       }).then((res) => {
         console.log(res.data.history)
         setHistoryData(res.data.history);
+        setIsLoading(false)
       });  
     } catch (error) {
         console.log(error)
+        setIsLoading(false)
+    }finally{
+        setIsLoading(false)
     }
    }
    useEffect(()=>{
@@ -223,8 +230,7 @@ const DetailedHistoryTable = () => {
         Showing {filteredData.length} of {historyData.length} records
       </div>
       
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {isLoading ? (<Loading/>):<div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -397,7 +403,8 @@ const DetailedHistoryTable = () => {
             )}
           </tbody>
         </table>
-      </div>
+      </div>}
+      
       
       {/* Pagination */}
       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">

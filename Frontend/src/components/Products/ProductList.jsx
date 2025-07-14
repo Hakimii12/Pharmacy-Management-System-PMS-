@@ -4,6 +4,7 @@ import { FaPlus, FaSearch } from 'react-icons/fa';
 import { products, productCategories } from '../../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
+import Loading from '../Loading/Loading';
 import axios from 'axios';
 const ProductList = () => {
   const [showForm, setShowForm] = useState(false);
@@ -12,15 +13,21 @@ const ProductList = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [fetched,setFetched]=useState([])
+  const [isLoading,setIsLoading]=useState(false)
   async function fetchProducts(){
+    setIsLoading(true)
   try {
     const response = await axios.get("http://localhost:5000/api/product/allProducts",{
       withCredentials:true
     });
     setFetched(response?.data?.products)
+    setIsLoading(false)
   } catch (error) {
     console.error("Error fetching products:", error);
     throw error;
+    setIsLoading(false)
+  }finally{
+    setIsLoading(false)
   }
 };
 useEffect(()=>{
@@ -101,8 +108,7 @@ useEffect(()=>{
             </select>
           </div>
         </div>
-        
-        <div className="overflow-x-auto">
+        {isLoading ? (<Loading/>):<div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -134,8 +140,7 @@ useEffect(()=>{
             </tbody>
             
           </table>
-        </div>
-
+        </div>}
         {filteredProducts.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500">No products found matching your criteria</p>

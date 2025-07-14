@@ -5,6 +5,8 @@ import { products, productCategories } from '../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
+import Loading from '../components/Loading/Loading';
+import { set } from 'mongoose';
 const Backstore = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -12,16 +14,22 @@ const Backstore = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [fetched,setFetched]=useState([])
+  const [isLoading,setIsLoading]=useState(false)
   async function fetchProducts(){
+    setIsLoading(true)
   try {
     const response = await axios.get("http://localhost:5000/api/product/storeProducts",{
       withCredentials:true
     });
     console.log(response.data.products)
     setFetched(response?.data?.products)
+    setIsLoading(false)
   } catch (error) {
     console.error("Error fetching products:", error);
     throw error;
+    setIsLoading(false)
+  }finally{
+    setIsLoading(false)
   }
 };
 useEffect(()=>{
@@ -51,7 +59,7 @@ useEffect(()=>{
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">Product Inventory</h2>
+          <h2 className="text-xl font-bold text-gray-800">Back Store</h2>
           <button 
             onClick={() => setShowForm(true)}
             className="mt-3 md:mt-0 flex items-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200"
@@ -103,8 +111,7 @@ useEffect(()=>{
             </select>
           </div>
         </div>
-        
-        <div className="overflow-x-auto">
+        {isLoading ? (<Loading/>):<div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -136,7 +143,8 @@ useEffect(()=>{
             </tbody>
             
           </table>
-        </div>
+        </div>}
+        
 
         {filteredProducts.length === 0 && (
           <div className="text-center py-8">

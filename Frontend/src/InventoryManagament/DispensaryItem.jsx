@@ -87,7 +87,7 @@ useEffect(() => {
     setIsTransferring(true);
     const quantity = Number(transferQuantity)
     try {
-      const endpoint = 'http://localhost:5000/api/product/issueToDispensary'
+      const endpoint = 'http://localhost:5000/api/product/returnToStore'
       await axios.post(endpoint,{ productId, quantity }, {
         headers: {
           'Content-Type': 'application/json',

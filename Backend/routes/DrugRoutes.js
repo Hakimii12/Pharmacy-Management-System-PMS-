@@ -8,11 +8,13 @@ import { CreateProduct,
   GetIssuedDispensary,
   GetCountedStore,
   GetReturnToStore,
-  GetCountedDispensary} from "../controllers/ProductController.js";
+  GetCountedDispensary,
+  UpdateProduct} from "../controllers/ProductController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 const router =  express.Router();
 router.get("/allProducts", Authenticated(), GetAllProducts);
 router.post("/CreateProducts",Authenticated (), CreateProduct);
+router.put("/update/:id",Authenticated (),UpdateProduct)
 router.post("/issueToDispensary",Authenticated(),IssueToDispensary);
 router.post("/returnToStore", Authenticated(), ReturnToStore);
 router.get("/productToDispensary", Authenticated(), GetIssuedDispensary);

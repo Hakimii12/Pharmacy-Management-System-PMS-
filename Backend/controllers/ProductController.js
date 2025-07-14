@@ -61,7 +61,7 @@ export async function CreateProduct(req, res) {
       return res.status(500).json({ message: error.message });
   }
 }
-export async function updateProduct(req, res) {
+export async function UpdateProduct(req, res) {
   try {
       const productId = req.params.id;
       const userId = req.user._id;
@@ -473,7 +473,7 @@ export async function GetCountedDispensary(req, res) {
         $project: {
           summary: {
             $mergeObjects: [
-              { $ifNull: [{ $arrayElemAt: ["$indispensaryProducts", 0] }, {}] },
+              { $ifNull: [{ $arrayElemAt: ["$inDispensaryProducts", 0] }, {}] },
               {
                 outOfStockInDispensary: {
                   $ifNull: [{ $arrayElemAt: ["$outOfStockProducts.count", 0] }, 0]
