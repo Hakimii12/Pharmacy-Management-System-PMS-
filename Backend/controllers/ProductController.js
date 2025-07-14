@@ -75,7 +75,7 @@ export async function UpdateProduct(req, res) {
 
       // Authorization check
       if (existingProduct.addedBy.toString() !== userId.toString()) {
-          return res.status(403).json({ message: "Unauthorized to update this product" });
+          return res.status(403).json({ message: "only person Lounched can update this product" });
       }
 
       // Validate distributor if provided
