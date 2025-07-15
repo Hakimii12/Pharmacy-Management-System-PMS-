@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
 import Loading from '../components/Loading/Loading';
-import { set } from 'mongoose';
 const Backstore = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -137,7 +136,7 @@ useEffect(()=>{
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map(product => (
-                <BackstoreItem key={product.id} product={product} onEdit={handleEdit} />
+                <BackstoreItem key={product.id} product={product} onEdit={handleEdit} fetchProducts={fetchProducts} />
                 
               ))}
             </tbody>
@@ -154,7 +153,7 @@ useEffect(()=>{
       </div>
       
       {showForm && (
-        <BackstoreForm product={selectedProduct} onClose={handleCloseForm} />
+        <BackstoreForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
       )}
     </div>
   );

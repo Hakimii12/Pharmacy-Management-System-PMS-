@@ -3,19 +3,20 @@ import Notification from "../models/NotificationModel.js";
 const ProductSchema = new mongoose.Schema({
      addedBy:{type:mongoose.Schema.Types.ObjectId , ref:"User" ,required:true},
      name: {type:String , required:true,index:true},
-     brand: {type:String, index:true},
+     brand: {type:String, required:true},
      unitPrice:{type:Number , required:true},
      quantity:{type:Number , required:true},
+     visibility:{type:String ,enum:["enable","disable"],default:"enable"},
      status:{type:String, enum:["In Stock","Low Stock","Sold Out","Expired"], default:"In Stock"},
      totalPrice:{type:Number,required:true},
-     batchNo:{type:String,required:true,unique:true},
+     batchNo:{type:String,required:true},
      expiryDate:{type:Date,required:true},
      markup:{type:Number,required:true},
      sellingPrice:{type:Number,required:true},
      // totalSellingPrice:{type:Number,required:true},
      isExpired:{type:Boolean,default:false},
      DosageForms:{ type:String,enum:["tablet","syrup","injection","ointment","-"]},
-     category:{ type:String,enum:["medicine","cosmetic","Supplements","Medical Equipment"]},
+     category:{ type:String,enum:["medicine","cosmetic","supplement","Medical Equipment","Other"]},
      distributor: {
     name: { type: String, required: true },
     contact: String

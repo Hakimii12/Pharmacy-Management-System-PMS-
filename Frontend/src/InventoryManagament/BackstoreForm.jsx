@@ -3,7 +3,7 @@ import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-const BackstoreForm = ({ product, onClose, onSuccess }) => {
+const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   // State initialization with product data if available
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
@@ -72,14 +72,18 @@ const BackstoreForm = ({ product, onClose, onSuccess }) => {
       if (product) {
         // Update existing product
         const response = await axios.put(
-          `http://localhost:5000/api/product/updateProduct/${product._id}`,
+          `http://localhost:5000/api/product/update/${product._id}`,
           data,
           {
             headers: { 'Content-Type': 'application/json' },
             withCredentials: true
           }
         );
+        
+        fetchProducts()
         toast.success(response.data.message || 'Product updated successfully');
+        if (onSuccess) onSuccess(); // Refresh data in parent component
+        onClose();
       } else {
         // Create new product
         const response = await axios.post(
@@ -90,11 +94,19 @@ const BackstoreForm = ({ product, onClose, onSuccess }) => {
             withCredentials: true
           }
         );
+        setDosageForm('')
+        setBatchNumber('')
+        setExpiryDate('')
+        setQuantity('')
+        setQuantity('')
+        setUnitPrice('')
+        setBrand('')
+        setName('')
+        fetchProducts()
         toast.success(response.data.message || 'Product created successfully');
       }
 
-      if (onSuccess) onSuccess(); // Refresh data in parent component
-      onClose(); // Close the form
+// Close the form
     } catch (error) {
       console.error('Error:', error);
       toast.error(error.response?.data?.message || 'An error occurred');
@@ -384,4 +396,4 @@ const BackstoreForm = ({ product, onClose, onSuccess }) => {
   );
 };
 
-export default BackstoreForm;
+export default ProductForm;

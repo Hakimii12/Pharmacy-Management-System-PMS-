@@ -46,7 +46,7 @@ export async function CreateProduct(req, res) {
           sellingPrice: unitPrice * (1 + markup / 100),
           totalSellingPrice: (unitPrice * (1 + markup / 100)) * quantity,
           inventory: {
-              dispensary: quantity,
+               store: quantity,
               dispensary: 0
           },
           DosageForms: productDosageForms, // Use the default value
@@ -308,7 +308,7 @@ res.status(200).json(sale);
 }
 export async function GetAllProducts(req,res){
     try {
-        const products = await Product.find();
+        const products = await Product.find({visibility:"enable"});
         return res.json({ products });
     } catch (error) {
         return res.status(500).json({ message: error.message });
@@ -515,4 +515,17 @@ export async function GetCountedDispensary(req, res) {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+}
+export async function RemoveFromTheShelf(req,res){
+      const productId= req.params.id
+    
+      try {  
+        const prod=await Product.findById(productId)
+        console.log(prod)
+        const product = await Product.findByIdAndUpdate(productId,{visibility:"disable"},{new:true})
+        return res.status(200).json(product)  
+    } catch (error) {
+        console.error(err);
+        return res.status(500).json({message:error.message})
+    }
 }

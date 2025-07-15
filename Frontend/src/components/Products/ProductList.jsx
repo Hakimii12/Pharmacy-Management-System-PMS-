@@ -134,7 +134,7 @@ useEffect(()=>{
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map(product => (
-                <ProductItem key={product._id} product={product} onEdit={handleEdit} />
+                <ProductItem key={product._id} product={product} onEdit={handleEdit} fetchProducts={fetchProducts}/>
                 
               ))}
             </tbody>
@@ -149,7 +149,7 @@ useEffect(()=>{
       </div>
       
       {showForm && (
-        <ProductForm product={selectedProduct} onClose={handleCloseForm} />
+        <ProductForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
       )}
     </div>
   );

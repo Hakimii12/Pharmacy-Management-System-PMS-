@@ -3,7 +3,7 @@ import { FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaTimes } from 'react-icon
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useEffect } from 'react';
-const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
+const ProductItem = ({ product, onEdit, onTransferSuccess ,fetchProducts}) => {
   const [showDetails, setShowDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [transferType, setTransferType] = useState('issue');
@@ -11,6 +11,7 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
   const [isTransferring, setIsTransferring] = useState(false);
   const [error, setError] = useState('');
   const [addedBy , setAddedBy] = useState([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   const getStatusColor = () => {
     switch (product.status) {
@@ -59,6 +60,27 @@ const ProductItem = ({ product, onEdit, onTransferSuccess }) => {
       };
     }
   };
+  const handleDeleteConfirmation = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  async function RemoveFromTheShelf(id) {
+    try {
+      await axios.post(`http://localhost:5000/api/product/removeFromTheShelf/${id}`, {}, {
+        withCredentials: true
+      }).then((response) => {
+        fetchProducts()
+        console.log(response.data);
+        toast.success("Successfully removed from the shelf");
+        setIsDeleteModalOpen(false); // Close modal after success
+      });
+    } catch (error) {
+      
+      console.log(error);
+      toast.error(error.message);
+      setIsDeleteModalOpen(false); // Close modal on error
+    }
+  }
 async function AddedByUser(){
       try {
       let id =product?.addedBy
@@ -108,6 +130,7 @@ useEffect(() => {
         },
         withCredentials: true
       });
+      fetchProducts()
        toast.success("successfully transferred")
       setIsTransferModalOpen(false);
       
@@ -178,6 +201,7 @@ useEffect(() => {
           <button
             className="text-red-600 hover:text-red-900 transition-colors"
             title="Delete product"
+            onClick={handleDeleteConfirmation}  // Changed to open confirmation
           >
             <FaTrash className="text-lg" />
           </button>
@@ -216,7 +240,46 @@ useEffect(() => {
           </button>
         </td>
       </tr>
-
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center border-b p-4">
+              <h3 className="text-lg font-semibold">Confirm Removal</h3>
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            
+            <div className="p-4">
+              <p className="text-gray-700 mb-4">
+                Are you sure you want to remove <strong>{product.name}</strong> from the shelf?
+              </p>
+              <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                <strong>Warning:</strong> This action will make this product unavailable for sale!
+              </p>
+            </div>
+            
+            <div className="flex justify-end p-4 border-t">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="mr-3 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => RemoveFromTheShelf(product._id)}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
+              >
+                <FaTrash className="mr-2" />
+                Confirm Removal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Transfer Modal */}
       {isTransferModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

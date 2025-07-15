@@ -77,7 +77,6 @@ const LoginSignup = () => {
           console.log(res);
         })
         .catch((error) => {
-          console.log(error.response?.data);
           toast.error(error.response?.data?.message || "Registration failed");
         });
     }
@@ -197,7 +196,6 @@ const LoginSignup = () => {
                     >
                       <option value="pharmacist">Pharmacist</option>
                       <option value="cashier">Cashier</option>
-                      <option value="manager">Manager</option>
                     </select>
                   </motion.div>
                 </>
@@ -240,7 +238,7 @@ const LoginSignup = () => {
                 )}
               </div>
               
-              {isLogin && (
+              {/* {isLogin && (
                 <div className="flex items-center mb-6">
                   <input
                     id="remember"
@@ -257,7 +255,7 @@ const LoginSignup = () => {
                     Forgot password?
                   </a>
                 </div>
-              )}
+              )} */}
               
               <motion.button
                 whileHover={{ scale: 1.02 }}

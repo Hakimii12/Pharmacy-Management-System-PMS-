@@ -42,10 +42,15 @@ useEffect(()=>{
 
   const filteredProducts = products.filter(product => {
     return (
-      product.name.toLowerCase().includes(filters.name.toLowerCase()) &&
-      product.brand.toLowerCase().includes(filters.brand.toLowerCase()) &&
-      (filters.category ? product.category === filters.category : true) &&
-      (filters.dosageForm ? product.dosageForm === filters.dosageForm : true)
+      (product.name || '').toLowerCase().includes(filters.name.toLowerCase()) &&
+      (product.brand || '').toLowerCase().includes(filters.brand.toLowerCase()) &&
+      (filters.category 
+        ? (product.category || '').toLowerCase() === filters.category.toLowerCase() 
+        : true) &&
+      // Fixed dosageForm filter with safeguard
+      (filters.dosageForm 
+        ? (product.dosageForm || '').toLowerCase() === filters.dosageForm.toLowerCase() 
+        : true)
     );
   });
 
@@ -153,10 +158,12 @@ const handleSubmitOrder = async () => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                 >
                   <option value="">All</option>
-                  <option value="Medicine">Medicine</option>
-                  <option value="Supplement">Supplement</option>
-                  <option value="Sanitary">Sanitary</option>
-                  <option value="Cosmetic">Cosmetic</option>
+                  <option value="medicine">Medicine</option>
+                  <option value="supplement">Supplement</option>
+                  <option value="sanitary">Sanitary</option>
+                  <option value="cosmetic">Cosmetic</option>
+                  <option value="Medical Equipment">Medical Equipment</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
               <div>
@@ -168,10 +175,13 @@ const handleSubmitOrder = async () => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                 >
                   <option value="">All</option>
-                  <option value="Tablet">Tablet</option>
-                  <option value="Capsule">Capsule</option>
-                  <option value="Liquid">Liquid</option>
-                  <option value="Cream">Cream</option>
+                  <option value="tablet">Tablet</option>
+                  <option value="capsule">Capsule</option>
+                  <option value="liquid">Liquid</option>
+                  <option value="cream">Cream</option>
+                  <option value="syrup">Syrup</option>
+                  <option value="injection">Injection</option>
+                  <option value="ointment">Ointment</option>
                 </select>
               </div>
             </div>

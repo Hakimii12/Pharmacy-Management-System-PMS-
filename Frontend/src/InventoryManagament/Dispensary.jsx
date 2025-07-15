@@ -20,7 +20,7 @@ const Dispensary = () => {
     const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
       withCredentials:true
     });
-    console.log(response.data.products)
+
     setFetched(response?.data?.products)
     setIsLoading(false)
   } catch (error) {
@@ -135,7 +135,7 @@ useEffect(()=>{
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map(product => (
-                <DispensaryItem key={product.id} product={product} onEdit={handleEdit} />
+                <DispensaryItem key={product.id} product={product} onEdit={handleEdit} fetchProducts={fetchProducts}/>
                 
               ))}
             </tbody>
@@ -152,7 +152,7 @@ useEffect(()=>{
       </div>
       
       {showForm && (
-        <DispensaryForm product={selectedProduct} onClose={handleCloseForm} />
+        <DispensaryForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
       )}
     </div>
   );

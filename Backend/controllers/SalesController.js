@@ -262,9 +262,6 @@ export const CloseDailyBalance = async (req,res) => {
     transactionCount: transactions.length
   });
 };
-// export async function GetAllBalance(){
-    
-// }
 export async function GetAllPendingStatus(req,res){
   try {
     const PendingTransaction = await Sales.find({status:"pending"}).populate('pharmacist', 'name email role')

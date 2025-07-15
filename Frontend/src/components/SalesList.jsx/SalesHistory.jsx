@@ -13,7 +13,6 @@ const SalesHistory = () => {
         const res= await axios.get("http://localhost:5000/api/sales/sales/allTransactionHistory",{
           withCredentials:true
         }).then((res)=>{
-          console.log(res)
           setHistory(res.data)
         })
         setLoading(false)

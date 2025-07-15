@@ -3,7 +3,7 @@ import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-const ProductForm = ({ product, onClose, onSuccess }) => {
+const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   // State initialization with product data if available
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
@@ -79,6 +79,9 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
             withCredentials: true
           }
         );
+        fetchProducts()
+        if (onSuccess) onSuccess(); // Refresh data in parent component
+        onClose();
         toast.success(response.data.message || 'Product updated successfully');
       } else {
         // Create new product
@@ -90,11 +93,19 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
             withCredentials: true
           }
         );
+        setDosageForm('')
+        setBatchNumber('')
+        setExpiryDate('')
+        setQuantity('')
+        setQuantity('')
+        setUnitPrice('')
+        setBrand('')
+        setName('')
+        fetchProducts()
         toast.success(response.data.message || 'Product created successfully');
       }
 
-      if (onSuccess) onSuccess(); // Refresh data in parent component
-      onClose(); // Close the form
+     // Close the form
     } catch (error) {
       console.error('Error:', error);
       toast.error(error.response?.data?.message || 'An error occurred');
