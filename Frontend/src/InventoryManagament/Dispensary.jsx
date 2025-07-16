@@ -151,9 +151,9 @@ useEffect(()=>{
         )}
       </div>
       
-      {showForm && (
+      {/* {showForm && (
         <DispensaryForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
-      )}
+      )} */}
     </div>
   );
 };

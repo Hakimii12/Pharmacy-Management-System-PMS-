@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
+import { FaTimes, FaSave, FaCalculator, FaSpinner } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -19,6 +19,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const [distributorName, setDistributorName] = useState(product?.distributor?.name || '');
   const [distributorContact, setDistributorContact] = useState(product?.distributor?.contact || '');
   const [errors, setErrors] = useState({});
+  const [isSubmitting,setisSubmitting]=useState(false)
 
   const categories = ["medicine", "cosmetic", "Supplements", "Medical Equipment", "Other"];
   const dosageFormsOptions = [
@@ -48,6 +49,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   }, [product]);
 
   const handleSubmit = async (e) => {
+    setisSubmitting(true)
     e.preventDefault();
     
     const distributor = {
@@ -79,6 +81,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
             withCredentials: true
           }
         );
+        setisSubmitting(false)
         fetchProducts()
         if (onSuccess) onSuccess(); // Refresh data in parent component
         onClose();
@@ -103,15 +106,19 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
         setName('')
         fetchProducts()
         toast.success(response.data.message || 'Product created successfully');
+        setisSubmitting(false)
       }
 
      // Close the form
     } catch (error) {
+      setisSubmitting(false)
       console.error('Error:', error);
       toast.error(error.response?.data?.message || 'An error occurred');
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       }
+    }finally{
+      setisSubmitting(false)
     }
   };
 
@@ -378,12 +385,24 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                       Cancel
                     </button>
                     <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center transition-colors"
-                    >
-                      <FaSave className="mr-2" />
-                      {product ? 'Update Product' : 'Add Product'}
-                    </button>
+                        type="submit"
+                        disabled={isSubmitting}
+                        className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center transition-colors ${
+                          isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <FaSpinner className="animate-spin mr-2" />
+                            {product ? 'Updating...' : 'Adding...'}
+                          </>
+                        ) : (
+                          <>
+                            <FaSave className="mr-2" />
+                            {product ? 'Update Product' : 'Add Product'}
+                          </>
+                        )}
+          </button>
                   </div>
                 </div>
               </>

@@ -57,12 +57,21 @@ useEffect(()=>{
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between">
           <h2 className="text-xl font-bold text-gray-800">Product Inventory</h2>
-          <button 
-            onClick={() => setShowForm(true)}
-            className="mt-3 md:mt-0 flex items-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200"
-          >
-            <FaPlus className="mr-2" /> Add New Product
-          </button>
+          <button
+  onClick={() => setShowForm(true)}
+  className="relative mt-10 md:w-10 w-5 flex items-center bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 ease-in-out shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 active:scale-95 group overflow-hidden"
+>
+  {/* Ripple effect elements */}
+  <span className="absolute top-0 left-0 w-full h-full bg-white opacity-0 group-active:opacity-10 group-active:animate-ripple"></span>
+  
+  {/* Button content */}
+  <span className="relative flex items-center">
+    <FaPlus className="mr-3 transition-transform duration-300 group-hover:rotate-90" />
+  </span>
+  
+  {/* Pulsing dot for mobile */}
+  <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse sm:hidden"></span>
+</button>
         </div>
       </div>
       
