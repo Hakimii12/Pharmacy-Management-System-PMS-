@@ -17,6 +17,21 @@ const DispensarySchema = new mongoose.Schema({
     default: 10,
     min: 0,
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false,
+  },
+  deletedAt: {
+    type: Date,
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -30,6 +45,13 @@ const DispensarySchema = new mongoose.Schema({
 DispensarySchema.pre("save", function (next) {
   this.updatedAt = Date.now()
   next()
+})
+
+// Query middleware to exclude deleted dispensary records by default
+DispensarySchema.pre(/^find/, function () {
+  if (!this.getQuery().isDeleted) {
+    this.find({ isDeleted: { $ne: true } })
+  }
 })
 
 const Dispensary = mongoose.model("Dispensary", DispensarySchema)

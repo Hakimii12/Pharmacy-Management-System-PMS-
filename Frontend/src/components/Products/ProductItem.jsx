@@ -66,7 +66,7 @@ const ProductItem = ({ product, onEdit, onTransferSuccess ,fetchProducts}) => {
 
   async function RemoveFromTheShelf(id) {
     try {
-      await axios.post(`http://localhost:5000/api/product/removeFromTheShelf/${id}`, {}, {
+      await axios.delete(`http://localhost:5000/api/product/smartDelete/${id}`, {
         withCredentials: true
       }).then((response) => {
         fetchProducts()

@@ -21,13 +21,26 @@ export const PrepareAndSaveSale = async (req, res) => {
 
     // Validate and prepare items
     for (const item of items) {
-      const product = await Product.findById(item.productId).session(session)
+      const product = await Product.findOne({
+        _id: item.productId,
+        isDeleted: { $ne: true },
+      }).session(session)
+
       if (!product) {
-        throw new Error(`Product not found: ${item.productId}`)
+        throw new Error(`Product not found or has been deleted: ${item.productId}`)
       }
 
-      const dispensary = await Dispensary.findOne({ product: item.productId }).session(session)
-      const dispensaryQty = dispensary ? dispensary.quantity : 0
+      const dispensary = await Dispensary.findOne({
+        product: item.productId,
+        isDeleted: { $ne: true },
+        isActive: true,
+      }).session(session)
+
+      if (!dispensary) {
+        throw new Error(`Product ${product.name} is not available in dispensary`)
+      }
+
+      const dispensaryQty = dispensary.quantity
 
       if (dispensaryQty < item.quantity) {
         throw new Error(`Insufficient stock for ${product.name}. Available: ${dispensaryQty}`)

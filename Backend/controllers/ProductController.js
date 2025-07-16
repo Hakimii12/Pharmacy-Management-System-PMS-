@@ -2,22 +2,28 @@ import Product from "../models/ProductModel.js"
 import Store from "../models/StoreModel.js"
 import Dispensary from "../models/DispensaryModel.js"
 import Transfare from "../models/Transfer.js"
-
+import Sales from "../models/SalesModel.js"
 // Helper function to get inventory data
 async function getInventoryData(productId) {
-  const store = await Store.findOne({ product: productId })
-  const dispensary = await Dispensary.findOne({ product: productId })
+  const store = await Store.findOne({ product: productId, isDeleted: { $ne: true } })
+  const dispensary = await Dispensary.findOne({ product: productId, isDeleted: { $ne: true } })
 
   return {
-    store: store ? store.quantity : 0,
-    dispensary: dispensary ? dispensary.quantity : 0,
+    store: store && store.isActive ? store.quantity : 0,
+    dispensary: dispensary && dispensary.isActive ? dispensary.quantity : 0,
     storeThreshold: store ? store.threshold : 10,
     dispensaryThreshold: dispensary ? dispensary.threshold : 10,
+    storeActive: store ? store.isActive : false,
+    dispensaryActive: dispensary ? dispensary.isActive : false,
+    storeExists: !!store,
+    dispensaryExists: !!dispensary,
   }
 }
 
 // Helper function to populate product with inventory
 async function populateProductWithInventory(product) {
+  if (!product) return null
+
   const inventory = await getInventoryData(product._id)
   return {
     ...product.toObject(),
@@ -55,6 +61,7 @@ export async function CreateProduct(req, res) {
       DosageForms: productDosageForms,
       category,
       distributor,
+      isDeleted: false,
     })
 
     await newProduct.save()
@@ -64,12 +71,16 @@ export async function CreateProduct(req, res) {
       product: newProduct._id,
       quantity: quantity,
       threshold: 10,
+      isDeleted: false,
+      isActive: true,
     })
 
     await Dispensary.create({
       product: newProduct._id,
       quantity: 0,
       threshold: 10,
+      isDeleted: false,
+      isActive: true,
     })
 
     const productWithInventory = await populateProductWithInventory(newProduct)
@@ -82,7 +93,126 @@ export async function CreateProduct(req, res) {
     return res.status(500).json({ message: error.message })
   }
 }
+export async function SmartDeleteProduct(req, res) {
+  try {
+    const productId = req.params.id
+    const userId = req.user._id
 
+    const product = await Product.findById(productId)
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" })
+    }
+
+    if (product.isDeleted) {
+      return res.status(400).json({ message: "Product is already deleted" })
+    }
+
+    // Check for references
+    const salesCount = await Sales.countDocuments({ product: productId })
+    const transferCount = await Transfare.countDocuments({ product: productId })
+    const totalReferences = salesCount + transferCount
+
+    if (totalReferences > 0) {
+      // Perform SOFT DELETE - Product has references
+      const deletedProduct = await Product.findByIdAndUpdate(
+        productId,
+        {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: userId,
+          visibility: "deleted",
+        },
+        { new: true },
+      )
+
+      // Also soft delete related inventory records
+      await Store.findOneAndUpdate(
+        { product: productId },
+        {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: userId,
+          isActive: false,
+        },
+      )
+
+      await Dispensary.findOneAndUpdate(
+        { product: productId },
+        {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: userId,
+          isActive: false,
+        },
+      )
+
+      return res.status(200).json({
+        message: "Product soft deleted successfully (has references)",
+        deleteType: "soft",
+        product: deletedProduct,
+        references: {
+          sales: salesCount,
+          transfers: transferCount,
+          total: totalReferences,
+        },
+        reason: "Product has sales or transfer records and cannot be permanently deleted",
+      })
+    } else {
+      // Perform HARD DELETE - Product has no references
+      await Product.findByIdAndDelete(productId)
+
+      // Clean up related data completely
+      await Store.deleteOne({ product: productId })
+      await Dispensary.deleteOne({ product: productId })
+      await Notification.deleteMany({ product: productId })
+
+      return res.status(200).json({
+        message: "Product permanently deleted successfully (no references)",
+        deleteType: "hard",
+        productId: productId,
+        references: {
+          sales: 0,
+          transfers: 0,
+          total: 0,
+        },
+        reason: "Product had no sales or transfer records and was safely removed",
+      })
+    }
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+export async function HardDeleteProduct(req, res) {
+  try {
+    const productId = req.params.id
+
+    const product = await Product.findById(productId)
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" })
+    }
+
+    // Check for references before hard delete
+    const salesCount = await Sales.countDocuments({ product: productId })
+    const transferCount = await Transfare.countDocuments({ product: productId })
+
+    if (salesCount > 0 || transferCount > 0) {
+      return res.status(400).json({
+        message: `Cannot permanently delete product. It has ${salesCount} sales records and ${transferCount} transfer records. Use soft delete instead.`,
+        salesCount,
+        transferCount,
+      })
+    }
+
+    // Proceed with hard delete
+    await Product.findByIdAndDelete(productId)
+
+    return res.status(200).json({
+      message: "Product permanently deleted successfully",
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
 export async function UpdateProduct(req, res) {
   try {
     const productId = req.params.id
@@ -153,28 +283,107 @@ export async function UpdateProduct(req, res) {
     return res.status(500).json({ message: error.message })
   }
 }
-
-export async function IssueToDispensary(req, res) {
+export async function DeleteFromDispensary(req, res) {
   try {
+    const productId = req.params.id
     const userId = req.user._id
-    const { productId, quantity } = req.body
 
     const product = await Product.findById(productId)
     if (!product) {
       return res.status(404).json({ message: "Product not found" })
     }
 
-    const store = await Store.findOne({ product: productId })
+    const dispensary = await Dispensary.findOne({ product: productId })
+    if (!dispensary) {
+      return res.status(404).json({ message: "Product not found in dispensary" })
+    }
+
+    if (dispensary.isDeleted) {
+      return res.status(400).json({ message: "Product is already deleted from dispensary" })
+    }
+
+    // Check if there are any pending sales from dispensary
+    const pendingSales = await Sales.countDocuments({
+      product: productId,
+      status: "pending",
+    })
+
+    if (pendingSales > 0) {
+      return res.status(400).json({
+        message: `Cannot delete from dispensary. There are ${pendingSales} pending sales for this product.`,
+      })
+    }
+
+    // Soft delete from dispensary
+    await Dispensary.findOneAndUpdate(
+      { product: productId },
+      {
+        isDeleted: true,
+        isActive: false,
+        deletedAt: new Date(),
+        deletedBy: userId,
+        quantity: 0, // Set quantity to 0 when deleted
+      },
+    )
+
+    // Check if product should be completely deleted (if both locations are deleted)
+    const store = await Store.findOne({ product: productId, isDeleted: { $ne: true } })
+
+    if (!store || store.isDeleted) {
+      // Both locations are deleted, soft delete the main product
+      await Product.findByIdAndUpdate(productId, {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: userId,
+        visibility: "deleted",
+      })
+    }
+
+    // Clean up dispensary-related notifications
+    await Notification.deleteMany({
+      product: productId,
+      location: "dispensary",
+    })
+
+    const updatedProduct = await Product.findById(productId)
+    const productWithInventory = await populateProductWithInventory(updatedProduct)
+
+    return res.status(200).json({
+      message: "Product deleted from dispensary successfully",
+      product: productWithInventory,
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+export async function IssueToDispensary(req, res) {
+  try {
+    const userId = req.user._id
+    const { productId, quantity } = req.body
+
+    const product = await Product.findOne({ _id: productId, isDeleted: { $ne: true } })
+    if (!product) {
+      return res.status(404).json({ message: "Product not found or has been deleted" })
+    }
+
+    const store = await Store.findOne({ product: productId, isDeleted: { $ne: true }, isActive: true })
     if (!store || store.quantity < quantity) {
       return res.status(400).json({
-        message: `Insufficient stock in store. Available: ${store ? store.quantity : 0}`,
+        message: `Insufficient stock in store or store is inactive. Available: ${store ? store.quantity : 0}`,
+      })
+    }
+
+    const dispensary = await Dispensary.findOne({ product: productId })
+    if (!dispensary || dispensary.isDeleted || !dispensary.isActive) {
+      return res.status(400).json({
+        message: "Dispensary location is not active for this product",
       })
     }
 
     // Update quantities
     await Store.findOneAndUpdate({ product: productId }, { $inc: { quantity: -quantity } })
 
-    await Dispensary.findOneAndUpdate({ product: productId }, { $inc: { quantity: quantity } }, { upsert: true })
+    await Dispensary.findOneAndUpdate({ product: productId }, { $inc: { quantity: quantity } })
 
     // Create transfer record
     const transfare = new Transfare({
@@ -282,9 +491,13 @@ export async function GetReturnToStore(req, res) {
 
 export async function GetAllProducts(req, res) {
   try {
-    const products = await Product.find({ visibility: "enable" })
+    const products = await Product.find({ visibility: "enable", isDeleted: { $ne: true } })
     const productsWithInventory = await Promise.all(products.map((product) => populateProductWithInventory(product)))
-    return res.json({ products: productsWithInventory })
+
+    // Filter out any null products
+    const validProducts = productsWithInventory.filter((p) => p !== null)
+
+    return res.json({ products: validProducts })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -329,6 +542,9 @@ export async function GetCountedStore(req, res) {
       {
         $match: {
           quantity: { $gt: 0 },
+          isDeleted: false, // Only non-deleted store records
+          isActive: true, // Only active store records
+          "productInfo.isDeleted": { $ne: true }, // Only non-deleted products
         },
       },
       {
@@ -364,7 +580,12 @@ export async function GetCountedStore(req, res) {
       },
     ])
 
-    const outOfStockCount = await Store.countDocuments({ quantity: 0 })
+    // Also update the out of stock count to include the same filters
+    const outOfStockCount = await Store.countDocuments({
+      quantity: 0,
+      isDeleted: false,
+      isActive: true,
+    })
 
     const result = results[0] || {
       totalInStore: 0,
@@ -400,6 +621,9 @@ export async function GetCountedDispensary(req, res) {
       {
         $match: {
           quantity: { $gt: 0 },
+          isDeleted: false, // Only non-deleted dispensary records
+          isActive: true, // Only active dispensary records
+          "productInfo.isDeleted": { $ne: true }, // Only non-deleted products
         },
       },
       {
@@ -435,7 +659,12 @@ export async function GetCountedDispensary(req, res) {
       },
     ])
 
-    const outOfStockCount = await Dispensary.countDocuments({ quantity: 0 })
+    // Also update the out of stock count to include the same filters
+    const outOfStockCount = await Dispensary.countDocuments({
+      quantity: 0,
+      isDeleted: false,
+      isActive: true,
+    })
 
     const result = results[0] || {
       totalInDispensary: 0,
@@ -451,20 +680,5 @@ export async function GetCountedDispensary(req, res) {
     res.json(result)
   } catch (error) {
     res.status(500).json({ message: error.message })
-  }
-}
-
-export async function RemoveFromTheShelf(req, res) {
-  const productId = req.params.id
-
-  try {
-    const prod = await Product.findById(productId)
-    console.log(prod)
-    const product = await Product.findByIdAndUpdate(productId, { visibility: "disable" }, { new: true })
-    const productWithInventory = await populateProductWithInventory(product)
-    return res.status(200).json(productWithInventory)
-  } catch (error) {
-    console.error(error)
-    return res.status(500).json({ message: error.message })
   }
 }
