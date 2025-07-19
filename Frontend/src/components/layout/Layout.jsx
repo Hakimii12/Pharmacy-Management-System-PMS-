@@ -1,4 +1,3 @@
-// Layout.js
 import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
@@ -31,19 +30,19 @@ const Layout = ({ children }) => {
         />
       )}
 
-      {/* Responsive Sidebar */}
+      {/* Responsive Sidebar - Fixed on mobile, static on desktop */}
       <div 
-        className={`fixed md:relative z-30 transform ${
+        className={`fixed md:relative z-30 h-full ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } md:translate-x-0 transition-transform duration-300 w-64 flex-shrink-0`}
       >
         <Sidebar closeSidebar={closeSidebar} />
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex flex-col flex-1 overflow-hidden md:ml-64">
+      {/* Main Content Area - Full width on mobile, with margin on desktop */}
+      <div className="flex flex-col flex-1 w-full overflow-hidden">
         <Navbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-blue-50">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-blue-50 md:ml-0">
           {children}
         </main>
       </div>
