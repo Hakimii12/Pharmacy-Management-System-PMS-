@@ -10,7 +10,8 @@ import { CreateProduct,
   GetReturnToStore,
   GetCountedDispensary,
   UpdateProduct,
-  RemoveFromTheShelf} from "../controllers/ProductController.js";
+  DeleteFromDispensary,
+  SmartDeleteProduct} from "../controllers/ProductController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 const router =  express.Router();
 router.get("/allProducts", Authenticated(), GetAllProducts);
@@ -18,7 +19,8 @@ router.post("/CreateProducts",Authenticated (), CreateProduct);
 router.put("/update/:id",Authenticated (),UpdateProduct)
 router.post("/issueToDispensary",Authenticated(),IssueToDispensary);
 router.post("/returnToStore", Authenticated(), ReturnToStore);
-router.post("/removeFromTheShelf/:id", Authenticated(), RemoveFromTheShelf);
+router.delete("/smartDelete/:id", Authenticated(), SmartDeleteProduct)
+router.delete("/dispensary/:id", Authenticated(), DeleteFromDispensary)
 router.get("/productToDispensary", Authenticated(), GetIssuedDispensary);
 router.get("/getRetrunToStore", Authenticated(), GetReturnToStore);
 router.get("/storeProducts", Authenticated(), GetStoreProduct);
