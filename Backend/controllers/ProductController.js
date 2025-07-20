@@ -682,3 +682,6 @@ export async function GetCountedDispensary(req, res) {
     res.status(500).json({ message: error.message })
   }
 }
+export async function countAllProduct(req,res){
+  
+}
