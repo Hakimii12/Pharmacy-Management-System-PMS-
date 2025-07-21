@@ -682,6 +682,164 @@ export async function GetCountedDispensary(req, res) {
     res.status(500).json({ message: error.message })
   }
 }
-export async function countAllProduct(req,res){
-  
+export async function CountAllProduct(req, res) {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Aggregation pipeline to get product statistics
+    const stats = await Product.aggregate([
+      {
+        $match: {
+          isDeleted: { $ne: true },
+          visibility: "enable"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalProducts: { $sum: 1 },
+          totalQuantity: { $sum: "$quantity" },
+          totalValue: { $sum: "$totalPrice" },
+          totalSellingValue: { $sum: { $multiply: ["$sellingPrice", "$quantity"] } },
+          byStatus: {
+            $push: {
+              status: "$status",
+              count: 1
+            }
+          },
+          byCategory: {
+            $push: {
+              category: "$category",
+              count: 1
+            }
+          },
+          nearExpiry: {
+            $sum: {
+              $cond: [
+                { 
+                  $and: [
+                    { $gt: ["$expiryDate", today] },
+                    { $lte: ["$expiryDate", new Date(today.setMonth(today.getMonth() + 3))] }
+                  ] 
+                },
+                1,
+                0
+              ]
+            }
+          },
+          expiredCount: {
+            $sum: {
+              $cond: [
+                { $lte: ["$expiryDate", today] },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        $unwind: "$byStatus"
+      },
+      {
+        $group: {
+          _id: "$byStatus.status",
+          totalProducts: { $first: "$totalProducts" },
+          totalQuantity: { $first: "$totalQuantity" },
+          totalValue: { $first: "$totalValue" },
+          totalSellingValue: { $first: "$totalSellingValue" },
+          byCategory: { $first: "$byCategory" },
+          nearExpiry: { $first: "$nearExpiry" },
+          expiredCount: { $first: "$expiredCount" },
+          statusCount: { $sum: "$byStatus.count" }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalProducts: { $first: "$totalProducts" },
+          totalQuantity: { $first: "$totalQuantity" },
+          totalValue: { $first: "$totalValue" },
+          totalSellingValue: { $first: "$totalSellingValue" },
+          nearExpiry: { $first: "$nearExpiry" },
+          expiredCount: { $first: "$expiredCount" },
+          byStatus: {
+            $push: {
+              status: "$_id",
+              count: "$statusCount"
+            }
+          },
+          byCategory: { $first: "$byCategory" }
+        }
+      },
+      {
+        $unwind: "$byCategory"
+      },
+      {
+        $group: {
+          _id: "$byCategory.category",
+          totalProducts: { $first: "$totalProducts" },
+          totalQuantity: { $first: "$totalQuantity" },
+          totalValue: { $first: "$totalValue" },
+          totalSellingValue: { $first: "$totalSellingValue" },
+          nearExpiry: { $first: "$nearExpiry" },
+          expiredCount: { $first: "$expiredCount" },
+          byStatus: { $first: "$byStatus" },
+          categoryCount: { $sum: "$byCategory.count" }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalProducts: { $first: "$totalProducts" },
+          totalQuantity: { $first: "$totalQuantity" },
+          totalValue: { $first: "$totalValue" },
+          totalSellingValue: { $first: "$totalSellingValue" },
+          nearExpiry: { $first: "$nearExpiry" },
+          expiredCount: { $first: "$expiredCount" },
+          byStatus: { $first: "$byStatus" },
+          byCategory: {
+            $push: {
+              category: "$_id",
+              count: "$categoryCount"
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalProducts: 1,
+          totalQuantity: 1,
+          totalValue: 1,
+          totalSellingValue: 1,
+          potentialProfit: {
+            $subtract: ["$totalSellingValue", "$totalValue"]
+          },
+          nearExpiry: 1,
+          expiredCount: 1,
+          byStatus: 1,
+          byCategory: 1
+        }
+      }
+    ]);
+
+    // Handle case where no products exist
+    const result = stats[0] || {
+      totalProducts: 0,
+      totalQuantity: 0,
+      totalValue: 0,
+      totalSellingValue: 0,
+      potentialProfit: 0,
+      nearExpiry: 0,
+      expiredCount: 0,
+      byStatus: [],
+      byCategory: []
+    };
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
 }
