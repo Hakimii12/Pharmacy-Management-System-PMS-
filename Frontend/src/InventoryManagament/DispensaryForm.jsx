@@ -73,7 +73,7 @@ const DispensaryForm = ({ product, onClose, onSuccess }) => {
       if (product) {
         // Update existing product
         const response = await axios.put(
-          `${ApiLink}/api/product/updateProduct/${product._id}`,
+          `${ApiLink}/api/product/update/${product._id}`,
           data,
           {
             headers: { 'Content-Type': 'application/json' },
