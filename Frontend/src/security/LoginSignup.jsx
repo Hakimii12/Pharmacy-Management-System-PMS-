@@ -7,9 +7,10 @@ import { useContext } from 'react';
 import { ContextProvider } from '../contexts/AppContext';
 import { toast } from 'react-toastify';
 import Api from "../data/API.json"
+
 const LoginSignup = () => {
-  const ApiLink=Api.link
-  const {setIsAuth} = useContext(ContextProvider)
+  const ApiLink = Api.link;
+  const { setIsAuth } = useContext(ContextProvider);
   const navigate = useNavigate();
   const location = useLocation();
   const [isLogin, setIsLogin] = useState(location.pathname !== '/signup');
@@ -20,9 +21,12 @@ const LoginSignup = () => {
     role: 'pharmacist',
     remember: false
   });
+  const [isLoading, setIsLoading] = useState(false); // Loading state
+
   useEffect(() => {
     setIsLogin(location.pathname === '/login');
   }, [location.pathname]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -33,56 +37,52 @@ const LoginSignup = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isLogin) {
-        try {
-      axios
-           .post(`${ApiLink}/api/user/login`,{email: formData.email,
-          password: formData.password},
-            {
-            headers:{
-                'Content-Type':'application/json'
-            },
-            withCredentials: true
-        }).then((res)=>{
-            navigate('/')
-            const user=res.data
-            console.log(user)
-            localStorage.setItem('user-threads', JSON.stringify(user))
-            setIsAuth(true)
-            toast.success(`welcome back ${user.name}`)
-            console.log(res)
-        }).catch((error)=>{
-          console.log(error.response.data)
-          toast.error(error.response.data||"error occured");
-        })
-        } catch (error) {
-           console.log(res.response.data)
-           toast.error(error.response?.data?.message || "An error occurred"); 
-        }
+    setIsLoading(true); // Start loading
 
+    if (isLogin) {
+      axios.post(`${ApiLink}/api/user/login`, {
+          email: formData.email,
+          password: formData.password
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: true
+        })
+        .then((res) => {
+          navigate('/');
+          const user = res.data;
+          localStorage.setItem('user-threads', JSON.stringify(user));
+          setIsAuth(true);
+          toast.success(`Welcome back ${user.name}`);
+        })
+        .catch((error) => {
+          toast.error(error.response?.data?.message || "Login failed");
+        })
+        .finally(() => {
+          setIsLoading(false); // Stop loading regardless of outcome
+        });
     } else {
-      axios
-        .post(`${ApiLink}/api/user/register`, {
+      axios.post(`${ApiLink}/api/user/register`, {
           email: formData.email,
           password: formData.password,
           name: formData.name,
           role: formData.role
         }, {
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           withCredentials: true
         })
         .then((res) => {
           navigate('/login'); 
-          toast.success(`You have successfully registered!!`);
-          console.log(res);
+          toast.success(`You have successfully registered!`);
         })
         .catch((error) => {
           toast.error(error.response?.data?.message || "Registration failed");
+        })
+        .finally(() => {
+          setIsLoading(false); // Stop loading regardless of outcome
         });
     }
   }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-blue-100">
       <motion.div 
@@ -260,15 +260,30 @@ const LoginSignup = () => {
               )} */}
               
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                whileTap={{ scale: isLoading ? 1 : 0.98 }}
                 type="submit"
-                className="w-full bg-gradient-to-r from-teal-600 to-blue-700 hover:from-teal-700 hover:to-blue-800 text-white font-medium py-3 px-4 rounded-lg shadow-lg transition-all duration-300 flex items-center justify-center"
+                disabled={isLoading}
+                className={`w-full bg-gradient-to-r from-teal-600 to-blue-700 text-white font-medium py-3 px-4 rounded-lg shadow-lg transition-all duration-300 flex items-center justify-center ${
+                  isLoading ? 'opacity-75 cursor-not-allowed' : 'hover:from-teal-700 hover:to-blue-800'
+                }`}
               >
-                <span>{isLogin ? 'Login to Dashboard' : 'Create Account'}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <span>{isLogin ? 'Login to Dashboard' : 'Create Account'}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </>
+                )}
               </motion.button>
               
               <div className="mt-6 text-center text-sm text-gray-600">
