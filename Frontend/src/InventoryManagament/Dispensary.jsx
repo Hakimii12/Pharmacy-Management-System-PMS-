@@ -6,7 +6,9 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
 import Loading from '../components/Loading/Loading';
+import Api from "../data/API.json"
 const Dispensary = () => {
+  const ApiLink=Api.link
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +19,7 @@ const Dispensary = () => {
   async function fetchProducts(){
     setIsLoading(true)
   try {
-    const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
+    const response = await axios.get(`${ApiLink}/api/product/dispensaryProducts`,{
       withCredentials:true
     });
 

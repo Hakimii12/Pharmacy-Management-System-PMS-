@@ -6,7 +6,9 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import Loading from '../Loading/Loading';
 import axios from 'axios';
+import Api from "../../data/API.json"
 const ProductList = () => {
+  const ApiLink=Api.link
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +19,7 @@ const ProductList = () => {
   async function fetchProducts(){
     setIsLoading(true)
   try {
-    const response = await axios.get("http://localhost:5000/api/product/allProducts",{
+    const response = await axios.get(`${ApiLink}/api/product/allProducts`,{
       withCredentials:true
     });
     setFetched(response?.data?.products)

@@ -5,8 +5,9 @@ import InventorySummaryCard from './StockResult';
 import { useEffect } from 'react';
 import axios from 'axios';
 import Loading from '../../components/Loading/Loading';
-import { set } from 'mongoose';
+import Api from "../../data/API.json"
 const DetailedHistoryTable = () => {
+  const ApiLink=Api.link
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
   const [showDateFilter, setShowDateFilter] = useState(false);
@@ -25,7 +26,7 @@ const DetailedHistoryTable = () => {
    async function fetchStoreSummery(){
     setIsLoading(true)
     try {
-       await axios.get("http://localhost:5000/api/product/productToDispensary",{
+       await axios.get(`${ApiLink}/api/product/productToDispensary`,{
         withCredentials:true
       }).then((res) => {
         console.log(res.data.history)

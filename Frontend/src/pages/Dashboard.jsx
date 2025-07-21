@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaPills, FaMoneyBillWave, FaExclamationTriangle, FaChartLine } from 'react-icons/fa';
 import InventoryChart from '../components/dashboard/InventoryChart';
+import Api from "../data/API.json"
 const Dashboard = () => {
   const [stats, setStats] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
@@ -9,17 +10,18 @@ const Dashboard = () => {
   const [recentSales, setRecentSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const ApiLink=Api.link
    useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         // Define all API endpoints
         const endpoints = [
-          'http://localhost:5000/api/product/getCountAllProduct',
-          'http://localhost:5000/api/sales/sales/GetTotalSales',
-          'http://localhost:5000/api/notify/getLowStock',
-          'http://localhost:5000/api/notify/getNearExpiryProducts',
-          'http://localhost:5000/api/profit/profit',
-          'http://localhost:5000/api/sales/sales/getRecentSales'
+          `${ApiLink}/api/product/getCountAllProduct`,
+          `${ApiLink}/api/sales/sales/GetTotalSales`,
+          `${ApiLink}/api/notify/getLowStock`,
+          `${ApiLink}/api/notify/getNearExpiryProducts`,
+          `${ApiLink}/api/profit/profit`,
+          `${ApiLink}/api/sales/sales/getRecentSales`
         ];
 
         // Fetch all data in parallel

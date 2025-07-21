@@ -3,14 +3,15 @@ import HistoryTable from './SalesComponent/HistoryTable';
 import axios from 'axios';
 import { useEffect } from 'react';
 import Loading from '../Loading/Loading';
-
+import Api from "../../data/API.json"
 const SalesHistory = () => {
+  const ApiLink=Api.link
   const [history,setHistory]=useState([])
   const [loading,setLoading]=useState(false)
   async function FetchTransactionHistory(){
     setLoading(true)
     try {
-        const res= await axios.get("http://localhost:5000/api/sales/sales/allTransactionHistory",{
+        const res= await axios.get(`${ApiLink}/api/sales/sales/allTransactionHistory`,{
           withCredentials:true
         }).then((res)=>{
           setHistory(res.data)

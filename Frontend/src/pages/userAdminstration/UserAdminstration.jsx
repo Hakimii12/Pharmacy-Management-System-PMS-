@@ -4,7 +4,9 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useContext } from 'react';
 import { ContextProvider } from '../../contexts/AppContext';
+import Api from "../../data/API.json" 
 const UserAdminstration = () => {
+  const ApiLink=Api.link
   const { isAuth, setIsAuth } = useContext(ContextProvider);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [users, setUsers] = useState([]);
@@ -26,7 +28,7 @@ const UserAdminstration = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/user/getAllUser', {
+      const response = await axios.get(`${ApiLink}/api/user/getAllUser`, {
         withCredentials: true
       });
       setUsers(response.data);
@@ -40,7 +42,7 @@ const UserAdminstration = () => {
   const handleStatusChange = async (userId, newStatus) => {
     try {
       setLoading(true);
-      await axios.post(`http://localhost:5000/api/user/approval/${newStatus}/${userId}`, {}, {
+      await axios.post(`${ApiLink}/api/user/approval/${newStatus}/${userId}`, {}, {
         withCredentials: true
       });
       toast.success(`User status updated to ${newStatus}`);
@@ -62,7 +64,7 @@ const UserAdminstration = () => {
     
     try {
       setLoading(true);
-      await axios.post('http://localhost:5000/api/user/register', {
+      await axios.post(`${ApiLink}/api/user/register`, {
         name: adminForm.name,
         email: adminForm.email,
         password: adminForm.password,

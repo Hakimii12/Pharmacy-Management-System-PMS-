@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-
+import Api from "../data/API.json"
 const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
+  const ApiLink=Api.link
   // State initialization with product data if available
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
@@ -72,7 +73,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       if (product) {
         // Update existing product
         const response = await axios.put(
-          `http://localhost:5000/api/product/update/${product._id}`,
+          `${ApiLink}/api/product/update/${product._id}`,
           data,
           {
             headers: { 'Content-Type': 'application/json' },
@@ -87,7 +88,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       } else {
         // Create new product
         const response = await axios.post(
-          "http://localhost:5000/api/product/CreateProducts",
+          `${ApiLink}/api/product/CreateProducts`,
           data,
           {
             headers: { 'Content-Type': 'application/json' },

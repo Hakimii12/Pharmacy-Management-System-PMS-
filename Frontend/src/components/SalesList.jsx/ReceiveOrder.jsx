@@ -5,13 +5,15 @@ import axios from 'axios';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import Loading from "../Loading/Loading"
+import Api from "../../data/API.json"
 const ReceiveOrder = () => {
+  const ApiLink=Api.link
   const [pendingOrders,setPendingOrders]=useState([])
   const [loading,setLoading]=useState(false)
   async function FetchingPendingOrders(){
     setLoading(true)
   try {
-        await axios.get("http://localhost:5000/api/sales/sales/pendingStatusItems",{
+        await axios.get(`${ApiLink}/api/sales/sales/pendingStatusItems`,{
       withCredentials:true
     }).then((res)=>{
       setPendingOrders(res.data)
@@ -149,7 +151,7 @@ const ReceiveOrder = () => {
   const completeOrder = async(orderId) => {
     setLoading(true)
     try {
-      await axios.post(`http://localhost:5000/api/sales/sales/confirm/${orderId}`,{},{
+      await axios.post(`${ApiLink}/api/sales/sales/confirm/${orderId}`,{},{
         withCredentials:true
       }).then((res)=>{
         FetchingPendingOrders()
@@ -173,7 +175,7 @@ const ReceiveOrder = () => {
   const abortOrder = async (orderId) => {
     setLoading(true)
     try {
-       await axios.post(`http://localhost:5000/api/sales/sales/abort/${orderId}`,{},{
+       await axios.post(`${ApiLink}/api/sales/sales/abort/${orderId}`,{},{
         withCredentials:true
       }).then((res)=>{
         FetchingPendingOrders()
