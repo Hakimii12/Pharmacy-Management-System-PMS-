@@ -6,7 +6,9 @@ import axios from 'axios';
 import { useContext } from 'react';
 import { ContextProvider } from '../contexts/AppContext';
 import { toast } from 'react-toastify';
+import Api from "../data/API.json"
 const LoginSignup = () => {
+  const ApiLink=Api.link
   const {setIsAuth} = useContext(ContextProvider)
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,7 +36,7 @@ const LoginSignup = () => {
     if (isLogin) {
         try {
       axios
-           .post("http://localhost:5000/api/user/login",{email: formData.email,
+           .post(`${ApiLink}/api/user/login`,{email: formData.email,
           password: formData.password},
             {
             headers:{
@@ -60,7 +62,7 @@ const LoginSignup = () => {
 
     } else {
       axios
-        .post("http://localhost:5000/api/user/register", {
+        .post(`${ApiLink}/api/user/register`, {
           email: formData.email,
           password: formData.password,
           name: formData.name,

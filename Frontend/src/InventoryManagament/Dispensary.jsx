@@ -6,7 +6,9 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
 import Loading from '../components/Loading/Loading';
+import Api from "../data/API.json"
 const Dispensary = () => {
+  const ApiLink=Api.link
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +19,7 @@ const Dispensary = () => {
   async function fetchProducts(){
     setIsLoading(true)
   try {
-    const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
+    const response = await axios.get(`${ApiLink}/api/product/dispensaryProducts`,{
       withCredentials:true
     });
 
@@ -56,7 +58,7 @@ useEffect(()=>{
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex flex-col md:flex-row md:items-center justify-between">
+        {/* <div className="flex flex-col md:flex-row md:items-center justify-between">
           <h2 className="text-xl font-bold text-gray-800">Product Inventory</h2>
           <button 
             onClick={() => setShowForm(true)}
@@ -64,7 +66,7 @@ useEffect(()=>{
           >
             <FaPlus className="mr-2" />
           </button>
-        </div>
+        </div> */}
       </div>
       
       <div className="p-6">
@@ -151,9 +153,9 @@ useEffect(()=>{
         )}
       </div>
       
-      {/* {showForm && (
+      {showForm && (
         <DispensaryForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
-      )} */}
+      )}
     </div>
   );
 };

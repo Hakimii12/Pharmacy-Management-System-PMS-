@@ -3,13 +3,14 @@ import NotificationItem from './NotificationItem';
 import { FaBell, FaCheck, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 import { useEffect } from 'react';
-
+import Api from "../../data/API.json"
 const NotificationCenter = () => {
+  const ApiLink=Api.link
   const [activeTab, setActiveTab] = useState('all');
   const [notifs, setNotifs] = useState([]);
   async function FetchNotification(){
     try {
-      res= await axios.get('http://localhost:5000/api/notify/notification',{
+      res= await axios.get(`${ApiLink}/api/notify/notification`,{
       withCredentials:true
      }).then((res)=>{
       console.log(res.data)
@@ -29,7 +30,7 @@ const NotificationCenter = () => {
 
   const markAsRead = async(id) => {
     try {
-      res=await axios.put(`http://localhost:5000/api/notify/notification/${id}`,{withCredentials:true})
+      res=await axios.put(`${ApiLink}/api/notify/notification/${id}`,{withCredentials:true})
       .then((res)=>{
         console.log(res)
       })
@@ -42,7 +43,7 @@ const NotificationCenter = () => {
   };
 
   const markAllAsRead = async() => {
-    res = await axios.put('http://localhost:5000/api/notify/MarkAsReadAll',{
+    res = await axios.put(`${ApiLink}/api/notify/MarkAsReadAll`,{
       withCredentials:true
     }).then((res)=>{
       console.log(res)
@@ -52,7 +53,7 @@ const NotificationCenter = () => {
 
   const deleteNotification = async(id) => {
     try {
-      res=await axios.delete(`http://localhost:5000/api/notify/removeNotification/${id}`,{withCredentials:true})
+      res=await axios.delete(`${ApiLink}/api/notify/removeNotification/${id}`,{withCredentials:true})
       .then((res)=>{
         console.log(res)
       })

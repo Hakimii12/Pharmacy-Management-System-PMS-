@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import Api from "../data/API.json"
 const BackstoreItem = ({ product, onEdit, onTransferSuccess,fetchProducts }) => {
+  const ApiLink=Api.link
   const [showDetails, setShowDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [transferQuantity, setTransferQuantity] = useState(1);
@@ -60,7 +62,7 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess,fetchProducts }) => 
   };
   async function RemoveFromTheShelf(id) {
     try {
-      await axios.post(`http://localhost:5000/api/product/removeFromTheShelf/${id}`, {}, {
+      await axios.post(`${ApiLink}/api/product/removeFromTheShelf/${id}`, {}, {
         withCredentials: true
       }).then((response) => {
         fetchProducts()
@@ -77,7 +79,7 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess,fetchProducts }) => 
 async function AddedByUser(){
       try {
       let id =product?.addedBy
-      const endpoint = `http://localhost:5000/api/user/user/${id}`
+      const endpoint = `${ApiLink}/api/user/user/${id}`
       await axios.get(endpoint,{
         headers: {
           'Content-Type': 'application/json',   
@@ -107,7 +109,7 @@ useEffect(() => {
     setIsTransferring(true);
     const quantity = Number(transferQuantity)
     try {
-      const endpoint = 'http://localhost:5000/api/product/issueToDispensary'
+      const endpoint = `${ApiLink}/api/product/issueToDispensary`
       await axios.post(endpoint,{ productId, quantity }, {
         headers: {
           'Content-Type': 'application/json',

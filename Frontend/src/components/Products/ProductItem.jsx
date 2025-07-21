@@ -3,7 +3,9 @@ import { FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaTimes } from 'react-icon
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useEffect } from 'react';
+import Api from "../../data/API.json"
 const ProductItem = ({ product, onEdit, onTransferSuccess ,fetchProducts}) => {
+  const ApiLink=Api.link
   const [showDetails, setShowDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [transferType, setTransferType] = useState('issue');
@@ -66,7 +68,7 @@ const ProductItem = ({ product, onEdit, onTransferSuccess ,fetchProducts}) => {
 
   async function RemoveFromTheShelf(id) {
     try {
-      await axios.delete(`http://localhost:5000/api/product/smartDelete/${id}`, {
+      await axios.delete(`${ApiLink}/api/product/smartDelete/${id}`, {
         withCredentials: true
       }).then((response) => {
         fetchProducts()
@@ -84,7 +86,7 @@ const ProductItem = ({ product, onEdit, onTransferSuccess ,fetchProducts}) => {
 async function AddedByUser(){
       try {
       let id =product?.addedBy
-      const endpoint = `http://localhost:5000/api/user/user/${id}`
+      const endpoint = `${ApiLink}/api/user/user/${id}`
       await axios.get(endpoint,{
         headers: {
           'Content-Type': 'application/json',   
@@ -120,8 +122,8 @@ useEffect(() => {
     const quantity = Number(transferQuantity)
     try {
       const endpoint = transferType === 'issue' 
-        ? 'http://localhost:5000/api/product/issueToDispensary'
-        : 'http://localhost:5000/api/product/returnToStore';
+        ? `${ApiLink}/api/product/issueToDispensary`
+        : `${ApiLink}/api/product/returnToStore`;
 
       await axios.post(endpoint,{ productId, quantity }, {
         headers: {

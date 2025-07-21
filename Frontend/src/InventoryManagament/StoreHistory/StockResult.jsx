@@ -2,8 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { FaBoxes, FaMoneyBillWave } from 'react-icons/fa';
 import axios from 'axios';
-
+import Api from "../../data/API.json"
 const InventorySummaryCard = () => {
+  const ApiLink=Api.link
   const [inventoryData, setInventoryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +12,7 @@ const InventorySummaryCard = () => {
   async function fetchInventorySummary() {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/product/GetCountedStore",
+        `${ApiLink}/api/product/GetCountedStore`,
         { withCredentials: true }
       );
       setInventoryData(res.data);

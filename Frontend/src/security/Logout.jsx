@@ -3,11 +3,13 @@ import { toast } from 'react-toastify';
 import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ContextProvider } from '../contexts/AppContext';
+import Api from "../data/API.json"
 async function Logout() {
+  const ApiLink=Api.link
   const { setIsAuth } = useContext(ContextProvider);
   const navigate = useNavigate();
     try {
-      await axios.post('http://localhost:5000/api/user/logout', {}, {
+      await axios.post(`${ApiLink}/api/user/logout`, {}, {
         withCredentials: true,
       });
       

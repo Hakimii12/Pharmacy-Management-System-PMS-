@@ -5,13 +5,15 @@ import OrderCart from './SalesComponent/OrderCart';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Loading from '../Loading/Loading';
+import Api from "../../data/API.json"
   const PurchaseOrder = () => {
+    const ApiLink=Api.link
 const [products,setProdcuts]=useState([])
 const [loading,setLoading]=useState(false)
 async function FetchItems(){
   setLoading(true)
   try {
-    const response = await axios.get("http://localhost:5000/api/product/dispensaryProducts",{
+    const response = await axios.get(`${ApiLink}/api/product/dispensaryProducts`,{
       withCredentials:true
     }).then((res)=>{
       setProdcuts(res.data.products)
@@ -104,7 +106,7 @@ const handleSubmitOrder = async () => {
     };
 
     const response = await axios.post(
-      "http://localhost:5000/api/sales/sales",
+      `${ApiLink}/api/sales/sales`,
       payload,
       { withCredentials: true }
     );
