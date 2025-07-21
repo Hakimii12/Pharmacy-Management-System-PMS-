@@ -11,7 +11,8 @@ import { CreateProduct,
   GetCountedDispensary,
   UpdateProduct,
   DeleteFromDispensary,
-  SmartDeleteProduct} from "../controllers/ProductController.js";
+  SmartDeleteProduct,
+  CountAllProduct} from "../controllers/ProductController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 const router =  express.Router();
 router.get("/allProducts", Authenticated(), GetAllProducts);
@@ -27,4 +28,5 @@ router.get("/storeProducts", Authenticated(), GetStoreProduct);
 router.get("/dispensaryProducts", Authenticated(), GetDispensaryProduct);
 router.get("/getCountedStore",Authenticated(),GetCountedStore)
 router.get("/getCountedDispensary",Authenticated(),GetCountedDispensary)
+router.get("/getCountAllProduct",Authenticated(),CountAllProduct)
 export default router

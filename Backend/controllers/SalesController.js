@@ -355,3 +355,84 @@ export async function GetAbortAndComplatedSale(req, res) {
     res.status(500).json({ message: error.message })
   }
 }
+export const GetRecentSales = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query; // Default to 10 recent sales
+    
+    const recentSales = await Sales.find({ status: "completed" })
+      .sort({ completedAt: -1 }) // Sort by most recent first
+      .limit(Number(limit))
+      .select('name brand saleAmount profit completedAt -_id');
+
+    res.status(200).json({
+      success: true,
+      count: recentSales.length,
+      sales: recentSales.map(sale => ({
+        productName: sale.name,
+        brand: sale.brand,
+        dateSold: sale.completedAt,
+        saleAmount: sale.saleAmount,
+        profit: sale.profit
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: `Failed to fetch recent sales: ${error.message}`
+    });
+  }
+};
+// Add this new endpoint controller to your sales controller file
+export const GetTotalSales = async (req, res) => {
+  try {
+    // Extract optional date filters from query parameters
+    const { startDate, endDate } = req.query;
+    
+    // Build match conditions for aggregation pipeline
+    const matchConditions = {
+      status: "completed"
+    };
+
+    // Add date filtering if provided
+    if (startDate || endDate) {
+      matchConditions.completedAt = {};
+      if (startDate) matchConditions.completedAt.$gte = new Date(startDate);
+      if (endDate) matchConditions.completedAt.$lte = new Date(endDate);
+    }
+
+    // Aggregation pipeline to calculate total sales
+    const result = await Sales.aggregate([
+      { $match: matchConditions },
+      { 
+        $group: {
+          _id: null,
+          totalSales: { $sum: "$saleAmount" },
+          totalProfit: { $sum: "$profit" },
+          transactionCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Handle case with no sales data
+    if (result.length === 0) {
+      return res.status(200).json({
+        totalSales: 0,
+        totalProfit: 0,
+        transactionCount: 0
+      });
+    }
+
+    // Return aggregated results
+    res.status(200).json({
+      totalSales: result[0].totalSales,
+      totalProfit: result[0].totalProfit,
+      transactionCount: result[0].transactionCount
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+};
