@@ -3,7 +3,6 @@ import NotificationItem from './NotificationItem';
 import { FaBell, FaCheck, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 import { useEffect } from 'react';
-
 const NotificationCenter = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [notifs, setNotifs] = useState([]);

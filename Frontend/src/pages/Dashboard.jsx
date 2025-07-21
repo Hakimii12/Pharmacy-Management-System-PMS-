@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaPills, FaMoneyBillWave, FaExclamationTriangle, FaChartLine } from 'react-icons/fa';
 import InventoryChart from '../components/dashboard/InventoryChart';
-
 const Dashboard = () => {
   const [stats, setStats] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
@@ -10,8 +9,7 @@ const Dashboard = () => {
   const [recentSales, setRecentSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
+   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         // Define all API endpoints
