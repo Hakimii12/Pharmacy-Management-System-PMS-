@@ -1,162 +1,216 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  FaHome, FaPills, FaShoppingCart, FaChartLine, FaBell, 
-  FaChevronDown, FaChevronUp, FaBox, FaStore, FaCashRegister, 
-  FaClipboardList, FaTruckLoading, FaHistory, 
-} from 'react-icons/fa';
-import { useState } from 'react';
-import { FiSettings } from 'react-icons/fi';
-import { AiOutlineUser, AiOutlineLogout } from 'react-icons/ai';
+"use client"
+
+import { NavLink, useLocation } from "react-router-dom"
+import {
+  FaHome,
+  FaPills,
+  FaShoppingCart,
+  FaChartLine,
+  FaBell,
+  FaChevronDown,
+  FaChevronUp,
+  FaBox,
+  FaStore,
+  FaCashRegister,
+  FaClipboardList,
+  FaTruckLoading,
+  FaHistory,
+} from "react-icons/fa"
+import { useState } from "react"
+import { FiSettings } from "react-icons/fi"
+import { AiOutlineUser, AiOutlineLogout } from "react-icons/ai"
 
 const Sidebar = ({ closeSidebar }) => {
   const [openDropdown, setOpenDropdown] = useState({
     inventory: false,
     sales: false,
     backstore: false,
-    dispensary: false
-  });
-  
-  const location = useLocation();
+    dispensary: false,
+  })
+
+  const location = useLocation()
 
   const toggleDropdown = (menu) => {
-    setOpenDropdown(prev => ({ ...prev, [menu]: !prev[menu] }));
-  };
+    setOpenDropdown((prev) => ({ ...prev, [menu]: !prev[menu] }))
+  }
 
   // Function to handle navigation click
   const handleNavClick = () => {
     // Close sidebar on mobile when navigation item is clicked
-    if (window.innerWidth < 768) { // md breakpoint
-      closeSidebar();
+    if (window.innerWidth < 768) {
+      // md breakpoint
+      closeSidebar()
     }
-  };
+  }
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: <FaHome /> },
-    { 
-      name: 'Inventory.M',
+    { name: "Dashboard", path: "/", icon: <FaHome /> },
+    {
+      name: "Inventory.M",
       icon: <FaPills />,
       subItems: [
-        { name: 'All Stock', path: '/products', icon: <FaBox /> },
-        { 
-          name: 'Backstore',
+        { name: "All Stock", path: "/products", icon: <FaBox /> },
+        {
+          name: "Backstore",
           icon: <FaStore />,
           subItems: [
-            { name: 'Store', path: '/backstore', icon: <FaStore /> },
-            { name: 'Store History', path: '/store-history', icon: <FaHistory /> }
-          ]
+            { name: "Store", path: "/backstore", icon: <FaStore /> },
+            { name: "Store History", path: "/store-history", icon: <FaHistory /> },
+          ],
         },
-        { 
-          name: 'Dispensary',
+        {
+          name: "Dispensary",
           icon: <FaCashRegister />,
           subItems: [
-            { name: 'Dispensary', path: '/dispensary', icon: <FaCashRegister /> },
-            { name: 'Dispensary History', path: '/dispensary-history', icon: <FaHistory /> }
-          ]
+            { name: "Dispensary", path: "/dispensary", icon: <FaCashRegister /> },
+            { name: "Dispensary History", path: "/dispensary-history", icon: <FaHistory /> },
+          ],
         },
-      ]
+      ],
     },
-    { 
-      name: 'Sales',
+    {
+      name: "Sales",
       icon: <FaShoppingCart />,
       subItems: [
-        { name: 'Purchase Order', path: '/purchase-order', icon: <FaClipboardList /> },
-        { name: 'Receive Order', path: '/receive-order', icon: <FaTruckLoading /> },
-        { name: 'Close Daily Balance', path: '/close-daily-balance', icon: <FaCashRegister /> },
-        { name: 'History', path: '/sales-history', icon: <FaHistory /> },
-      ]
+        { name: "Purchase Order", path: "/purchase-order", icon: <FaClipboardList /> },
+        { name: "Receive Order", path: "/receive-order", icon: <FaTruckLoading /> },
+        { name: "Close Daily Balance", path: "/close-daily-balance", icon: <FaCashRegister /> },
+        { name: "History", path: "/sales-history", icon: <FaHistory /> },
+      ],
     },
-    { name: 'Notifications', path: '/notifications', icon: <FaBell /> },
-    { name: 'Reports', path: '/reports', icon: <FaChartLine /> },
-    { 
-      name: 'Setting',
+    { name: "Notifications", path: "/notifications", icon: <FaBell /> },
+    { name: "Reports", path: "/reports", icon: <FaChartLine /> },
+    {
+      name: "Setting",
       icon: <FiSettings />,
       subItems: [
-        { name: 'User Managment', path: '/user-managment', icon: <AiOutlineUser /> },
-        { name: 'Logout', path: '/logout', icon: <AiOutlineLogout /> },
-      ]
-    }
-  ];
+        { name: "User Managment", path: "/user-managment", icon: <AiOutlineUser /> },
+        { name: "Logout", path: "/logout", icon: <AiOutlineLogout /> },
+      ],
+    },
+  ]
 
   // Recursive function to check if any child is active
   const isGroupActive = (items) => {
-    return items.some(item => {
+    return items.some((item) => {
       if (item.subItems) {
-        return isGroupActive(item.subItems);
+        return isGroupActive(item.subItems)
       } else {
-        return location.pathname === item.path;
+        return location.pathname === item.path
       }
-    });
-  };
+    })
+  }
 
   return (
-    <div className="bg-blue-800 text-white w-64 h-screen fixed flex flex-col z-10">
+    <div className="bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white w-64 h-screen fixed flex flex-col z-10 shadow-2xl border-r border-slate-700/50">
       {/* Fixed header */}
-      <div className="p-4">
-        <h1 className="text-2xl font-bold flex items-center">
-          <FaPills className="mr-2 text-blue-300" />
-          Pharma<span className="text-blue-300">Manage</span>
+      <div className="p-6 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-700/50">
+        <h1 className="text-2xl font-bold flex items-center group">
+          <div className="relative mr-3">
+            <FaPills className="text-emerald-400 group-hover:text-emerald-300 transition-all duration-300 group-hover:rotate-12" />
+            <div className="absolute inset-0 bg-emerald-400/20 rounded-full blur-md group-hover:bg-emerald-300/30 transition-all duration-300"></div>
+          </div>
+          <span className="bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+            Pharma<span className="text-emerald-400">Manage</span>
+          </span>
         </h1>
-        <p className="text-blue-200 text-sm mt-1">Drugstore Management System</p>
+        <p className="text-slate-300 text-sm mt-2 font-medium">Drugstore Management System</p>
       </div>
-      
+
       {/* Scrollable navigation area */}
-      <div className="flex-1 overflow-y-auto">
-        <nav className="mt-6 px-2 space-y-1">
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+        <nav className="mt-4 px-3 space-y-1">
           {navItems.map((item) => (
             <div key={item.name}>
               {item.subItems ? (
                 <>
                   <button
-                    onClick={() => toggleDropdown(item.name.toLowerCase().replace(' ', '-'))}
-                    className={`flex items-center justify-between w-full px-4 py-3 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
-                      isGroupActive(item.subItems) ? 'bg-blue-900 text-white' : 'text-blue-200'
+                    onClick={() => toggleDropdown(item.name.toLowerCase().replace(" ", "-"))}
+                    className={`flex items-center justify-between w-full px-4 py-3 transition-all duration-300 transform rounded-xl hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:shadow-lg hover:scale-[1.02] group ${
+                      isGroupActive(item.subItems)
+                        ? "bg-gradient-to-r from-emerald-600/20 to-blue-600/20 text-white shadow-lg border border-emerald-500/20"
+                        : "text-slate-300 hover:text-white"
                     }`}
                   >
                     <div className="flex items-center">
-                      <span className="mr-3 text-lg">{item.icon}</span>
+                      <span
+                        className={`mr-3 text-lg transition-all duration-300 group-hover:scale-110 ${
+                          isGroupActive(item.subItems)
+                            ? "text-emerald-400"
+                            : "text-slate-400 group-hover:text-emerald-400"
+                        }`}
+                      >
+                        {item.icon}
+                      </span>
                       <span className="font-medium">{item.name}</span>
                     </div>
-                    {openDropdown[item.name.toLowerCase().replace(' ', '-')] ? 
-                      <FaChevronUp className="text-sm" /> : 
+                    <div
+                      className={`transition-all duration-300 ${
+                        openDropdown[item.name.toLowerCase().replace(" ", "-")] ? "rotate-180" : ""
+                      }`}
+                    >
                       <FaChevronDown className="text-sm" />
-                    }
+                    </div>
                   </button>
-                  {openDropdown[item.name.toLowerCase().replace(' ', '-')] && (
-                    <div className="ml-4 pl-2 border-l border-blue-600">
+                  {openDropdown[item.name.toLowerCase().replace(" ", "-")] && (
+                    <div className="ml-4 pl-3 border-l-2 border-gradient-to-b from-emerald-500/50 to-blue-500/50 mt-2 space-y-1">
                       {item.subItems.map((subItem) => (
                         <div key={subItem.name}>
                           {subItem.subItems ? (
                             <>
                               <button
-                                onClick={() => toggleDropdown(subItem.name.toLowerCase().replace(' ', '-'))}
-                                className={`flex items-center justify-between w-full px-4 py-2 mt-1 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
-                                  isGroupActive(subItem.subItems) ? 'bg-blue-900 text-white' : 'text-blue-200'
+                                onClick={() => toggleDropdown(subItem.name.toLowerCase().replace(" ", "-"))}
+                                className={`flex items-center justify-between w-full px-3 py-2 mt-1 transition-all duration-300 transform rounded-lg hover:bg-slate-700/50 hover:scale-[1.02] group ${
+                                  isGroupActive(subItem.subItems)
+                                    ? "bg-gradient-to-r from-emerald-600/15 to-blue-600/15 text-white"
+                                    : "text-slate-400 hover:text-white"
                                 }`}
                               >
                                 <div className="flex items-center">
-                                  <span className="mr-3 text-sm">{subItem.icon}</span>
+                                  <span
+                                    className={`mr-3 text-sm transition-all duration-300 group-hover:scale-110 ${
+                                      isGroupActive(subItem.subItems)
+                                        ? "text-emerald-400"
+                                        : "group-hover:text-emerald-400"
+                                    }`}
+                                  >
+                                    {subItem.icon}
+                                  </span>
                                   <span className="text-sm font-medium">{subItem.name}</span>
                                 </div>
-                                {openDropdown[subItem.name.toLowerCase().replace(' ', '-')] ? 
-                                  <FaChevronUp className="text-xs" /> : 
-                                  <FaChevronDown className="text-xs" />
-                                }
+                                <div
+                                  className={`transition-all duration-300 ${
+                                    openDropdown[subItem.name.toLowerCase().replace(" ", "-")] ? "rotate-180" : ""
+                                  }`}
+                                >
+                                  <FaChevronUp className="text-xs" />
+                                </div>
                               </button>
-                              
-                              {openDropdown[subItem.name.toLowerCase().replace(' ', '-')] && (
-                                <div className="ml-4 pl-2 border-l border-blue-600">
+
+                              {openDropdown[subItem.name.toLowerCase().replace(" ", "-")] && (
+                                <div className="ml-4 pl-3 border-l border-slate-600 mt-1 space-y-1">
                                   {subItem.subItems.map((nestedItem) => (
                                     <NavLink
                                       key={nestedItem.name}
                                       to={nestedItem.path}
                                       onClick={handleNavClick}
                                       className={({ isActive }) =>
-                                        `flex items-center px-4 py-2 mt-1 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
-                                          isActive ? 'bg-blue-900 text-white' : 'text-blue-200'
+                                        `flex items-center px-3 py-2 transition-all duration-300 transform rounded-lg hover:bg-slate-700/50 hover:scale-[1.02] group ${
+                                          isActive
+                                            ? "bg-gradient-to-r from-emerald-500/20 to-blue-500/20 text-white shadow-md border-l-2 border-emerald-400"
+                                            : "text-slate-400 hover:text-white"
                                         }`
                                       }
                                     >
-                                      <span className="mr-3 text-xs">{nestedItem.icon}</span>
+                                      <span
+                                        className={`mr-3 text-xs transition-all duration-300 group-hover:scale-110 ${
+                                          location.pathname === nestedItem.path
+                                            ? "text-emerald-400"
+                                            : "group-hover:text-emerald-400"
+                                        }`}
+                                      >
+                                        {nestedItem.icon}
+                                      </span>
                                       <span className="text-xs font-medium">{nestedItem.name}</span>
                                     </NavLink>
                                   ))}
@@ -168,12 +222,22 @@ const Sidebar = ({ closeSidebar }) => {
                               to={subItem.path}
                               onClick={handleNavClick}
                               className={({ isActive }) =>
-                                `flex items-center px-4 py-2 mt-1 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
-                                  isActive ? 'bg-blue-900 text-white' : 'text-blue-200'
+                                `flex items-center px-3 py-2 mt-1 transition-all duration-300 transform rounded-lg hover:bg-slate-700/50 hover:scale-[1.02] group ${
+                                  isActive
+                                    ? "bg-gradient-to-r from-emerald-500/20 to-blue-500/20 text-white shadow-md border-l-2 border-emerald-400"
+                                    : "text-slate-400 hover:text-white"
                                 }`
                               }
                             >
-                              <span className="mr-3 text-sm">{subItem.icon}</span>
+                              <span
+                                className={`mr-3 text-sm transition-all duration-300 group-hover:scale-110 ${
+                                  location.pathname === subItem.path
+                                    ? "text-emerald-400"
+                                    : "group-hover:text-emerald-400"
+                                }`}
+                              >
+                                {subItem.icon}
+                              </span>
                               <span className="text-sm font-medium">{subItem.name}</span>
                             </NavLink>
                           )}
@@ -187,12 +251,22 @@ const Sidebar = ({ closeSidebar }) => {
                   to={item.path}
                   onClick={handleNavClick}
                   className={({ isActive }) =>
-                    `flex items-center px-4 py-3 transition-colors duration-200 transform rounded-lg hover:bg-blue-700 ${
-                      isActive ? 'bg-blue-900 text-white' : 'text-blue-200'
+                    `flex items-center px-4 py-3 transition-all duration-300 transform rounded-xl hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:shadow-lg hover:scale-[1.02] group ${
+                      isActive
+                        ? "bg-gradient-to-r from-emerald-600/20 to-blue-600/20 text-white shadow-lg border border-emerald-500/20"
+                        : "text-slate-300 hover:text-white"
                     }`
                   }
                 >
-                  <span className="mr-3 text-lg">{item.icon}</span>
+                  <span
+                    className={`mr-3 text-lg transition-all duration-300 group-hover:scale-110 ${
+                      location.pathname === item.path
+                        ? "text-emerald-400"
+                        : "text-slate-400 group-hover:text-emerald-400"
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
                   <span className="font-medium">{item.name}</span>
                 </NavLink>
               )}
@@ -200,18 +274,21 @@ const Sidebar = ({ closeSidebar }) => {
           ))}
         </nav>
       </div>
-      
+
       {/* Fixed footer */}
-      <div className="p-4 border-t border-blue-700">
+      <div className="p-4 border-t border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-700/50">
         <div className="flex items-center">
+          <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-lg flex items-center justify-center shadow-lg">
+            <FaPills className="text-white text-sm" />
+          </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-white">PharmaManage v1.0</p>
-            <p className="text-xs text-blue-300">© 2023 All rights reserved</p>
+            <p className="text-sm font-semibold text-white">PharmaManage v1.0</p>
+            <p className="text-xs text-slate-400">© 2023 All rights reserved</p>
           </div>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Sidebar;
+export default Sidebar
