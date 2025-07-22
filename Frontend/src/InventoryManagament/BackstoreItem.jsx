@@ -152,7 +152,7 @@ useEffect(() => {
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <div className={`text-lg font-bold ${product.inventory.store <= product.inventory.storeThreshold ? 'text-yellow-600' : 'text-gray-900'}`}>
-            {product.inventory.store} in store
+            {product.inventory.store} <span className='text-xs text-green-400'>in store</span>
           </div>
 
           <div className={`text-xs mt-1 ${expiryStatus.color}`}>
