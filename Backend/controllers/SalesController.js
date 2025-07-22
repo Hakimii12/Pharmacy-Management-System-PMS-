@@ -357,11 +357,11 @@ export async function GetAbortAndComplatedSale(req, res) {
 }
 export const GetRecentSales = async (req, res) => {
   try {
-    const { limit = 10 } = req.query; // Default to 10 recent sales
+    const limit = 7; // Set limit to 7 recent sales
     
     const recentSales = await Sales.find({ status: "completed" })
       .sort({ completedAt: -1 }) // Sort by most recent first
-      .limit(Number(limit))
+      .limit(limit)
       .select('name brand saleAmount profit completedAt -_id');
 
     res.status(200).json({
