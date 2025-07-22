@@ -16,19 +16,23 @@ const ProductItem = ({ product, onEdit, onTransferSuccess ,fetchProducts}) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   const getStatusColor = () => {
-    switch (product.status) {
-      case 'In Stock':
-        return 'bg-green-100 text-green-800';
-      case 'Low Stock':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Sold Out':
-        return 'bg-red-100 text-red-800';
-      case 'Expired':
-        return 'bg-gray-200 text-red-900';
-      default:
-        return 'bg-blue-100 text-blue-800';
+    if (product.quantity < 50 && product.isExpired==false) {
+          status = "In Stock"
+     return 'bg-yellow-100 text-yellow-800'
     }
-  };
+    else if(product.quantity > 0 && product.isExpired==true){
+     status = "Expired"
+     return 'bg-gray-200 text-red-900';
+    }
+    else if(product.quantity==0){
+     status = "Sold Out"
+      return 'bg-red-100 text-red-800';
+    }
+    else if(product.quantity > 50 && product.isExpired==false){
+     status = "In Stock"
+     return 'bg-blue-100 text-blue-800';
+    }
+   };
   //  if(product.inventory.store > product.inventory.storeThreshold && product.inventory.dispensary > product.inventory.dispensaryThreshold && !product.isExpired){
   //        return 'bg-green-100 text-green-800'
   //  }
@@ -189,7 +193,7 @@ useEffect(() => {
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor()}`}>
-            {product.status}
+            {status}
           </span>
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center gap-2">
