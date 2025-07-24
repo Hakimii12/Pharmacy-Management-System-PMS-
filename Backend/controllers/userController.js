@@ -189,3 +189,68 @@ export async function Approval(req, res) {
       });
     }
   }
+  export const SuspendCashier = async (req, res) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+  
+    try {
+      const { cashierId } = req.params
+      const { reason } = req.body
+      const adminId = req.user._id
+  
+      // Find the cashier
+      const cashier = await User.findById(cashierId).session(session)
+      if (!cashier) {
+        throw new Error("Cashier not found")
+      }
+  
+      if (cashier.role !== "cashier") {
+        throw new Error("User is not a cashier")
+      }
+  
+      if (cashier.status === "suspended") {
+        throw new Error("Cashier is already suspended")
+      }
+  
+      // Update cashier status
+      cashier.status = "suspended"
+      cashier.suspendedBy = adminId
+      cashier.suspendedAt = new Date()
+      cashier.suspensionReason = reason || "Daily balance discrepancy"
+  
+      await cashier.save({ session })
+  
+      // Create notification for suspension
+      const notification = new Notification({
+        type: "UserSuspended",
+        message: `Cashier ${cashier.name} has been suspended due to: ${reason || "Daily balance discrepancy"}`,
+        user: cashierId,
+        createdBy: adminId,
+        read: false,
+      })
+  
+      await notification.save({ session })
+      await session.commitTransaction()
+  
+      res.status(200).json({
+        success: true,
+        message: "Cashier suspended successfully",
+        cashier: {
+          id: cashier._id,
+          name: cashier.name,
+          email: cashier.email,
+          status: cashier.status,
+          suspendedAt: cashier.suspendedAt,
+          suspensionReason: cashier.suspensionReason,
+        },
+      })
+    } catch (error) {
+      await session.abortTransaction()
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      })
+    } finally {
+      session.endSession()
+    }
+  }

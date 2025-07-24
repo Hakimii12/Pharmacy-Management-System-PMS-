@@ -1,290 +1,473 @@
-// import React, { useState, useEffect, useContext } from 'react';
-// import { useNavigate } from 'react-router-dom';
-// import { ContextProvider } from '../../../contexts/AppContext';
-// import axios from 'axios';
-// import { FaMoneyBillWave, FaCalculator, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
-// import DatePicker from 'react-datepicker';
-// import 'react-datepicker/dist/react-datepicker.css';
+import { useState, useEffect } from "react"
+import { CalendarDays, DollarSign, Users, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
 
-// const CloseDailyBalance = () => {
-// //   const { user } = useContext(UserContext);
-//   const navigate = useNavigate();
-//   const [formData, setFormData] = useState({
-//     countedAmount: '',
-//     date: new Date()
-//   });
-//   const [result, setResult] = useState(null);
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-//   const [dailyBalances, setDailyBalances] = useState([]);
-//   const [showHistory, setShowHistory] = useState(false);
+export default function DailyBalanceSystem() {
+  const [cashiers, setCashiers] = useState([])
+  const [dailyTransactions, setDailyTransactions] = useState({})
+  const [countedAmounts, setCountedAmounts] = useState({})
+  const [balanceRecords, setBalanceRecords] = useState({})
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
 
-// //   useEffect(() => {
-// //     if (!user || user.role !== 'cashier') {
-// //       navigate('/');
-// //     }
-// //   }, [user, navigate]);
+  // Fetch all cashiers
+  useEffect(() => {
+    fetchCashiers()
+  }, [])
 
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     setFormData({ ...formData, [name]: value });
-//   };
+  // Fetch daily transactions when date changes
+  useEffect(() => {
+    if (cashiers.length > 0) {
+      fetchDailyTransactions()
+    }
+  }, [selectedDate, cashiers])
 
-//   const handleDateChange = (date) => {
-//     setFormData({ ...formData, date });
-//   };
+  const fetchCashiers = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch("http://localhost:5000/api/sales/cashiers", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies for authentication
+      })
 
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setError('');
-    
-//     try {
-//       const response = await axios.post('http://localhost:5000/api/sales/sales/close-balance', {
-//         cashierId: user._id,
-//         countedAmount: parseFloat(formData.countedAmount),
-//         date: formData.date
-//       });
-      
-//       setResult(response.data);
-//       fetchDailyBalances();
-//     } catch (err) {
-//       setError(err.response?.data?.message || 'Failed to close daily balance');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
+      if (!response.ok) {
+        throw new Error(`Failed to fetch cashiers: ${response.status}`)
+      }
 
-//   const fetchDailyBalances = async () => {
-//     try {
-//       const response = await axios.get(`/api/daily-balance?cashierId=${user._id}`);
-//       setDailyBalances(response.data);
-//     } catch (err) {
-//       console.error('Failed to fetch daily balances:', err);
-//     }
-//   };
+      const data = await response.json()
 
-//   const formatCurrency = (amount) => {
-//     return new Intl.NumberFormat('en-US', {
-//       style: 'currency',
-//       currency: 'USD',
-//     }).format(amount);
-//   };
+      if (data.success) {
+        setCashiers(data.cashiers)
+      } else {
+        throw new Error("Failed to load cashiers")
+      }
+    } catch (err) {
+      setError(`Failed to load cashiers: ${err.message}`)
+      console.error("Error fetching cashiers:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-//   const formatDate = (dateString) => {
-//     const options = { year: 'numeric', month: 'short', day: 'numeric' };
-//     return new Date(dateString).toLocaleDateString(undefined, options);
-//   };
+  const fetchDailyTransactions = async () => {
+    try {
+      const transactions = {}
 
-//   useEffect(() => {
-//     fetchDailyBalances();
-//   }, []);
+      for (const cashier of cashiers) {
+        try {
+          const response = await fetch(`http://localhost:5000/api/sales/daily/${cashier._id}?date=${selectedDate}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          })
 
-//   return (
-//     <div className="container mx-auto px-4 py-8">
-//       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-//         <div className="flex items-center mb-6">
-//           <FaMoneyBillWave className="text-3xl text-blue-600 mr-3" />
-//           <h1 className="text-2xl font-bold text-gray-800">Close Daily Balance</h1>
-//         </div>
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success) {
+              transactions[cashier._id] = {
+                cashierId: cashier._id,
+                expectedAmount: data.expectedAmount,
+                transactionCount: data.transactionCount,
+                transactions: data.transactions,
+              }
+            }
+          } else {
+            // If no transactions found, set empty data
+            transactions[cashier._id] = {
+              cashierId: cashier._id,
+              expectedAmount: 0,
+              transactionCount: 0,
+              transactions: [],
+            }
+          }
+        } catch (fetchError) {
+          console.error(`Error fetching transactions for cashier ${cashier._id}:`, fetchError)
+          // Set empty data on error
+          transactions[cashier._id] = {
+            cashierId: cashier._id,
+            expectedAmount: 0,
+            transactionCount: 0,
+            transactions: [],
+          }
+        }
+      }
 
-//         <form onSubmit={handleSubmit} className="mb-8">
-//           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-//             <div>
-//               <label className="block text-gray-700 font-medium mb-2">
-//                 Cashier
-//               </label>
-//               <input
-//                 type="text"
-//                 value='abel'
-//                 readOnly
-//                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100"
-//               />
-//             </div>
-            
-//             <div>
-//               <label className="block text-gray-700 font-medium mb-2">
-//                 Date
-//               </label>
-//               <DatePicker
-//                 selected={formData.date}
-//                 onChange={handleDateChange}
-//                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                 maxDate={new Date()}
-//               />
-//             </div>
-//           </div>
+      setDailyTransactions(transactions)
+    } catch (err) {
+      setError(`Failed to load daily transactions: ${err.message}`)
+      console.error("Error fetching daily transactions:", err)
+    }
+  }
 
-//           <div className="mb-6">
-//             <label className="block text-gray-700 font-medium mb-2">
-//               Counted Amount
-//             </label>
-//             <div className="relative">
-//               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-//                 $
-//               </span>
-//               <input
-//                 type="number"
-//                 name="countedAmount"
-//                 value={formData.countedAmount}
-//                 onChange={handleChange}
-//                 step="0.01"
-//                 min="0"
-//                 required
-//                 className="w-full pl-8 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                 placeholder="Enter counted amount"
-//               />
-//             </div>
-//           </div>
+  const handleCountedAmountChange = (cashierId, value) => {
+    setCountedAmounts((prev) => ({
+      ...prev,
+      [cashierId]: value,
+    }))
 
-//           {error && (
-//             <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-//               {error}
-//             </div>
-//           )}
+    // Calculate difference in real-time
+    const expectedAmount = dailyTransactions[cashierId]?.expectedAmount || 0
+    const countedAmount = Number.parseFloat(value) || 0
+    const difference = countedAmount - expectedAmount
 
-//           <button
-//             type="submit"
-//             disabled={loading}
-//             className={`flex items-center justify-center w-full py-3 px-4 rounded-md text-white font-medium ${
-//               loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-//             } transition-colors`}
-//           >
-//             {loading ? (
-//               <>
-//                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-//                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-//                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-//                 </svg>
-//                 Processing...
-//               </>
-//             ) : (
-//               <>
-//                 <FaCalculator className="mr-2" />
-//                 Close Daily Balance
-//               </>
-//             )}
-//           </button>
-//         </form>
+    setBalanceRecords((prev) => ({
+      ...prev,
+      [cashierId]: {
+        cashierId,
+        countedAmount,
+        expectedAmount,
+        difference,
+        status: difference === 0 ? "verified" : "discrepancy",
+      },
+    }))
+  }
 
-//         {result && (
-//           <div className={`p-4 rounded-md mb-6 ${
-//             result.dailyBalance.status === 'verified' 
-//               ? 'bg-green-100 text-green-800' 
-//               : 'bg-yellow-100 text-yellow-800'
-//           }`}>
-//             <div className="flex items-start">
-//               {result.dailyBalance.status === 'verified' ? (
-//                 <FaCheckCircle className="text-2xl mr-3 mt-1 text-green-600" />
-//               ) : (
-//                 <FaExclamationTriangle className="text-2xl mr-3 mt-1 text-yellow-600" />
-//               )}
-//               <div>
-//                 <h3 className="text-lg font-bold mb-2">
-//                   {result.dailyBalance.status === 'verified' 
-//                     ? 'Balance Verified Successfully!' 
-//                     : 'Balance Discrepancy Found!'}
-//                 </h3>
-                
-//                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-//                   <div>
-//                     <p className="text-sm text-gray-600">Expected Amount</p>
-//                     <p className="font-semibold">{formatCurrency(result.dailyBalance.expectedAmount)}</p>
-//                   </div>
-//                   <div>
-//                     <p className="text-sm text-gray-600">Counted Amount</p>
-//                     <p className="font-semibold">{formatCurrency(result.dailyBalance.countedAmount)}</p>
-//                   </div>
-//                   <div>
-//                     <p className="text-sm text-gray-600">Transactions</p>
-//                     <p className="font-semibold">{result.transactionCount}</p>
-//                   </div>
-//                 </div>
-                
-//                 {result.dailyBalance.status === 'discrepancy' && (
-//                   <div className="mt-2">
-//                     <p className="font-medium">Discrepancy Note:</p>
-//                     <p>{result.dailyBalance.discrepancyNote}</p>
-//                   </div>
-//                 )}
-                
-//                 <button 
-//                   onClick={() => setResult(null)}
-//                   className="mt-4 px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-//                 >
-//                   Close This Report
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         )}
+  const closeDailyBalance = async (cashierId) => {
+    try {
+      setLoading(true)
+      setError("")
+      setSuccess("")
 
-//         <div className="mt-8">
-//           <div className="flex justify-between items-center mb-4">
-//             <h2 className="text-xl font-bold text-gray-800">Balance History</h2>
-//             <button 
-//               onClick={() => setShowHistory(!showHistory)}
-//               className="text-blue-600 hover:text-blue-800 font-medium"
-//             >
-//               {showHistory ? 'Hide History' : 'Show History'}
-//             </button>
-//           </div>
-          
-//           {showHistory && (
-//             <div className="overflow-x-auto">
-//               <table className="min-w-full bg-white border border-gray-200">
-//                 <thead>
-//                   <tr className="bg-gray-100">
-//                     <th className="py-2 px-4 border-b text-left">Date</th>
-//                     <th className="py-2 px-4 border-b text-left">Expected</th>
-//                     <th className="py-2 px-4 border-b text-left">Counted</th>
-//                     <th className="py-2 px-4 border-b text-left">Status</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {dailyBalances.map((balance) => (
-//                     <tr key={balance._id} className="hover:bg-gray-50">
-//                       <td className="py-3 px-4 border-b">{formatDate(balance.date)}</td>
-//                       <td className="py-3 px-4 border-b">{formatCurrency(balance.expectedAmount)}</td>
-//                       <td className="py-3 px-4 border-b">{formatCurrency(balance.countedAmount)}</td>
-//                       <td className="py-3 px-4 border-b">
-//                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-//                           balance.status === 'verified' 
-//                             ? 'bg-green-100 text-green-800' 
-//                             : 'bg-yellow-100 text-yellow-800'
-//                         }`}>
-//                           {balance.status}
-//                         </span>
-//                       </td>
-//                     </tr>
-//                   ))}
-//                 </tbody>
-//               </table>
-              
-//               {dailyBalances.length === 0 && (
-//                 <div className="text-center py-8 text-gray-500">
-//                   No balance records found
-//                 </div>
-//               )}
-//             </div>
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
+      const record = balanceRecords[cashierId]
+      if (!record) {
+        setError("Please enter counted amount first")
+        return
+      }
 
-// export default CloseDailyBalance;
-import React from 'react'
+      // Close daily balance
+      const response = await fetch("http://localhost:5000/api/sales/close-daily-balance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          cashierId,
+          countedAmount: record.countedAmount,
+          date: selectedDate,
+        }),
+      })
 
-function CloseDailyBalance() {
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to close daily balance")
+      }
+
+      if (data.success) {
+        // If there's a discrepancy, suspend the cashier
+        if (record.status === "discrepancy") {
+          const suspendResponse = await fetch(`http://localhost:5000/api/users/suspend/${cashierId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              reason: `Daily balance discrepancy: Expected $${record.expectedAmount}, Counted $${record.countedAmount}, Difference: $${record.difference}`,
+            }),
+          })
+
+          if (suspendResponse.ok) {
+            const suspendData = await suspendResponse.json()
+            if (suspendData.success) {
+              // Update cashier status locally
+              setCashiers((prev) =>
+                prev.map((cashier) => (cashier._id === cashierId ? { ...cashier, status: "suspended" } : cashier)),
+              )
+              setSuccess(
+                `Daily balance closed. Cashier suspended due to discrepancy of $${Math.abs(record.difference).toFixed(2)}`,
+              )
+            } else {
+              setSuccess("Daily balance closed, but failed to suspend cashier")
+            }
+          } else {
+            setSuccess("Daily balance closed, but failed to suspend cashier")
+          }
+        } else {
+          setSuccess("Daily balance closed successfully - no discrepancy found")
+        }
+      } else {
+        throw new Error(data.error || "Failed to close daily balance")
+      }
+    } catch (err) {
+      setError(`Failed to close daily balance: ${err.message}`)
+      console.error("Error closing daily balance:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const closeAllBalances = async () => {
+    try {
+      setLoading(true)
+      setError("")
+      setSuccess("")
+
+      const cashiersWithAmounts = cashiers.filter(
+        (cashier) => balanceRecords[cashier._id] && countedAmounts[cashier._id],
+      )
+
+      if (cashiersWithAmounts.length === 0) {
+        setError("Please enter counted amounts for at least one cashier")
+        return
+      }
+
+      let successCount = 0
+      let errorCount = 0
+      const results = []
+
+      for (const cashier of cashiersWithAmounts) {
+        try {
+          await closeDailyBalance(cashier._id)
+          successCount++
+          results.push(`${cashier.name}: Success`)
+        } catch (err) {
+          errorCount++
+          results.push(`${cashier.name}: Failed - ${err.message}`)
+        }
+      }
+
+      if (errorCount === 0) {
+        setSuccess(`All ${successCount} daily balances processed successfully`)
+      } else {
+        setSuccess(`${successCount} successful, ${errorCount} failed. Check individual results.`)
+      }
+    } catch (err) {
+      setError(`Failed to process all daily balances: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getTotalExpected = () => {
+    return Object.values(dailyTransactions).reduce((sum, transaction) => sum + transaction.expectedAmount, 0)
+  }
+
+  const getTotalCounted = () => {
+    return Object.values(balanceRecords).reduce((sum, record) => sum + record.countedAmount, 0)
+  }
+
+  const getTotalDifference = () => {
+    return getTotalCounted() - getTotalExpected()
+  }
+
   return (
-    <div className='flex items-center justify-center'>
-      <h1>
-        under development
-      </h1>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Daily Balance Management</h1>
+          <p className="text-muted-foreground">Compare physical counts with system transactions</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="space-y-2">
+            <label htmlFor="date" className="block text-sm font-medium">
+              Select Date
+            </label>
+            <input
+              id="date"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <button
+            onClick={closeAllBalances}
+            disabled={loading || Object.keys(balanceRecords).length === 0}
+            className="self-end px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Processing..." : "Close All Balances"}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center p-4 mb-4 text-red-800 border border-red-300 rounded-lg bg-red-50">
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {success && (
+        <div className="flex items-center p-4 mb-4 text-green-800 border border-green-300 rounded-lg bg-green-50">
+          <CheckCircle className="h-4 w-4 mr-2" />
+          <span>{success}</span>
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Cashiers</p>
+              <p className="text-2xl font-bold">{cashiers.length}</p>
+            </div>
+            <Users className="h-8 w-8 text-gray-400" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Expected Total</p>
+              <p className="text-2xl font-bold">${getTotalExpected().toFixed(2)}</p>
+            </div>
+            <DollarSign className="h-8 w-8 text-gray-400" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Counted Total</p>
+              <p className="text-2xl font-bold">${getTotalCounted().toFixed(2)}</p>
+            </div>
+            <DollarSign className="h-8 w-8 text-gray-400" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Difference</p>
+              <p className={`text-2xl font-bold ${getTotalDifference() === 0 ? "text-green-600" : "text-red-600"}`}>
+                ${getTotalDifference().toFixed(2)}
+              </p>
+            </div>
+            <CalendarDays className="h-8 w-8 text-gray-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Cashier Balance Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {cashiers.map((cashier) => {
+          const transaction = dailyTransactions[cashier._id]
+          const record = balanceRecords[cashier._id]
+          const countedAmount = countedAmounts[cashier._id] || ""
+
+          return (
+            <div key={cashier._id} className="bg-white p-6 rounded-lg shadow border">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">{cashier.name}</h3>
+                  <p className="text-gray-600">{cashier.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <span
+                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      cashier.status === "approved" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {cashier.status}
+                  </span>
+                  {record && (
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        record.status === "verified" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {record.status === "verified" ? "Verified" : "Discrepancy"}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {transaction ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-600">Transactions</p>
+                      <p className="font-medium">{transaction.transactionCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Expected Amount</p>
+                      <p className="font-medium">${transaction.expectedAmount.toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  <hr className="border-gray-200" />
+
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor={`counted-${cashier._id}`} className="block text-sm font-medium text-gray-700">
+                        Physical Count
+                      </label>
+                      <input
+                        id={`counted-${cashier._id}`}
+                        type="number"
+                        step="0.01"
+                        placeholder="Enter counted amount"
+                        value={countedAmount}
+                        onChange={(e) => handleCountedAmountChange(cashier._id, e.target.value)}
+                        disabled={cashier.status === "suspended"}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                      />
+                    </div>
+
+                    {record && (
+                      <div className="p-3 rounded-lg bg-gray-50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Difference:</span>
+                          <span className={`font-bold ${record.difference === 0 ? "text-green-600" : "text-red-600"}`}>
+                            ${record.difference.toFixed(2)}
+                          </span>
+                        </div>
+                        {record.difference !== 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {record.difference > 0 ? "Overage" : "Shortage"} detected
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => closeDailyBalance(cashier._id)}
+                      disabled={loading || !countedAmount || cashier.status === "suspended"}
+                      className={`w-full px-4 py-2 rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                        record?.status === "discrepancy"
+                          ? "bg-red-600 hover:bg-red-700 text-white"
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                      }`}
+                    >
+                      {loading ? "Processing..." : "Close Daily Balance"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <XCircle className="h-8 w-8 mx-auto mb-2" />
+                  <p>No transactions found for this date</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {cashiers.length === 0 && !loading && (
+        <div className="bg-white p-8 rounded-lg shadow border text-center">
+          <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <h3 className="text-lg font-medium mb-2">No Cashiers Found</h3>
+          <p className="text-gray-500">No cashiers are available for daily balance management.</p>
+        </div>
+      )}
+
+      {loading && cashiers.length === 0 && (
+        <div className="bg-white p-8 rounded-lg shadow border text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading cashiers...</p>
+        </div>
+      )}
     </div>
   )
 }
-
-export default CloseDailyBalance

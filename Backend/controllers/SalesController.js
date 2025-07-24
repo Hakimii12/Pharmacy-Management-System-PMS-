@@ -6,7 +6,7 @@ import DailyBalance from "../models/DailyBalance.js"
 import { updateProfitSummary } from "../utils/profitUtils.js"
 import Notification from "../models/NotificationModel.js"
 import transformSalesRecords from "../utils/transformSalesRecords.js"
-
+import User from "../models/UserModel.js"
 export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -254,42 +254,281 @@ export const AbortSale = async (req, res) => {
 }
 
 export const CloseDailyBalance = async (req, res) => {
-  const { cashierId, countedAmount } = req.body
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const session = await mongoose.startSession()
+  session.startTransaction()
 
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  try {
+    const { cashierId, countedAmount, date } = req.body
 
-  // Get all completed transactions for today
-  const transactions = await Sales.find({
-    status: "completed",
-    cashier: cashierId,
-    timestamp: { $gte: today, $lt: tomorrow },
-  })
+    // Validate input
+    if (!cashierId || countedAmount === undefined || countedAmount === null) {
+      return res.status(400).json({
+        success: false,
+        error: "Cashier ID and counted amount are required",
+      })
+    }
 
-  // Calculate expected amount
-  const expectedAmount = transactions.reduce((sum, transaction) => sum + transaction.saleAmount, 0)
+    // Parse the date or use today
+    const targetDate = date ? new Date(date) : new Date()
+    targetDate.setHours(0, 0, 0, 0)
+    const nextDay = new Date(targetDate)
+    nextDay.setDate(nextDay.getDate() + 1)
 
-  // Create daily balance record
-  const dailyBalance = new DailyBalance({
-    date: today,
-    expectedAmount,
-    countedAmount,
-    status: countedAmount == expectedAmount ? "verified" : "discrepancy",
-    transactions: transactions.map((t) => t._id),
-    cashier: cashierId,
-    ...(countedAmount !== expectedAmount && {
-      discrepancyNote: `Expected: ${expectedAmount}, Counted: ${countedAmount}`,
-    }),
-  })
+    // Check if cashier exists and is active
+    const cashier = await User.findById(cashierId).session(session)
+    if (!cashier) {
+      throw new Error("Cashier not found")
+    }
 
-  await dailyBalance.save()
-  return res.status(200).json({
-    success: true,
-    dailyBalance,
-    transactionCount: transactions.length,
-  })
+    if (cashier.status === "suspended") {
+      throw new Error("Cannot close balance for suspended cashier")
+    }
+
+    // Check if daily balance already exists for this cashier and date
+    const existingBalance = await DailyBalance.findOne({
+      cashier: cashierId,
+      date: targetDate,
+    }).session(session)
+
+    if (existingBalance) {
+      throw new Error("Daily balance already closed for this date")
+    }
+
+    // Get all completed transactions for the specified date
+    const transactions = await Sales.find({
+      status: "completed",
+      cashier: cashierId,
+      completedAt: { $gte: targetDate, $lt: nextDay },
+    }).session(session)
+
+    // Calculate expected amount
+    const expectedAmount = transactions.reduce((sum, transaction) => sum + transaction.saleAmount, 0)
+    const difference = countedAmount - expectedAmount
+
+    // Create daily balance record
+    const dailyBalance = new DailyBalance({
+      date: targetDate,
+      expectedAmount,
+      countedAmount: Number.parseFloat(countedAmount),
+      difference,
+      status: difference === 0 ? "verified" : "discrepancy",
+      transactions: transactions.map((t) => t._id),
+      cashier: cashierId,
+      closedBy: req.user._id, // Admin who closed the balance
+      closedAt: new Date(),
+      ...(difference !== 0 && {
+        discrepancyNote: `Expected: $${expectedAmount}, Counted: $${countedAmount}, Difference: $${difference}`,
+      }),
+    })
+
+    await dailyBalance.save({ session })
+    await session.commitTransaction()
+
+    res.status(200).json({
+      success: true,
+      dailyBalance,
+      transactionCount: transactions.length,
+      expectedAmount,
+      countedAmount: Number.parseFloat(countedAmount),
+      difference,
+      status: difference === 0 ? "verified" : "discrepancy",
+    })
+  } catch (error) {
+    await session.abortTransaction()
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  } finally {
+    session.endSession()
+  }
+}
+
+// NEW: Get daily transactions for a specific cashier
+export const GetDailyTransactions = async (req, res) => {
+  try {
+    const { cashierId } = req.params
+    const { date } = req.query
+
+    // Parse the date or use today
+    const targetDate = date ? new Date(date) : new Date()
+    targetDate.setHours(0, 0, 0, 0)
+    const nextDay = new Date(targetDate)
+    nextDay.setDate(nextDay.getDate() + 1)
+
+    // Get all completed transactions for the specified date
+    const transactions = await Sales.find({
+      status: "completed",
+      cashier: cashierId,
+      completedAt: { $gte: targetDate, $lt: nextDay },
+    })
+      .populate("product", "name brand sellingPrice")
+      .populate("pharmacist", "name")
+
+    // Calculate totals
+    const expectedAmount = transactions.reduce((sum, transaction) => sum + transaction.saleAmount, 0)
+    const transactionCount = transactions.length
+
+    res.status(200).json({
+      success: true,
+      cashierId,
+      date: targetDate,
+      expectedAmount,
+      transactionCount,
+      transactions: transactions.map((t) => ({
+        id: t._id,
+        transactionId: t.transactionId,
+        productName: t.name,
+        brand: t.brand,
+        quantity: t.quantitySold,
+        saleAmount: t.saleAmount,
+        profit: t.profit,
+        completedAt: t.completedAt,
+        pharmacist: t.pharmacist?.name,
+      })),
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+}
+
+// NEW: Get all cashiers
+export const GetAllCashiers = async (req, res) => {
+  try {
+    const cashiers = await User.find({
+      role: "cashier",
+      isDeleted: { $ne: true },
+    }).select("name email role status createdAt")
+
+    res.status(200).json({
+      success: true,
+      count: cashiers.length,
+      cashiers,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+}
+
+// NEW: Suspend cashier account
+export const SuspendCashier = async (req, res) => {
+  const session = await mongoose.startSession()
+  session.startTransaction()
+
+  try {
+    const { cashierId } = req.params
+    const { reason } = req.body
+    const adminId = req.user._id
+
+    // Find the cashier
+    const cashier = await User.findById(cashierId).session(session)
+    if (!cashier) {
+      throw new Error("Cashier not found")
+    }
+
+    if (cashier.role !== "cashier") {
+      throw new Error("User is not a cashier")
+    }
+
+    if (cashier.status === "suspended") {
+      throw new Error("Cashier is already suspended")
+    }
+
+    // Update cashier status
+    cashier.status = "suspended"
+    cashier.suspendedBy = adminId
+    cashier.suspendedAt = new Date()
+    cashier.suspensionReason = reason || "Daily balance discrepancy"
+
+    await cashier.save({ session })
+
+    // Create notification for suspension
+    const notification = new Notification({
+      type: "UserSuspended",
+      message: `Cashier ${cashier.name} has been suspended due to: ${reason || "Daily balance discrepancy"}`,
+      user: cashierId,
+      createdBy: adminId,
+      read: false,
+    })
+
+    await notification.save({ session })
+    await session.commitTransaction()
+
+    res.status(200).json({
+      success: true,
+      message: "Cashier suspended successfully",
+      cashier: {
+        id: cashier._id,
+        name: cashier.name,
+        email: cashier.email,
+        status: cashier.status,
+        suspendedAt: cashier.suspendedAt,
+        suspensionReason: cashier.suspensionReason,
+      },
+    })
+  } catch (error) {
+    await session.abortTransaction()
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  } finally {
+    session.endSession()
+  }
+}
+
+// NEW: Get daily balance history
+export const GetDailyBalanceHistory = async (req, res) => {
+  try {
+    const { startDate, endDate, cashierId } = req.query
+
+    // Build query conditions
+    const query = {}
+
+    if (startDate || endDate) {
+      query.date = {}
+      if (startDate) query.date.$gte = new Date(startDate)
+      if (endDate) query.date.$lte = new Date(endDate)
+    }
+
+    if (cashierId) {
+      query.cashier = cashierId
+    }
+
+    const balances = await DailyBalance.find(query)
+      .populate("cashier", "name email")
+      .populate("closedBy", "name email")
+      .sort({ date: -1 })
+
+    res.status(200).json({
+      success: true,
+      count: balances.length,
+      balances: balances.map((balance) => ({
+        id: balance._id,
+        date: balance.date,
+        cashier: balance.cashier,
+        expectedAmount: balance.expectedAmount,
+        countedAmount: balance.countedAmount,
+        difference: balance.difference,
+        status: balance.status,
+        transactionCount: balance.transactions.length,
+        discrepancyNote: balance.discrepancyNote,
+        closedBy: balance.closedBy,
+        closedAt: balance.closedAt,
+      })),
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
 }
 
 export async function GetAllPendingStatus(req, res) {
