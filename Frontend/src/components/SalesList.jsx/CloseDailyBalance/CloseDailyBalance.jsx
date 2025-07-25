@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
 import { CalendarDays, DollarSign, Users, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
-
+import Api from "../../../data/API.json"
 export default function DailyBalanceSystem() {
+  const ApiLink=Api.link
   const [cashiers, setCashiers] = useState([])
   const [dailyTransactions, setDailyTransactions] = useState({})
   const [countedAmounts, setCountedAmounts] = useState({})
@@ -26,7 +27,7 @@ export default function DailyBalanceSystem() {
   const fetchCashiers = async () => {
     try {
       setLoading(true)
-      const response = await fetch("http://localhost:5000/api/sales/cashiers", {
+      const response = await fetch(`${ApiLink}/api/sales/cashiers`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -59,7 +60,7 @@ export default function DailyBalanceSystem() {
 
       for (const cashier of cashiers) {
         try {
-          const response = await fetch(`http://localhost:5000/api/sales/daily/${cashier._id}?date=${selectedDate}`, {
+          const response = await fetch(`${ApiLink}/api/sales/daily/${cashier._id}?date=${selectedDate}`, {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
@@ -141,7 +142,7 @@ export default function DailyBalanceSystem() {
       }
 
       // Close daily balance
-      const response = await fetch("http://localhost:5000/api/sales/close-daily-balance", {
+      const response = await fetch(`${ApiLink}/api/sales/close-daily-balance`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -163,7 +164,7 @@ export default function DailyBalanceSystem() {
       if (data.success) {
         // If there's a discrepancy, suspend the cashier
         if (record.status === "discrepancy") {
-          const suspendResponse = await fetch(`http://localhost:5000/api/users/suspend/${cashierId}`, {
+          const suspendResponse = await fetch(`${ApiLink}/api/users/suspend/${cashierId}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
