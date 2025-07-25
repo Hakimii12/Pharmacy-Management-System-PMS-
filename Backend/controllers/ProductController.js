@@ -3,6 +3,7 @@ import Store from "../models/StoreModel.js"
 import Dispensary from "../models/DispensaryModel.js"
 import Transfare from "../models/Transfer.js"
 import Sales from "../models/SalesModel.js"
+import Notification from "../models/NotificationModel.js"
 // Helper function to get inventory data
 async function getInventoryData(productId) {
   const store = await Store.findOne({ product: productId, isDeleted: { $ne: true } })
@@ -97,7 +98,7 @@ export async function SmartDeleteProduct(req, res) {
   try {
     const productId = req.params.id
     const userId = req.user._id
-
+    console.log(userId,productId)
     const product = await Product.findById(productId)
     if (!product) {
       return res.status(404).json({ message: "Product not found" })

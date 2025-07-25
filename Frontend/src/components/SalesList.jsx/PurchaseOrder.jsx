@@ -106,7 +106,7 @@ const handleSubmitOrder = async () => {
     };
 
     const response = await axios.post(
-      `${ApiLink}/api/sales/sales`,
+      `${ApiLink}/api/sales/prepareAndSaveSale`,
       payload,
       { withCredentials: true }
     );

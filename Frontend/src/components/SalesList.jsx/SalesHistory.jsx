@@ -11,7 +11,7 @@ const SalesHistory = () => {
   async function FetchTransactionHistory(){
     setLoading(true)
     try {
-        const res= await axios.get(`${ApiLink}/api/sales/sales/allTransactionHistory`,{
+        const res= await axios.get(`${ApiLink}/api/sales/allTransactionHistory`,{
           withCredentials:true
         }).then((res)=>{
           setHistory(res.data)
