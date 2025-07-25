@@ -13,7 +13,7 @@ const ReceiveOrder = () => {
   async function FetchingPendingOrders(){
     setLoading(true)
   try {
-        await axios.get(`${ApiLink}/api/sales/sales/pendingStatusItems`,{
+        await axios.get(`${ApiLink}/api/sales/pendingStatusItems`,{
       withCredentials:true
     }).then((res)=>{
       setPendingOrders(res.data)
@@ -151,7 +151,7 @@ const ReceiveOrder = () => {
   const completeOrder = async(orderId) => {
     setLoading(true)
     try {
-      await axios.post(`${ApiLink}/api/sales/sales/confirm/${orderId}`,{},{
+      await axios.post(`${ApiLink}/api/sales/confirm/${orderId}`,{},{
         withCredentials:true
       }).then((res)=>{
         FetchingPendingOrders()
@@ -175,7 +175,7 @@ const ReceiveOrder = () => {
   const abortOrder = async (orderId) => {
     setLoading(true)
     try {
-       await axios.post(`${ApiLink}/api/sales/sales/abort/${orderId}`,{},{
+       await axios.post(`${ApiLink}/api/sales/abort/${orderId}`,{},{
         withCredentials:true
       }).then((res)=>{
         FetchingPendingOrders()
