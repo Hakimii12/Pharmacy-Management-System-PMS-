@@ -106,8 +106,6 @@ export const PrepareAndSaveSale = async (req, res) => {
     session.endSession()
   }
 }
-
-// Cashier: Confirm sale (after payment)
 export const ConfirmSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -209,7 +207,6 @@ export const ConfirmSale = async (req, res) => {
     session.endSession()
   }
 }
-
 export const AbortSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
