@@ -17,11 +17,11 @@ const Dashboard = () => {
         // Define all API endpoints
         const endpoints = [
           `${ApiLink}/api/product/getCountAllProduct`,
-          `${ApiLink}/api/sales/sales/GetTotalSales`,
+          `${ApiLink}/api/sales/GetTotalSales`,
           `${ApiLink}/api/notify/getLowStock`,
           `${ApiLink}/api/notify/getNearExpiryProducts`,
           `${ApiLink}/api/profit/profit`,
-          `${ApiLink}/api/sales/sales/getRecentSales`
+          `${ApiLink}/api/sales/getRecentSales`
         ];
 
         // Fetch all data in parallel
