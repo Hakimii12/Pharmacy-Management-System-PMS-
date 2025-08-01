@@ -20,7 +20,6 @@ async function FetchItems(){
       setLoading(false)
     })
   } catch (error) {
-    console.log(error)
     setLoading(false)
   }
   finally{
@@ -37,24 +36,24 @@ useEffect(()=>{
     category: '',
     dosageForm: ''
   });
-  
+
   const [orderItems, setOrderItems] = useState([]);
   const [patientName, setPatientName] = useState('');
-  console.log(orderItems)
 
   const filteredProducts = products.filter(product => {
-    return (
-      (product.name || '').toLowerCase().includes(filters.name.toLowerCase()) &&
-      (product.brand || '').toLowerCase().includes(filters.brand.toLowerCase()) &&
-      (filters.category 
-        ? (product.category || '').toLowerCase() === filters.category.toLowerCase() 
-        : true) &&
-      // Fixed dosageForm filter with safeguard
-      (filters.dosageForm 
-        ? (product.dosageForm || '').toLowerCase() === filters.dosageForm.toLowerCase() 
-        : true)
-    );
-  });
+
+  return (
+    (product.name || '').toLowerCase().includes(filters.name.toLowerCase()) &&
+    (product.brand || '').toLowerCase().includes(filters.brand.toLowerCase()) &&
+    (filters.category 
+      ? (product.category || '').toLowerCase() === filters.category.toLowerCase() 
+      : true) &&
+    // Fixed dosageForm filter:
+    (filters.dosageForm 
+      ? (product.DosageForms || '').toLowerCase() === filters.dosageForm.toLowerCase() 
+      : true)
+  );
+});
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -110,7 +109,6 @@ const handleSubmitOrder = async () => {
       payload,
       { withCredentials: true }
     );
-     console.log(response)
     // Reset form on success
     setOrderItems([]);
     setPatientName('');
@@ -191,7 +189,6 @@ const handleSubmitOrder = async () => {
               products={filteredProducts} 
               onAdd={addToOrder} 
             />}
-            
           </div>
         </div>
         
@@ -217,7 +214,7 @@ const handleSubmitOrder = async () => {
             
             <div className="mt-4 flex justify-between items-center">
               <span className="font-bold">
-                Total: ${orderItems.reduce((sum, item) => sum + (item.quantity * item.sellingPrice), 0).toFixed(2)}
+                Total: {orderItems.reduce((sum, item) => sum + (item.quantity * item.sellingPrice), 0).toFixed(2)} <span className='text-green-600 text-xs'>ETB</span>
               </span>
               <button
             onClick={()=>{handleSubmitOrder()}}

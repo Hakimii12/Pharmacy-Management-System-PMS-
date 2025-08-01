@@ -23,7 +23,7 @@ const ProductList = ({ products, onAdd }) => {
               <td className="px-6 py-4 whitespace-nowrap">{product.brand}</td>
               <td className="px-6 py-4 whitespace-nowrap">{product.category}</td>
               <td className="px-6 py-4 whitespace-nowrap">{product.DosageForms || "➖"}</td>
-              <td className="px-6 py-4 whitespace-nowrap">${product.sellingPrice.toFixed(2)}</td>
+              <td className="px-6 py-4 whitespace-nowrap">{product.sellingPrice.toFixed(2)}<span className='text-green-600 text-xs'>ETB</span></td>
               <td className="px-6 py-4 whitespace-nowrap">{product.inventory.dispensary}</td>
               <td className="px-6 py-4 whitespace-nowrap">
                                     <button

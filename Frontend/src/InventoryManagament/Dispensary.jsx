@@ -50,7 +50,7 @@ useEffect(()=>{
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           product.brand.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-    const matchesStatus = selectedStatus === 'All' || product.status === selectedStatus;
+    const matchesStatus = selectedStatus === 'All' || product.inventory.dispensaryStatus === selectedStatus;
 
     return matchesSearch && matchesCategory && matchesStatus;
   });

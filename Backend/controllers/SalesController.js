@@ -3,14 +3,14 @@ import Product from "../models/ProductModel.js"
 import Dispensary from "../models/DispensaryModel.js"
 import Sales from "../models/SalesModel.js"
 import DailyBalance from "../models/DailyBalance.js"
-import { updateProfitSummary } from "../utils/profitUtils.js"
+import { updateProfitSummary } from "../utils/profitUtils.js" // Assuming this utility exists
 import Notification from "../models/NotificationModel.js"
-import transformSalesRecords from "../utils/transformSalesRecords.js"
+import transformSalesRecords from "../utils/transformSalesRecords.js" // Assuming this utility exists
 import User from "../models/UserModel.js"
+
 export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
-
   try {
     const pharmacistId = req.user._id
     const { items, patientName } = req.body
@@ -25,7 +25,6 @@ export const PrepareAndSaveSale = async (req, res) => {
         _id: item.productId,
         isDeleted: { $ne: true },
       }).session(session)
-
       if (!product) {
         throw new Error(`Product not found or has been deleted: ${item.productId}`)
       }
@@ -35,13 +34,11 @@ export const PrepareAndSaveSale = async (req, res) => {
         isDeleted: { $ne: true },
         isActive: true,
       }).session(session)
-
       if (!dispensary) {
         throw new Error(`Product ${product.name} is not available in dispensary`)
       }
 
       const dispensaryQty = dispensary.quantity
-
       if (dispensaryQty < item.quantity) {
         throw new Error(`Insufficient stock for ${product.name}. Available: ${dispensaryQty}`)
       }
@@ -60,8 +57,8 @@ export const PrepareAndSaveSale = async (req, res) => {
         quantity: item.quantity,
         saleAmount,
         profit,
+        dosageForm: product.DosageForms, // Ensure dosageForm is included if needed for sales record
       })
-
       grandTotal += saleAmount
     }
 
@@ -82,13 +79,11 @@ export const PrepareAndSaveSale = async (req, res) => {
         dosageForm: item.dosageForm,
         timestamp,
       })
-
       await saleRecord.save({ session })
       salesRecords.push(saleRecord)
     }
 
     await session.commitTransaction()
-
     res.status(201).json({
       success: true,
       transactionId,
@@ -106,13 +101,14 @@ export const PrepareAndSaveSale = async (req, res) => {
     session.endSession()
   }
 }
+
 export const ConfirmSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
-
   try {
     const { transactionId } = req.params
     const cashierId = req.user.id
+
     const salesRecords = await Sales.find({
       transactionId,
       status: "pending",
@@ -123,27 +119,17 @@ export const ConfirmSale = async (req, res) => {
     }
 
     let currentProfit = 0
-
     for (const record of salesRecords) {
-      const product = await Product.findById(record.product).session(session)
-
-      // Update dispensary and product quantities
+      // Update dispensary quantity. The pre/post save hooks on Dispensary model
+      // will handle its status and notifications.
       const dispensary = await Dispensary.findOneAndUpdate(
         { product: record.product },
         { $inc: { quantity: -record.quantitySold } },
         { new: true, session },
       )
 
+      // Update product total quantity (if product quantity represents total across locations)
       await Product.findByIdAndUpdate(record.product, { $inc: { quantity: -record.quantitySold } }, { session })
-
-      const quantity = dispensary ? dispensary.quantity : 0
-      const threshold = dispensary ? dispensary.threshold : 10
-
-      // Update expiration status if stock depleted
-      if (product.quantity <= 0) {
-        product.isExpired = product.expiryDate < new Date()
-        await product.save({ session })
-      }
 
       // Update sales record
       record.status = "completed"
@@ -151,39 +137,23 @@ export const ConfirmSale = async (req, res) => {
       currentProfit += record.profit
       record.completedAt = new Date()
       await record.save({ session })
-
-      // Create notifications for low stock or out of stock
-      if (quantity === 0 || quantity < threshold) {
-        const type = quantity === 0 ? "OutOfStock" : "LowStock"
-        const message =
-          quantity === 0
-            ? `Product ${product.name} is out of stock in dispensary.`
-            : `Product ${product.name} is low in dispensary. Current: ${quantity}, Threshold: ${threshold}.`
-
-        const existing = await Notification.findOne({
-          product: product._id,
-          location: "dispensary",
-          type,
-          read: false,
-        }).session(session)
-
-        if (!existing) {
-          const notification = new Notification({
-            type,
-            message,
-            product: product._id,
-            location: "dispensary",
-            read: false,
-          })
-          await notification.save({ session })
-        }
-      }
+      const product = await Product.findById(record.product);
+  if (product.expiryDate <= new Date()) {
+    await Notification.create({
+      type: "Expired",
+      message: `Sold expired product: ${product.name}`,
+      product: product._id,
+      location: "dispensary",
+      read: false,
+    });
+  }
+      await Dispensary.updateStatus(record.product, session);
     }
 
+    // Update profit summary
     updateProfitSummary(currentProfit, new Date())
 
     await session.commitTransaction()
-
     res.json({
       success: true,
       transactionId,
@@ -192,13 +162,11 @@ export const ConfirmSale = async (req, res) => {
     })
   } catch (error) {
     await session.abortTransaction()
-
     // Mark as aborted on failure
     await Sales.updateMany(
       { transactionId: req.params.transactionId, status: "pending" },
       { $set: { status: "aborted" } },
     )
-
     res.status(400).json({
       success: false,
       error: `Sale failed: ${error.message}`,
@@ -207,13 +175,14 @@ export const ConfirmSale = async (req, res) => {
     session.endSession()
   }
 }
+
 export const AbortSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
-
   try {
     const { transactionId } = req.params
     const cashierId = req.user._id
+
     const salesRecords = await Sales.find({
       transactionId,
       status: "pending",
@@ -231,7 +200,6 @@ export const AbortSale = async (req, res) => {
     }
 
     await session.commitTransaction()
-
     res.json({
       success: true,
       transactionId,
@@ -240,7 +208,6 @@ export const AbortSale = async (req, res) => {
     })
   } catch (error) {
     await session.abortTransaction()
-
     res.status(400).json({
       success: false,
       error: `Sale abort failed: ${error.message}`,
@@ -253,10 +220,8 @@ export const AbortSale = async (req, res) => {
 export const CloseDailyBalance = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
-
   try {
     const { cashierId, countedAmount, date } = req.body
-
     // Validate input
     if (!cashierId || countedAmount === undefined || countedAmount === null) {
       return res.status(400).json({
@@ -276,7 +241,6 @@ export const CloseDailyBalance = async (req, res) => {
     if (!cashier) {
       throw new Error("Cashier not found")
     }
-
     if (cashier.status === "suspended") {
       throw new Error("Cannot close balance for suspended cashier")
     }
@@ -286,7 +250,6 @@ export const CloseDailyBalance = async (req, res) => {
       cashier: cashierId,
       date: targetDate,
     }).session(session)
-
     if (existingBalance) {
       throw new Error("Daily balance already closed for this date")
     }
@@ -317,10 +280,9 @@ export const CloseDailyBalance = async (req, res) => {
         discrepancyNote: `Expected: $${expectedAmount}, Counted: $${countedAmount}, Difference: $${difference}`,
       }),
     })
-
     await dailyBalance.save({ session })
-    await session.commitTransaction()
 
+    await session.commitTransaction()
     res.status(200).json({
       success: true,
       dailyBalance,
@@ -341,12 +303,10 @@ export const CloseDailyBalance = async (req, res) => {
   }
 }
 
-// NEW: Get daily transactions for a specific cashier
 export const GetDailyTransactions = async (req, res) => {
   try {
     const { cashierId } = req.params
     const { date } = req.query
-
     // Parse the date or use today
     const targetDate = date ? new Date(date) : new Date()
     targetDate.setHours(0, 0, 0, 0)
@@ -392,14 +352,12 @@ export const GetDailyTransactions = async (req, res) => {
   }
 }
 
-// NEW: Get all cashiers
 export const GetAllCashiers = async (req, res) => {
   try {
     const cashiers = await User.find({
       role: "cashier",
       isDeleted: { $ne: true },
     }).select("name email role status createdAt")
-
     res.status(200).json({
       success: true,
       count: cashiers.length,
@@ -413,11 +371,9 @@ export const GetAllCashiers = async (req, res) => {
   }
 }
 
-// NEW: Suspend cashier account
 export const SuspendCashier = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
-
   try {
     const { cashierId } = req.params
     const { reason } = req.body
@@ -428,11 +384,9 @@ export const SuspendCashier = async (req, res) => {
     if (!cashier) {
       throw new Error("Cashier not found")
     }
-
     if (cashier.role !== "cashier") {
       throw new Error("User is not a cashier")
     }
-
     if (cashier.status === "suspended") {
       throw new Error("Cashier is already suspended")
     }
@@ -442,7 +396,6 @@ export const SuspendCashier = async (req, res) => {
     cashier.suspendedBy = adminId
     cashier.suspendedAt = new Date()
     cashier.suspensionReason = reason || "Daily balance discrepancy"
-
     await cashier.save({ session })
 
     // Create notification for suspension
@@ -453,10 +406,9 @@ export const SuspendCashier = async (req, res) => {
       createdBy: adminId,
       read: false,
     })
-
     await notification.save({ session })
-    await session.commitTransaction()
 
+    await session.commitTransaction()
     res.status(200).json({
       success: true,
       message: "Cashier suspended successfully",
@@ -480,20 +432,16 @@ export const SuspendCashier = async (req, res) => {
   }
 }
 
-// NEW: Get daily balance history
 export const GetDailyBalanceHistory = async (req, res) => {
   try {
     const { startDate, endDate, cashierId } = req.query
-
     // Build query conditions
     const query = {}
-
     if (startDate || endDate) {
       query.date = {}
       if (startDate) query.date.$gte = new Date(startDate)
       if (endDate) query.date.$lte = new Date(endDate)
     }
-
     if (cashierId) {
       query.cashier = cashierId
     }
@@ -533,7 +481,7 @@ export async function GetAllPendingStatus(req, res) {
     const PendingTransaction = await Sales.find({ status: "pending" })
       .populate("pharmacist", "name email role")
       .populate("product", "name brand batchNo sellingPrice category")
-    const pendingOrders = transformSalesRecords(PendingTransaction)
+    const pendingOrders = transformSalesRecords(PendingTransaction) // Assuming transformSalesRecords handles the new structure
     res.status(200).json(pendingOrders)
   } catch (error) {
     res.status(500).json({ massage: error.message })
@@ -565,7 +513,6 @@ export async function GetAbortAndComplatedSale(req, res) {
           status: record.status,
         }
       }
-
       // Add item details
       groupedTransactions[tid].items.push({
         productId: record.product._id,
@@ -578,97 +525,93 @@ export async function GetAbortAndComplatedSale(req, res) {
         sellingPrice: record.product.sellingPrice,
         total: record.saleAmount,
       })
-
       // Update transaction total
       groupedTransactions[tid].totalAmount += record.saleAmount
     })
 
     // Convert to array
     const result = Object.values(groupedTransactions)
-
     res.status(200).json(result)
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
 }
+
 export const GetRecentSales = async (req, res) => {
   try {
-    const limit = 7; // Set limit to 7 recent sales
-    
+    const limit = 7 // Set limit to 7 recent sales
+
     const recentSales = await Sales.find({ status: "completed" })
       .sort({ completedAt: -1 }) // Sort by most recent first
       .limit(limit)
-      .select('name brand saleAmount profit completedAt -_id');
-
+      .select("name brand saleAmount profit completedAt -_id")
     res.status(200).json({
       success: true,
       count: recentSales.length,
-      sales: recentSales.map(sale => ({
+      sales: recentSales.map((sale) => ({
         productName: sale.name,
         brand: sale.brand,
         dateSold: sale.completedAt,
         saleAmount: sale.saleAmount,
-        profit: sale.profit
-      }))
-    });
+        profit: sale.profit,
+      })),
+    })
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: `Failed to fetch recent sales: ${error.message}`
-    });
+      error: `Failed to fetch recent sales: ${error.message}`,
+    })
   }
-};
-// Add this new endpoint controller to your sales controller file
+}
+
 export const GetTotalSales = async (req, res) => {
   try {
     // Extract optional date filters from query parameters
-    const { startDate, endDate } = req.query;
-    
+    const { startDate, endDate } = req.query
+
     // Build match conditions for aggregation pipeline
     const matchConditions = {
-      status: "completed"
-    };
-
+      status: "completed",
+    }
     // Add date filtering if provided
     if (startDate || endDate) {
-      matchConditions.completedAt = {};
-      if (startDate) matchConditions.completedAt.$gte = new Date(startDate);
-      if (endDate) matchConditions.completedAt.$lte = new Date(endDate);
+      matchConditions.completedAt = {}
+      if (startDate) matchConditions.completedAt.$gte = new Date(startDate)
+      if (endDate) matchConditions.completedAt.$lte = new Date(endDate)
     }
 
     // Aggregation pipeline to calculate total sales
     const result = await Sales.aggregate([
       { $match: matchConditions },
-      { 
+      {
         $group: {
           _id: null,
           totalSales: { $sum: "$saleAmount" },
           totalProfit: { $sum: "$profit" },
-          transactionCount: { $sum: 1 }
-        }
-      }
-    ]);
+          transactionCount: { $sum: 1 },
+        },
+      },
+    ])
 
     // Handle case with no sales data
     if (result.length === 0) {
       return res.status(200).json({
         totalSales: 0,
         totalProfit: 0,
-        transactionCount: 0
-      });
+        transactionCount: 0,
+      })
     }
 
     // Return aggregated results
     res.status(200).json({
       totalSales: result[0].totalSales,
       totalProfit: result[0].totalProfit,
-      transactionCount: result[0].transactionCount
-    });
-
+      transactionCount: result[0].transactionCount,
+    })
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
-    });
+      error: error.message,
+    })
   }
-};
+}

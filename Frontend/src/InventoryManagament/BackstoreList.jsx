@@ -51,11 +51,10 @@ useEffect(()=>{
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           product.brand.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-    const matchesStatus = selectedStatus === 'All' || product.status === selectedStatus;
+    const matchesStatus = selectedStatus === 'All' || product.inventory.dispensaryStatus === selectedStatus;
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
-
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
