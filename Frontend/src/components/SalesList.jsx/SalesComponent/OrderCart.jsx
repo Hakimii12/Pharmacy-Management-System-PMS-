@@ -36,14 +36,14 @@ const OrderCart = ({ items, onUpdate, onRemove }) => {
             <div key={item._id} className="flex justify-between items-center border-b pb-2">
               <div>
                 <h3 className="font-medium">{item.name}</h3>
-                <p className="text-sm text-gray-600">{item.brand} • ${item.sellingPrice.toFixed(2)}</p>
+                <p className="text-sm text-gray-600">{item.brand} • {item.sellingPrice.toFixed(2)} <span className='text-green-600 text-xs'>ETB</span></p>
               </div>
               <div className="flex items-center space-x-2">
                 <input
                   type="number"
                   min="1"
                   value={item.quantity}
-                  onChange={(e) => onUpdate(item.id, parseInt(e.target.value))}
+                  onChange={(e) => onUpdate(item._id, parseInt(e.target.value))}
                   className="w-16 border rounded p-1 text-center"
                 />
                 <button 

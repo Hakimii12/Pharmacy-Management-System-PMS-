@@ -12,57 +12,55 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess,fetchProducts }) => 
   const [error, setError] = useState('');
   const [addedBy,setAddedBy] = useState([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  let status = "In Store"
-  const getStatusColor = () => {
-   if (product.inventory.store <= product.inventory.storeThreshold && product.inventory.store != 0 && product.isExpired==false) {
-         status = "Low Store"
-    return 'bg-yellow-100 text-yellow-800'
-   }
-   else if(product.inventory.store>product.inventory.storeThreshold && product.isExpired==true ||product.inventory.store <= product.inventory.storeThreshold&&product.isExpired==true){
-    status = "Expired"
-    return 'bg-gray-200 text-red-900';
-   }
-   else if(product.inventory.store==0){
-    status = "Out of Store"
-     return 'bg-red-100 text-red-800';
-   }
-   else if(product.isExpired==true){
-    status = "Expired"
-    return 'bg-gray-200 text-red-900';
-   }
-   else{
-      return 'bg-blue-100 text-blue-800';
-   }
+  let status= product.inventory.storeStatus
+  const getStatusColor = (status) => {
+    switch(status) {
+    case "Expired":
+      return "bg-gray-200 text-red-900";
+    case "Sold Out":
+      return "bg-red-100 text-red-800";
+    case "Low Stock":
+      return "bg-yellow-100 text-yellow-800";
+    default:
+      return "bg-blue-100 text-blue-800";
+  }
   };
    
 
   const getExpiryStatus = () => {
-    const expiryDate = new Date(product.expiryDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffTime = expiryDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (product.isExpired && product.inventory.store>0) {
-      return { text: 'Expired', color: 'text-red-500' };
-    } else if (diffDays < 90 && product.inventory.store>0) {
-      return { text: `Expires in ${diffDays} days`, color: 'text-yellow-500' };
-    } else {
-      return {
-        text: expiryDate.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        }),
-        color: 'text-gray-500'
-      };
-    }
-  };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Handle expired products first
+  if (product.isExpired) {
+    return { text: 'Expired', color: 'text-red-500' };
+  }
+
+  const expiryDate = new Date(product.expiryDate);
+  const diffTime = expiryDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    return { text: 'Expired', color: 'text-red-500' };
+  } else if (diffDays < 30) {
+    return { text: `Expires in ${diffDays} days`, color: 'text-yellow-500' };
+  } else {
+    return {
+      text: expiryDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      color: 'text-gray-500'
+    };
+  }
+};
   const handleDeleteConfirmation = () => {
     setIsDeleteModalOpen(true);
   };
   async function RemoveFromTheShelf(id) {
     try {
-      await axios.post(`${ApiLink}/api/product/removeFromTheShelf/${id}`, {}, {
+      await axios.delete(`${ApiLink}/api/product/smartDelete/${id}`, {
         withCredentials: true
       }).then((response) => {
         fetchProducts()
@@ -164,7 +162,7 @@ useEffect(() => {
           <div className="text-xs text-green-600">{sellingPrice.toFixed(2)} sale <span>ETB</span></div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor()}`}>
+          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(status)}`}>
             {status}
           </span>
         </td>

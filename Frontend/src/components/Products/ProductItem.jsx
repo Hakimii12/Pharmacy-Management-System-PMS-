@@ -15,57 +15,48 @@ const ProductItem = ({ product, onEdit, onTransferSuccess ,fetchProducts}) => {
   const [addedBy , setAddedBy] = useState([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
-  const getStatusColor = () => {
-    if (product.quantity < 50 && product.isExpired==false) {
-          status = "In Stock"
-     return 'bg-yellow-100 text-yellow-800'
-    }
-    else if(product.quantity > 0 && product.isExpired==true){
-     status = "Expired"
-     return 'bg-gray-200 text-red-900';
-    }
-    else if(product.quantity==0){
-     status = "Sold Out"
-      return 'bg-red-100 text-red-800';
-    }
-    else if(product.quantity > 50 && product.isExpired==false){
-     status = "In Stock"
-     return 'bg-blue-100 text-blue-800';
-    }
-   };
-  //  if(product.inventory.store > product.inventory.storeThreshold && product.inventory.dispensary > product.inventory.dispensaryThreshold && !product.isExpired){
-  //        return 'bg-green-100 text-green-800'
-  //  }
-  //  else if(product.inventory.store <= product.inventory.storeThreshold && product.inventory.dispensary <= product.inventory.dispensaryThreshold && !product.isExpired && product.quantity > 0){
-  //        return 'bg-yellow-100 text-yellow-800'
-  //  }
-  //  else if(product.isExpired){
-  //       return 'bg-gray-200 text-red-900'
-  //  }
-  //  else if(product.quantity == 0 ){
-  //       return 'bg-red-100 text-red-800'
-  //  }
-  const getExpiryStatus = () => {
-    const expiryDate = new Date(product.expiryDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffTime = expiryDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) {
-      return { text: 'Expired', color: 'text-red-500' };
-    } else if (diffDays < 30) {
-      return { text: `Expires in ${diffDays} days`, color: 'text-yellow-500' };
-    } else {
-      return {
-        text: expiryDate.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        }),
-        color: 'text-gray-500'
-      };
-    }
+ let status= product.inventory.storeStatus
+  const getStatusColor = (status) => {
+    switch(status) {
+    case "Expired":
+      return "bg-gray-200 text-red-900";
+    case "Sold Out":
+      return "bg-red-100 text-red-800";
+    case "Low Stock":
+      return "bg-yellow-100 text-yellow-800";
+    default:
+      return "bg-blue-100 text-blue-800";
+  }
   };
+
+  const getExpiryStatus = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Handle expired products first
+  if (product.isExpired) {
+    return { text: 'Expired', color: 'text-red-500' };
+  }
+
+  const expiryDate = new Date(product.expiryDate);
+  const diffTime = expiryDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    return { text: 'Expired', color: 'text-red-500' };
+  } else if (diffDays < 30) {
+    return { text: `Expires in ${diffDays} days`, color: 'text-yellow-500' };
+  } else {
+    return {
+      text: expiryDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      color: 'text-gray-500'
+    };
+  }
+};
   const handleDeleteConfirmation = () => {
     setIsDeleteModalOpen(true);
   };
@@ -192,7 +183,7 @@ useEffect(() => {
           <div className="text-xs text-green-600">{sellingPrice.toFixed(2)} <span>ETB</span> sale</div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor()}`}>
+          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(status)}`}>
             {status}
           </span>
         </td>

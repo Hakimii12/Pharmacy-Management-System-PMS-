@@ -1,48 +1,49 @@
-import cron from "node-cron";
 import Product from "../models/ProductModel.js";
+import Store from "../models/StoreModel.js";
+import Dispensary from "../models/DispensaryModel.js";
 import Notification from "../models/NotificationModel.js";
-cron.schedule("0 0 * * *", async () => { // Runs daily at midnight
-  const today = new Date();
-  const threeMonthsLater = new Date();
-  threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+import cron from "node-cron";
 
-  // Expired Products
-  const expiredProducts = await Product.find({
-    expiryDate: { $lte: today },
-    isExpired: false
-  });
-
-  for (const product of expiredProducts) {
-    product.isExpired = true;
-    product.status="Expired"
-    await product.save();
-    
-    await Notification.create({
-      type: "Expired",
-      message: `${product.name} (${product.batchNo}) expired on ${product.expiryDate.toDateString()}`,
-      product: product._id
-    });
-  }
-
-  // Near-Expiry Products (within 3 months)
-  const nearExpiryProducts = await Product.find({
-    expiryDate: { $gt: today, $lte: threeMonthsLater },
-    isExpired: false
-  });
-
-  for (const product of nearExpiryProducts) {
-    const existing = await Notification.findOne({
-      product: product._id,
-      type: "NearExpiry",
-      read: false
-    });
-
-    if (!existing) {
-      await Notification.create({
-        type: "NearExpiry",
-        message: `${product.name} (${product.batchNo}) expires on ${product.expiryDate.toDateString()} (within 3 months)`,
-        product: product._id
+export function startExpirationChecker() {
+  // Run daily at 3 AM
+  cron.schedule("0 3 * * *", async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Find all products that expire today or before
+      const expiredProducts = await Product.find({
+        expiryDate: { $lte: today },
+        isDeleted: { $ne: true }
       });
+      
+      for (const product of expiredProducts) {
+        // Update store status
+        await Store.updateStatus(product._id);
+        
+        // Update dispensary status
+        await Dispensary.updateStatus(product._id);
+        
+        // Create notifications
+        await Notification.create([
+          {
+            type: "Expired",
+            message: `Product ${product.name} has expired!`,
+            product: product._id,
+            location: "store",
+            read: false,
+          },
+          {
+            type: "Expired",
+            message: `Product ${product.name} has expired!`,
+            product: product._id,
+            location: "dispensary",
+            read: false,
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error("Expiration check failed:", error);
     }
-  }
-});
+  });
+}
