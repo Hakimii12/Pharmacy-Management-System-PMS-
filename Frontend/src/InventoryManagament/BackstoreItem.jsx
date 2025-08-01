@@ -60,7 +60,7 @@ const BackstoreItem = ({ product, onEdit, onTransferSuccess,fetchProducts }) => 
   };
   async function RemoveFromTheShelf(id) {
     try {
-      await axios.post(`${ApiLink}/api/product/removeFromTheShelf/${id}`, {}, {
+      await axios.delete(`${ApiLink}/api/product/smartDelete/${id}`, {
         withCredentials: true
       }).then((response) => {
         fetchProducts()

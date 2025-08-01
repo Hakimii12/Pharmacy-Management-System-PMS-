@@ -321,7 +321,18 @@ export async function DeleteFromDispensary(req, res) {
       })
     }
 
-    // Soft delete from dispensary
+    // Calculate new total quantity
+    const dispensaryQuantity = dispensary.quantity;
+    const newTotalQuantity = product.quantity - dispensaryQuantity;
+
+    // Update product quantity first
+    await Product.findByIdAndUpdate(
+      productId,
+      { quantity: newTotalQuantity },
+      { new: true }
+    );
+
+    // Then soft delete from dispensary
     await Dispensary.findOneAndUpdate(
       { product: productId },
       {
@@ -329,16 +340,18 @@ export async function DeleteFromDispensary(req, res) {
         isActive: false,
         deletedAt: new Date(),
         deletedBy: userId,
-        quantity: 0, // Set quantity to 0 when deleted
+        quantity: 0,
       },
-      { new: true }, // Ensure new:true to trigger pre/post hooks
-    )
+      { new: true }
+    );
+
+    // Update status for both locations
     await Dispensary.updateStatus(productId);
     await Store.updateStatus(productId);
-    // Check if product should be completely deleted (if both locations are deleted)
+
+    // Check if product should be completely deleted
     const store = await Store.findOne({ product: productId, isDeleted: { $ne: true } })
     if (!store || store.isDeleted) {
-      // Both locations are deleted or store is already deleted, soft delete the main product
       await Product.findByIdAndUpdate(productId, {
         isDeleted: true,
         deletedAt: new Date(),
@@ -347,7 +360,7 @@ export async function DeleteFromDispensary(req, res) {
       })
     }
 
-    // Clean up dispensary-related notifications
+    // Clean up notifications
     await Notification.deleteMany({
       product: productId,
       location: "dispensary",
