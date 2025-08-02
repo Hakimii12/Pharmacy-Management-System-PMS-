@@ -100,7 +100,6 @@ const handleSubmitOrder = async () => {
       items: orderItems.map(item => ({
         quantity: item.quantity.toString(), // Convert to string as per requirement
         productId: item._id,
-
       }))
     };
 
@@ -115,8 +114,9 @@ const handleSubmitOrder = async () => {
     toast.success(`Order sent to cashier for ${patientName}`)
   } catch (error) {
     toast.error(error.response.data.error)
-    setIsSubmitting(false)  
-;}
+  } finally {
+    setIsSubmitting(false); // Always reset submitting state
+  }
 };
 
   return (

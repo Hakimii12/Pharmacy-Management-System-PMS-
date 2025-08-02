@@ -15,6 +15,8 @@ const salesSchema = new mongoose.Schema({
   },
   pharmacist: { type: Schema.Types.ObjectId, ref: "User", required: true },
   cashier: { type: Schema.Types.ObjectId, ref: "User" },
+  // completedAt: { type: Date },
+  // abortedAt: { type: Date },
   timestamp: { type: Date, default: Date.now }
 });
 const Sales = mongoose.model("Sales",salesSchema);

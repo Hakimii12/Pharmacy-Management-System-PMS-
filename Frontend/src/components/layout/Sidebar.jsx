@@ -1,5 +1,3 @@
-"use client"
-
 import { NavLink, useLocation } from "react-router-dom"
 import {
   FaHome,
@@ -21,6 +19,8 @@ import { FiSettings } from "react-icons/fi"
 import { AiOutlineUser, AiOutlineLogout } from "react-icons/ai"
 
 const Sidebar = ({ closeSidebar }) => {
+  const user = JSON.parse(localStorage.getItem("user-threads"))
+  const userRole = user?.role || 'cashier'; // Default to cashier if role not found
   const [openDropdown, setOpenDropdown] = useState({
     inventory: false,
     sales: false,
@@ -38,32 +38,69 @@ const Sidebar = ({ closeSidebar }) => {
   const handleNavClick = () => {
     // Close sidebar on mobile when navigation item is clicked
     if (window.innerWidth < 768) {
-      // md breakpoint
       closeSidebar()
     }
   }
 
+  // Authorization helper functions
+  const canViewInventory = () => ['admin', 'superAdmin'].includes(userRole);
+  const canViewBackstore = () => ['admin', 'superAdmin'].includes(userRole);
+  const canViewDispensary = () => ['admin', 'superAdmin'].includes(userRole);
+  const canViewPurchaseOrder = () => ['pharmacist', 'admin', 'superAdmin'].includes(userRole);
+  const canViewReceiveOrder = () => ['cashier', 'admin', 'superAdmin'].includes(userRole);
+  const canViewCloseBalance = () => ['admin', 'superAdmin'].includes(userRole);
+  const canViewUserManagement = () => userRole === 'superAdmin';
+
+  // Navigation items with authorization checks
   const navItems = [
-    { name: "Dashboard", path: "/", icon: <FaHome /> },
+    { name: "Dashboard", path: "/", icon: <FaHome />, show: true },
     {
       name: "Inventory.M",
       icon: <FaPills />,
+      show: canViewInventory(),
       subItems: [
-        { name: "All Stock", path: "/products", icon: <FaBox /> },
+        { 
+          name: "All Stock", 
+          path: "/products", 
+          icon: <FaBox />,
+          show: canViewInventory()
+        },
         {
           name: "Backstore",
           icon: <FaStore />,
+          show: canViewBackstore(),
           subItems: [
-            { name: "Store", path: "/backstore", icon: <FaStore /> },
-            { name: "Store History", path: "/store-history", icon: <FaHistory /> },
+            { 
+              name: "Store", 
+              path: "/backstore", 
+              icon: <FaStore />,
+              show: canViewBackstore()
+            },
+            { 
+              name: "Store History", 
+              path: "/store-history", 
+              icon: <FaHistory />,
+              show: canViewBackstore()
+            },
           ],
         },
         {
           name: "Dispensary",
           icon: <FaCashRegister />,
+          show: canViewDispensary(),
           subItems: [
-            { name: "Dispensary", path: "/dispensary", icon: <FaCashRegister /> },
-            { name: "Dispensary History", path: "/dispensary-history", icon: <FaHistory /> },
+            { 
+              name: "Dispensary", 
+              path: "/dispensary", 
+              icon: <FaCashRegister />,
+              show: canViewDispensary()
+            },
+            { 
+              name: "Dispensary History", 
+              path: "/dispensary-history", 
+              icon: <FaHistory />,
+              show: canViewDispensary()
+            },
           ],
         },
       ],
@@ -71,21 +108,53 @@ const Sidebar = ({ closeSidebar }) => {
     {
       name: "Sales",
       icon: <FaShoppingCart />,
+      show: true,
       subItems: [
-        { name: "Purchase Order", path: "/purchase-order", icon: <FaClipboardList /> },
-        { name: "Receive Order", path: "/receive-order", icon: <FaTruckLoading /> },
-        { name: "Close Daily Balance", path: "/close-daily-balance", icon: <FaCashRegister /> },
-        { name: "History", path: "/sales-history", icon: <FaHistory /> },
+        { 
+          name: "Purchase Order", 
+          path: "/purchase-order", 
+          icon: <FaClipboardList />,
+          show: canViewPurchaseOrder()
+        },
+        { 
+          name: "Receive Order", 
+          path: "/receive-order", 
+          icon: <FaTruckLoading />,
+          show: canViewReceiveOrder()
+        },
+        { 
+          name: "Close Daily Balance", 
+          path: "/close-daily-balance", 
+          icon: <FaCashRegister />,
+          show: canViewCloseBalance()
+        },
+        { 
+          name: "History", 
+          path: "/sales-history", 
+          icon: <FaHistory />,
+          show: true
+        },
       ],
     },
-    { name: "Notifications", path: "/notifications", icon: <FaBell /> },
-    { name: "Reports", path: "/reports", icon: <FaChartLine /> },
+    { name: "Notifications", path: "/notifications", icon: <FaBell />, show: true },
+    { name: "Reports", path: "/reports", icon: <FaChartLine />, show: true },
     {
       name: "Setting",
       icon: <FiSettings />,
+      show: true,
       subItems: [
-        { name: "User Managment", path: "/user-managment", icon: <AiOutlineUser /> },
-        { name: "Logout", path: "/logout", icon: <AiOutlineLogout /> },
+        { 
+          name: "User Managment", 
+          path: "/user-managment", 
+          icon: <AiOutlineUser />,
+          show: canViewUserManagement()
+        },
+        { 
+          name: "Logout", 
+          path: "/logout", 
+          icon: <AiOutlineLogout />,
+          show: true
+        },
       ],
     },
   ]
@@ -100,6 +169,23 @@ const Sidebar = ({ closeSidebar }) => {
       }
     })
   }
+
+  // Filter visible items based on user role
+  const filterVisibleItems = (items) => {
+    return items.filter(item => {
+      if (!item.show) return false;
+      
+      if (item.subItems) {
+        item.subItems = filterVisibleItems(item.subItems);
+        // Hide parent if no children are visible
+        if (item.subItems.length === 0) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const visibleNavItems = filterVisibleItems(navItems);
 
   return (
     <div className="bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white w-64 h-screen fixed flex flex-col z-10 shadow-2xl border-r border-slate-700/50">
@@ -120,7 +206,7 @@ const Sidebar = ({ closeSidebar }) => {
       {/* Scrollable navigation area */}
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
         <nav className="mt-4 px-3 space-y-1">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <div key={item.name}>
               {item.subItems ? (
                 <>
@@ -283,7 +369,7 @@ const Sidebar = ({ closeSidebar }) => {
           </div>
           <div className="ml-3">
             <p className="text-sm font-semibold text-white">PharmaManage v1.0</p>
-            <p className="text-xs text-slate-400">© 2023 All rights reserved</p>
+            <p className="text-xs text-slate-400">© 2025 All rights reserved</p>
           </div>
         </div>
       </div>

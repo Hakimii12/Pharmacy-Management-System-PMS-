@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import OrderCard from './SalesComponent/OrderCard';
 import axios from 'axios';
@@ -196,7 +195,12 @@ const ReceiveOrder = () => {
   return loading ? (<Loading/>):(
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Pending Orders</h1>
-      
+      <button
+        onClick={FetchingPendingOrders}
+        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+      >
+        Refresh
+      </button>
       {pendingOrders.length === 0 ? (
         <div className="bg-white p-8 rounded-lg shadow text-center">
           <p className="text-gray-500 text-lg">No pending orders</p>
