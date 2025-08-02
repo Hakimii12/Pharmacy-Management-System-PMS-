@@ -1,10 +1,9 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import Navbar from "./Navbar"
 import Sidebar from "./Sidebar"
 
 const Layout = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem("user-threads"))
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Prevent body scroll when sidebar is open on mobile
