@@ -336,8 +336,6 @@ export async function DeleteFromDispensary(req, res) {
     await Dispensary.findOneAndUpdate(
       { product: productId },
       {
-        isDeleted: true,
-        isActive: false,
         deletedAt: new Date(),
         deletedBy: userId,
         quantity: 0,
