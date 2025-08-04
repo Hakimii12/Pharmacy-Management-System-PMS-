@@ -40,10 +40,26 @@ async function populateProductWithInventory(product) {
  export async function CreateProduct(req, res) {
   try {
     const userId = req.user._id
-    const { name, unitPrice, quantity, batchNo, expiryDate, markup, DosageForms, category, distributor, brand } =
-      req.body
-    const productBrand = brand || "-"
-    const productDosageForms = DosageForms || "-"
+    const {
+      name,
+      unitPrice,
+      quantity,
+      batchNo,
+      expiryDate,
+      markup,
+      DosageForms,
+      category,
+      distributor,
+      brand,
+      storeThreshold,        // <-- accept separately
+      dispensaryThreshold,   // <-- accept separately
+      type,
+    } = req.body
+    const productBrand = brand || ""
+    const productDosageForms = DosageForms || ""
+    const productType = type || ""
+    const storeThresholdValue = storeThreshold !== undefined ? storeThreshold : 10
+    const dispensaryThresholdValue = dispensaryThreshold !== undefined ? dispensaryThreshold : 10
 
     if (!distributor || !distributor.name || !distributor.contact) {
       return res.status(400).json({
@@ -68,24 +84,29 @@ async function populateProductWithInventory(product) {
       distributor,
       isDeleted: false,
       visibility: "enable",
+      type: productType,
+      // Do NOT add threshold here
     })
     await newProduct.save()
     await Store.updateStatus(newProduct._id);
     await Dispensary.updateStatus(newProduct._id);
-    // Create store and dispensary records
+
+    // Create store and dispensary records with their own thresholds
     await Store.create({
       product: newProduct._id,
       quantity: quantity,
-      threshold: 10,
+      threshold: storeThresholdValue,
       isDeleted: false,
       isActive: true,
+      type: productType,
     })
     await Dispensary.create({
       product: newProduct._id,
       quantity: 0,
-      threshold: 10,
+      threshold: dispensaryThresholdValue,
       isDeleted: false,
       isActive: true,
+      type: productType,
     })
 
     const productWithInventory = await populateProductWithInventory(newProduct)
@@ -262,6 +283,22 @@ export async function UpdateProduct(req, res) {
       )
       await Store.updateStatus(productId);
       await Dispensary.updateStatus(productId);
+    }
+
+    // Handle threshold updates
+    if (updates.storeThreshold !== undefined) {
+      await Store.findOneAndUpdate(
+        { product: productId },
+        { threshold: updates.storeThreshold },
+        { upsert: true, new: true }
+      )
+    }
+    if (updates.dispensaryThreshold !== undefined) {
+      await Dispensary.findOneAndUpdate(
+        { product: productId },
+        { threshold: updates.dispensaryThreshold },
+        { upsert: true, new: true }
+      )
     }
 
     // Recalculate prices if relevant fields change
