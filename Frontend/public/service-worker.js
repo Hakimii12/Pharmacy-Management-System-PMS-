@@ -18,7 +18,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("Service Worker: Opened cache")
+        console.log("Service Worker: Installing and opening cache:", CACHE_NAME)
         return cache.addAll(urlsToCache)
       })
       .catch((error) => {
@@ -35,12 +35,13 @@ self.addEventListener("fetch", (event) => {
   const isApiRequest = requestUrl.pathname.includes("/api/")
 
   if (isApiRequest) {
-    // For API requests, try network first, then cache
+    console.log("Service Worker: Intercepting API request:", event.request.url)
     event.respondWith(
       fetch(event.request)
         .then(async (response) => {
           // Check if we received a valid response before caching
           if (!response || response.status !== 200 || response.type !== "basic") {
+            console.log("Service Worker: No cached API response for:", event.request.url)
             return response
           }
 
@@ -48,6 +49,7 @@ self.addEventListener("fetch", (event) => {
           const responseClone = response.clone()
           const cache = await caches.open(CACHE_NAME)
           cache.put(event.request, responseClone)
+          console.log("Service Worker: Caching new API response:", event.request.url)
           return response
         })
         .catch(async () => {
@@ -58,6 +60,7 @@ self.addEventListener("fetch", (event) => {
             return cachedResponse
           }
           // If not in cache, return a fallback or error
+          console.log("Service Worker: Offline: API data not available for:", event.request.url)
           return new Response("Offline: API data not available", {
             status: 503,
             statusText: "Service Unavailable",
@@ -66,17 +69,19 @@ self.addEventListener("fetch", (event) => {
         }),
     )
   } else {
-    // For other requests (static assets, HTML, JS, CSS), try cache first, then network
+    console.log("Service Worker: Intercepting static asset request:", event.request.url)
     event.respondWith(
       caches.match(event.request).then((response) => {
         // Cache hit - return response
         if (response) {
+          console.log("Service Worker: Serving static asset from cache:", event.request.url)
           return response
         }
         // No cache hit - fetch from network
         return fetch(event.request).then((response) => {
           // Check if we received a valid response
           if (!response || response.status !== 200 || response.type !== "basic") {
+            console.log("Service Worker: Fetching static asset from network failed for:", event.request.url)
             return response
           }
 
@@ -87,8 +92,10 @@ self.addEventListener("fetch", (event) => {
 
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache)
+            console.log("Service Worker: Caching new static asset:", event.request.url)
           })
 
+          console.log("Service Worker: Fetching static asset from network:", event.request.url)
           return response
         })
       }),
@@ -112,4 +119,5 @@ self.addEventListener("activate", (event) => {
       )
     }),
   )
+  console.log("Service Worker: Activating and cleaning up old caches.")
 })
