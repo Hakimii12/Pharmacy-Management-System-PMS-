@@ -20,6 +20,10 @@ const DispensaryForm = ({ product, onClose, onSuccess }) => {
   const [distributorName, setDistributorName] = useState(product?.distributor?.name || '');
   const [distributorContact, setDistributorContact] = useState(product?.distributor?.contact || '');
   const [errors, setErrors] = useState({});
+const [isSubmitting,setisSubmitting] = useState(false);
+const [productType, setProductType] = useState(product?.type || '');
+const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
+const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
 
   const categories = ["medicine", "cosmetic", "Supplements", "Medical Equipment", "Other"];
   const dosageFormsOptions = [
@@ -45,12 +49,24 @@ const DispensaryForm = ({ product, onClose, onSuccess }) => {
       setDosageForm(product.DosageForms || '');
       setDistributorName(product.distributor?.name || '');
       setDistributorContact(product.distributor?.contact || '');
+      setProductType(product.type || '');
+      setStoreThreshold(
+        product.inventory.storeThreshold !== undefined && product.inventory.storeThreshold !== null
+          ? String(product.inventory.storeThreshold)
+          : '10'
+      );
+      setDispensaryThreshold(
+        product.inventory.dispensaryThreshold !== undefined && product.inventory.dispensaryThreshold !== null
+          ? String(product.inventory.dispensaryThreshold)
+          : '10'
+      );
     }
   }, [product]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setisSubmitting(true); // Start loading
+
     const distributor = {
       name: distributorName,
       contact: distributorContact
@@ -66,7 +82,10 @@ const DispensaryForm = ({ product, onClose, onSuccess }) => {
       markup: parseFloat(markup),
       category,
       DosageForms: dosageForm,
-      distributor
+      distributor,
+      type: category !== "medicine" ? productType : undefined,
+      storeThreshold: parseInt(storeThreshold),
+      dispensaryThreshold: parseInt(dispensaryThreshold),
     };
 
     try {
@@ -102,6 +121,8 @@ const DispensaryForm = ({ product, onClose, onSuccess }) => {
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       }
+    } finally {
+      setisSubmitting(false); // End loading
     }
   };
 
@@ -338,6 +359,51 @@ const DispensaryForm = ({ product, onClose, onSuccess }) => {
                     )}
                   </div>
                 </div>
+                                {category !== "medicine" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Product Type *
+                    </label>
+                    <input
+                      type="text"
+                      value={productType}
+                      onChange={(e) => setProductType(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                      placeholder="Enter product type"
+                      required
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Store Threshold *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={storeThreshold}
+                    onChange={(e) => setStoreThreshold(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                    placeholder="Enter store threshold"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dispensary Threshold *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={dispensaryThreshold}
+                    onChange={(e) => setDispensaryThreshold(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                    placeholder="Enter dispensary threshold"
+                    required
+                  />
+                </div>
               </div>
             )}
 
@@ -370,9 +436,12 @@ const DispensaryForm = ({ product, onClose, onSuccess }) => {
                     <button
                       type="submit"
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center transition-colors"
+                      disabled={isSubmitting}
                     >
                       <FaSave className="mr-2" />
-                      {product ? 'Update Product' : 'Add Product'}
+                      {isSubmitting
+                        ? (product ? 'Updating...' : 'Adding...')
+                        : (product ? 'Update Product' : 'Add Product')}
                     </button>
                   </div>
                 </div>

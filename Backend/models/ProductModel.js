@@ -4,7 +4,8 @@ import Notification from "./NotificationModel.js"
 const ProductSchema = new mongoose.Schema({
   addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   name: { type: String, required: true, index: true },
-  brand: { type: String, required: true },
+  type: { type: String },
+  brand: { type: String },
   unitPrice: { type: Number, required: true },
   quantity: { type: Number, required: true }, // This is the total quantity across all locations
   visibility: { type: String, enum: ["enable", "disable", "deleted"], default: "enable" },
@@ -14,7 +15,7 @@ const ProductSchema = new mongoose.Schema({
   markup: { type: Number, required: true },
   sellingPrice: { type: Number, required: true },
   totalSellingPrice: { type: Number, required: true },
-  DosageForms: { type: String, enum: ["tablet", "syrup", "injection", "ointment", "-"], default: "-" },
+  DosageForms: { type: String, enum: ["tablet", "syrup", "injection", "ointment",""] },
   category: { type: String, enum: ["medicine", "cosmetic", "supplement", "Medical Equipment", "Other"] },
   distributor: {
     name: { type: String, required: true },

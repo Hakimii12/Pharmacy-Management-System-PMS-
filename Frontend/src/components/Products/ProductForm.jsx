@@ -3,7 +3,7 @@ import { FaTimes, FaSave, FaCalculator, FaSpinner } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Api from "../../data/API.json"
-const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
+const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDeleting}) => {
   const ApiLink=Api.link
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
@@ -19,7 +19,11 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const [distributorName, setDistributorName] = useState(product?.distributor?.name || '');
   const [distributorContact, setDistributorContact] = useState(product?.distributor?.contact || '');
   const [errors, setErrors] = useState({});
-  const [isSubmitting,setisSubmitting]=useState(false)
+  const [isSubmitting,setisSubmitting] = useState(false);
+  const [productType, setProductType] = useState(product?.type || '');
+  const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
+  const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
+  const [isDeletingState, setIsDeleting] = useState(false);
 
   const categories = ["medicine", "cosmetic", "Supplements", "Medical Equipment", "Other"];
   const dosageFormsOptions = [
@@ -45,6 +49,17 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       setDosageForm(product.DosageForms || '');
       setDistributorName(product.distributor?.name || '');
       setDistributorContact(product.distributor?.contact || '');
+      setProductType(product.type || '');
+      setStoreThreshold(
+        product.inventory.storeThreshold !== undefined && product.inventory.storeThreshold !== null
+          ? String(product.inventory.storeThreshold)
+          : '10'
+      );
+      setDispensaryThreshold(
+        product.inventory.dispensaryThreshold !== undefined && product.inventory.dispensaryThreshold !== null
+          ? String(product.inventory.dispensaryThreshold)
+          : '10'
+      );
     }
   }, [product]);
 
@@ -57,18 +72,21 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       contact: distributorContact
     };
 
-    const data = {
-      name,
-      brand,
-      unitPrice: parseFloat(unitPrice),
-      quantity: parseInt(quantity),
-      expiryDate,
-      batchNo: batchNumber,
-      markup: parseFloat(markup),
-      category,
-      DosageForms: dosageForm,
-      distributor
-    };
+  const data = {
+  name,
+  brand,
+  unitPrice: parseFloat(unitPrice),
+  quantity: parseInt(quantity),
+  expiryDate,
+  batchNo: batchNumber,
+  markup: parseFloat(markup),
+  category,
+  DosageForms: dosageForm,
+  distributor,
+  type: category !== "medicine" ? productType : undefined,
+  storeThreshold: parseInt(storeThreshold),
+  dispensaryThreshold: parseInt(dispensaryThreshold),
+};
 
     try {
       if (product) {
@@ -119,6 +137,21 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       }
     }finally{
       setisSubmitting(false)
+    }
+  };
+
+  const handleDelete = async (productId) => {
+    setIsDeleting(true);
+    try {
+      await axios.delete(`${ApiLink}/api/product/delete/${productId}`, {
+        withCredentials: true,
+      });
+      fetchProducts();
+      toast.success('Product deleted successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Delete failed');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -354,6 +387,52 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                       <p className="mt-1 text-sm text-red-500">{errors.distributorContact}</p>
                     )}
                   </div>
+                </div>
+
+                {category !== "medicine" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Product Type *
+                    </label>
+                    <input
+                      type="text"
+                      value={productType}
+                      onChange={(e) => setProductType(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                      placeholder="Enter product type"
+                      required
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Store Threshold *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={storeThreshold}
+                    onChange={(e) => setStoreThreshold(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                    placeholder="Enter store threshold"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dispensary Threshold *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={dispensaryThreshold}
+                    onChange={(e) => setDispensaryThreshold(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                    placeholder="Enter dispensary threshold"
+                    required
+                  />
                 </div>
               </div>
             )}

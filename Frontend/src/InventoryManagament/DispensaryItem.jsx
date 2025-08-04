@@ -146,6 +146,9 @@ useEffect(() => {
             <div className="ml-4">
               <div className="text-sm font-medium text-gray-900">{product.name}</div>
               <div className="text-sm text-gray-500">{product.brand}</div>
+              {product.type && (
+                <div className="text-xs text-blue-500 mt-1">{product.type}</div>
+              )}
             </div>
           </div>
         </td>
@@ -349,6 +352,9 @@ useEffect(() => {
               <div><strong>Contact:</strong> {product.distributor?.contact}</div>
               <div><strong>Dosage Form:</strong> {product.DosageForms}</div>
               <div><strong>Category:</strong> {product.category}</div>
+              {product.type && (
+                <div><strong>Type:</strong> {product.type}</div>
+              )}
               <div><strong>dispensary:</strong> {product.inventory?.dispensary}</div>
               <div><strong>dispensary Threshold:</strong> {product.inventory?.dispensaryThreshold}</div>
               <div><strong>Dispensary Threshold:</strong> {product.inventory?.dispensaryThreshold}</div>
