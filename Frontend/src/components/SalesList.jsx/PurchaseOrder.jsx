@@ -34,23 +34,25 @@ useEffect(()=>{
     name: '',
     brand: '',
     category: '',
-    dosageForm: ''
+    dosageForm: '',
+    type: '' // <-- Add type here
   });
 
   const [orderItems, setOrderItems] = useState([]);
   const [patientName, setPatientName] = useState('');
 
   const filteredProducts = products.filter(product => {
-
   return (
     (product.name || '').toLowerCase().includes(filters.name.toLowerCase()) &&
     (product.brand || '').toLowerCase().includes(filters.brand.toLowerCase()) &&
     (filters.category 
       ? (product.category || '').toLowerCase() === filters.category.toLowerCase() 
       : true) &&
-    // Fixed dosageForm filter:
     (filters.dosageForm 
       ? (product.DosageForms || '').toLowerCase() === filters.dosageForm.toLowerCase() 
+      : true) &&
+    (filters.type
+      ? (product.type || '').toLowerCase().includes(filters.type.toLowerCase())
       : true)
   );
 });
@@ -128,7 +130,7 @@ const handleSubmitOrder = async () => {
           <div className="bg-white p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4">Product Search</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>
                 <input
@@ -183,6 +185,17 @@ const handleSubmitOrder = async () => {
                   <option value="injection">Injection</option>
                   <option value="ointment">Ointment</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Type</label>
+                <input
+                  type="text"
+                  name="type"
+                  value={filters.type}
+                  onChange={handleFilterChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                  placeholder="Search by type"
+                />
               </div>
             </div>
             {loading ? <Loading/>:<ProductList 
