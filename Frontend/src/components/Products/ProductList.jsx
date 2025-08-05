@@ -46,8 +46,12 @@ useEffect(()=>{
   };
 
   const filteredProducts = fetched.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.type && product.type.toLowerCase().includes(searchTerm.toLowerCase())) || // Search by type
+      (product.unit && product.unit.toLowerCase().includes(searchTerm.toLowerCase()));   // Search by unit
+
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
     const matchesStatus = selectedStatus === 'All' || product.inventory.storeStatus === selectedStatus;
 

@@ -19,7 +19,13 @@ const ProductList = ({ products, onAdd }) => {
         <tbody className="bg-white divide-y divide-gray-200">
           {products.map(product => (
             <tr key={product._id}>
-              <td className="px-6 py-4 whitespace-nowrap">{product.name}</td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {product.name}
+                <br />
+                <span className="text-xs text-gray-500">
+                  Qty: {product.inventory.dispensary ?? "N/A"}
+                </span>
+              </td>
               <td className="px-6 py-4 whitespace-nowrap">{product.brand}</td>
               <td className="px-6 py-4 whitespace-nowrap">{product.category}</td>
               <td className="px-6 py-4 whitespace-nowrap">{product.DosageForms || "➖"}</td>
