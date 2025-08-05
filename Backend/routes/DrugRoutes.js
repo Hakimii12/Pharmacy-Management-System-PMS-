@@ -12,11 +12,13 @@ import { CreateProduct,
   UpdateProduct,
   DeleteFromDispensary,
   SmartDeleteProduct,
-  CountAllProduct} from "../controllers/ProductController.js";
+  CountAllProduct,
+  CreateProductInDispensary} from "../controllers/ProductController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 const router =  express.Router();
 router.get("/allProducts", Authenticated(), GetAllProducts);
 router.post("/CreateProducts",Authenticated (), CreateProduct);
+router.post("/createProductInDispensary",Authenticated (), CreateProductInDispensary);
 router.put("/update/:id",Authenticated (),UpdateProduct)
 router.post("/issueToDispensary",Authenticated(),IssueToDispensary);
 router.post("/returnToStore", Authenticated(), ReturnToStore);

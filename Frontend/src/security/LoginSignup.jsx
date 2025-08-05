@@ -112,7 +112,7 @@ const LoginSignup = () => {
               transition={{ delay: 0.2 }}
               className="text-2xl font-bold text-white tracking-wide"
             >
-              Hamza Masjid Drugstore
+              Hamza Masjid Pharmacy
             </motion.h1>
             <p className="text-teal-200 mt-1">Pharmacy Management System</p>
           </div>

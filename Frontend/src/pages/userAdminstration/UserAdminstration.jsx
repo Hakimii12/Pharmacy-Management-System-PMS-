@@ -64,7 +64,7 @@ const UserAdminstration = () => {
     
     try {
       setLoading(true);
-      await axios.post(`${ApiLink}/api/user/register`, {
+      await axios.post(`${ApiLink}/api/user/adminRegister`, {
         name: adminForm.name,
         email: adminForm.email,
         password: adminForm.password,
