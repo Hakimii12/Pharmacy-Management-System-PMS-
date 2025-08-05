@@ -47,8 +47,12 @@ useEffect(()=>{
   };
 
   const filteredProducts = fetched.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.type && product.type.toLowerCase().includes(searchTerm.toLowerCase())) || // Search by type
+      (product.unit && product.unit.toLowerCase().includes(searchTerm.toLowerCase()));   // Search by unit
+
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
     const matchesStatus = selectedStatus === 'All' || product.inventory.dispensaryStatus === selectedStatus;
 
@@ -58,7 +62,7 @@ useEffect(()=>{
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
-        {/* <div className="flex flex-col md:flex-row md:items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between">
           <h2 className="text-xl font-bold text-gray-800">Product Inventory</h2>
           <button 
             onClick={() => setShowForm(true)}
@@ -66,7 +70,7 @@ useEffect(()=>{
           >
             <FaPlus className="mr-2" />
           </button>
-        </div> */}
+        </div>
       </div>
       
       <div className="p-6">

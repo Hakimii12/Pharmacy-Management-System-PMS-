@@ -24,6 +24,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
   const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
   const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
   const [isDeletingState, setIsDeleting] = useState(false);
+  const [unit, setUnit] = useState(product?.unit || ''); // Add this line at the top with other useState hooks
 
   const categories = ["medicine", "cosmetic", "Supplements", "Medical Equipment", "Other"];
   const dosageFormsOptions = [
@@ -60,6 +61,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
           ? String(product.inventory.dispensaryThreshold)
           : '10'
       );
+      setUnit(product.unit || ''); // Reset unit
     }
   }, [product]);
 
@@ -73,19 +75,20 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
     };
 
   const data = {
-  name,
-  brand,
-  unitPrice: parseFloat(unitPrice),
-  quantity: parseInt(quantity),
-  expiryDate,
-  batchNo: batchNumber,
-  markup: parseFloat(markup),
-  category,
-  DosageForms: dosageForm,
-  distributor,
-  type: category !== "medicine" ? productType : undefined,
-  storeThreshold: parseInt(storeThreshold),
-  dispensaryThreshold: parseInt(dispensaryThreshold),
+    name,
+    brand,
+    unitPrice: parseFloat(unitPrice),
+    quantity: parseInt(quantity),
+    expiryDate,
+    batchNo: batchNumber,
+    markup: parseFloat(markup),
+    category,
+    DosageForms: dosageForm,
+    distributor,
+    type: category !== "medicine" ? productType : undefined,
+    storeThreshold: parseInt(storeThreshold),
+    dispensaryThreshold: parseInt(dispensaryThreshold),
+    ...(category === "medicine" && unit ? { unit } : {}), // Add unit if medicine
 };
 
     try {
@@ -219,21 +222,36 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                 </div>
 
                 {category === "medicine" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Brand *
-                    </label>
-                    <input
-                      type="text"
-                      value={brand}
-                      onChange={(e) => setBrand(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.brand ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Enter brand name"
-                    />
-                    {errors.brand && <p className="mt-1 text-sm text-red-500">{errors.brand}</p>}
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Brand *
+                      </label>
+                      <input
+                        type="text"
+                        value={brand}
+                        onChange={(e) => setBrand(e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          errors.brand ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="Enter brand name"
+                      />
+                      {errors.brand && <p className="mt-1 text-sm text-red-500">{errors.brand}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit *
+                      </label>
+                      <input
+                        type="text"
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                        placeholder="e.g. tablet, ml, capsule"
+                        required
+                      />
+                    </div>
+                  </>
                 )}
 
                 <div>

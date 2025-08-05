@@ -36,8 +36,7 @@ async function populateProductWithInventory(product) {
     inventory,
   }
 }
-
- export async function CreateProduct(req, res) {
+ export async function CreateProductInDispensary(req, res) {
   try {
     const userId = req.user._id
     const {
@@ -51,9 +50,10 @@ async function populateProductWithInventory(product) {
       category,
       distributor,
       brand,
-      storeThreshold,        // <-- accept separately
-      dispensaryThreshold,   // <-- accept separately
+      storeThreshold,
+      dispensaryThreshold,
       type,
+      unit, // <-- add unit here
     } = req.body
     const productBrand = brand || ""
     const productDosageForms = DosageForms || ""
@@ -67,7 +67,7 @@ async function populateProductWithInventory(product) {
       })
     }
 
-    const newProduct = new Product({
+    const newProductData = {
       addedBy: userId,
       name,
       brand: productBrand,
@@ -86,7 +86,95 @@ async function populateProductWithInventory(product) {
       visibility: "enable",
       type: productType,
       // Do NOT add threshold here
+    }
+    if (unit) newProductData.unit = unit // <-- add unit if provided
+
+    const newProduct = new Product(newProductData)
+    await newProduct.save()
+    await Store.updateStatus(newProduct._id);
+    await Dispensary.updateStatus(newProduct._id);
+
+    // Create store and dispensary records with their own thresholds
+    await Dispensary.create({
+      product: newProduct._id,
+      quantity: quantity,
+      threshold: storeThresholdValue,
+      isDeleted: false,
+      isActive: true,
+      type: productType,
     })
+    await Store.create({
+      product: newProduct._id,
+      quantity: 0,
+      threshold: dispensaryThresholdValue,
+      isDeleted: false,
+      isActive: true,
+      type: productType,
+    })
+
+    const productWithInventory = await populateProductWithInventory(newProduct)
+    return res.status(201).json({
+      message: "New product added successfully",
+      Product: productWithInventory,
+    })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+export async function CreateProduct(req, res) {
+  try {
+    const userId = req.user._id
+    const {
+      name,
+      unitPrice,
+      quantity,
+      batchNo,
+      expiryDate,
+      markup,
+      DosageForms,
+      category,
+      distributor,
+      brand,
+      storeThreshold,
+      dispensaryThreshold,
+      type,
+      unit, // <-- add unit here
+    } = req.body
+    const productBrand = brand || ""
+    const productDosageForms = DosageForms || ""
+    const productType = type || ""
+    const storeThresholdValue = storeThreshold !== undefined ? storeThreshold : 10
+    const dispensaryThresholdValue = dispensaryThreshold !== undefined ? dispensaryThreshold : 10
+
+    if (!distributor || !distributor.name || !distributor.contact) {
+      return res.status(400).json({
+        message: "Distributor information must include name and contact",
+      })
+    }
+
+    const newProductData = {
+      addedBy: userId,
+      name,
+      brand: productBrand,
+      unitPrice,
+      quantity,
+      totalPrice: unitPrice * quantity,
+      batchNo,
+      expiryDate,
+      markup,
+      sellingPrice: unitPrice * (1 + markup / 100),
+      totalSellingPrice: unitPrice * (1 + markup / 100) * quantity,
+      DosageForms: productDosageForms,
+      category,
+      distributor,
+      isDeleted: false,
+      visibility: "enable",
+      type: productType,
+      // Do NOT add threshold here
+    }
+    if (unit) newProductData.unit = unit // <-- add unit if provided
+
+    const newProduct = new Product(newProductData)
     await newProduct.save()
     await Store.updateStatus(newProduct._id);
     await Dispensary.updateStatus(newProduct._id);
