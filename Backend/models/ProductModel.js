@@ -104,5 +104,11 @@ ProductSchema.post("save", async (doc) => {
   }
 });
 
+// Ensure batchNo is unique only for non-deleted products
+ProductSchema.index(
+  { batchNo: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
+
 const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema)
 export default Product

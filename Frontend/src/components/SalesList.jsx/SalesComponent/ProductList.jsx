@@ -10,9 +10,9 @@ const ProductList = ({ products, onAdd }) => {
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dosage</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dosage Form</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock In Dispensary</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
@@ -23,8 +23,8 @@ const ProductList = ({ products, onAdd }) => {
               <td className="px-6 py-4 whitespace-nowrap">{product.brand}</td>
               <td className="px-6 py-4 whitespace-nowrap">{product.category}</td>
               <td className="px-6 py-4 whitespace-nowrap">{product.DosageForms || "➖"}</td>
+              <td className="px-6 py-4 whitespace-nowrap">{product.type || "➖"}</td>
               <td className="px-6 py-4 whitespace-nowrap">{product.sellingPrice.toFixed(2)}<span className='text-green-600 text-xs'>ETB</span></td>
-              <td className="px-6 py-4 whitespace-nowrap">{product.inventory.dispensary}</td>
               <td className="px-6 py-4 whitespace-nowrap">
                                     <button
                       onClick={(e) => {
