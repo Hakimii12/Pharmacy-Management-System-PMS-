@@ -30,7 +30,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const [fetchDosageForms, setFetchDosageForms] = useState([]);
   const categories = productCategories
   const dosageFormsOptions = fetchDosageForms.map(form => ({
-    value: form._id,
+    value: form.name,
     label: form.name
   }));
  useEffect(() => {

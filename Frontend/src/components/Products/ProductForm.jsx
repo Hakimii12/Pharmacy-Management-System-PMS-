@@ -29,7 +29,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
   const [isDeletingState, setIsDeleting] = useState(false);
   const [unit, setUnit] = useState(product?.unit || ''); // Add this line at the top with other useState hooks
   const dosageFormsOptions = fetchDosageForms.map(form => ({
-    value: form._id,
+    value: form.name,
     label: form.name
   }));
    useEffect(() => {
