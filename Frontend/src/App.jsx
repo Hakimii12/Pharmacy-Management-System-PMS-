@@ -21,6 +21,7 @@ import DispensaryHistory from "./InventoryManagament/DispensaryHistory/Dispensar
 import CloseDailyBalance from './components/SalesList.jsx/CloseDailyBalance/CloseDailyBalance';
 import UserAdminstration from './pages/userAdminstration/UserAdminstration';
 import Logout from "./security/Logout"
+import DosageFormsAndCategory from './Setting/DosageFormsAndCategory';
 function App() {
   const {isAuth} = useContext(ContextProvider)
   return isAuth ? (
@@ -46,6 +47,8 @@ function App() {
           <Route path="/reports" element={<Reports />} />
           {/* Logout */}
           <Route path="/logout" element={<Logout />} />
+          {/* Settings */}
+          <Route path="/dosage-forms-and-categories" element={<DosageFormsAndCategory />} />
           <Route path="/user-managment" element={<UserAdminstration />} />
         </Routes>
       </Layout>)

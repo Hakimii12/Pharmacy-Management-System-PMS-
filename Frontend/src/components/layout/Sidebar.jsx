@@ -16,7 +16,7 @@ import {
 } from "react-icons/fa"
 import { useState } from "react"
 import { FiSettings } from "react-icons/fi"
-import { AiOutlineUser, AiOutlineLogout } from "react-icons/ai"
+import { AiOutlineUser, AiOutlineLogout, AiOutlineFileText } from "react-icons/ai"
 
 const Sidebar = ({ closeSidebar }) => {
   const user = JSON.parse(localStorage.getItem("user-threads"))
@@ -50,6 +50,7 @@ const Sidebar = ({ closeSidebar }) => {
   const canViewReceiveOrder = () => ['cashier', 'admin', 'superAdmin'].includes(userRole);
   const canViewCloseBalance = () => ['admin', 'superAdmin'].includes(userRole);
   const canViewUserManagement = () => userRole === 'superAdmin';
+  const canViewDosageFormsAndCategory = () => ['admin', 'superAdmin'].includes(userRole);
 
   // Navigation items with authorization checks
   const navItems = [
@@ -155,6 +156,12 @@ const Sidebar = ({ closeSidebar }) => {
           icon: <AiOutlineLogout />,
           show: true
         },
+        {
+          name: "Dosage Forms & Categories",
+          path: "/dosage-forms-and-categories",
+          icon: <AiOutlineFileText />,
+          show: canViewDosageFormsAndCategory()
+        }
       ],
     },
   ]
