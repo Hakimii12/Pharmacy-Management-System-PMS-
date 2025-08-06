@@ -6,16 +6,24 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import Loading from '../Loading/Loading';
 import Api from "../../data/API.json";
-import { fetchCategories, getCategories} from '../../data/products';
+import { fetchCategories, getCategories,GetDosageForm,fetchDosageForm} from '../../data/products';
   const PurchaseOrder = () => {
     const ApiLink=Api.link
 const [products,setProdcuts]=useState([])
 const [loading,setLoading]=useState(false)
 const [productCategories, setProductCategories] = useState([]);
+const [fetchDosageForms, setFetchDosageForms] = useState([]);
 useEffect(() => {
     const loadCategories = async () => {
       await fetchCategories();
       setProductCategories(getCategories());
+    };
+    loadCategories();
+  }, []);
+useEffect(() => {
+    const loadCategories = async () => {
+      await fetchDosageForm();
+      setFetchDosageForms(GetDosageForm());
     };
     loadCategories();
   }, []);
@@ -183,13 +191,9 @@ const handleSubmitOrder = async () => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                 >
                   <option value="">All</option>
-                  <option value="tablet">Tablet</option>
-                  <option value="capsule">Capsule</option>
-                  <option value="liquid">Liquid</option>
-                  <option value="cream">Cream</option>
-                  <option value="syrup">Syrup</option>
-                  <option value="injection">Injection</option>
-                  <option value="ointment">Ointment</option>
+                  {fetchDosageForms.map(form => (
+                    <option key={form._id} value={form.name}>{form.name}</option>
+                  ))}
                 </select>
               </div>
               <div>

@@ -20,3 +20,17 @@ export const fetchCategories = async () => {
     return [];
   }
 };
+export const GetDosageForm = () => productCategories;
+
+export const fetchDosageForm = async () => {
+  try {
+    const response = await axios.get(`${ApiLink}/api/form/dosage-forms`, {
+      withCredentials: true
+    });
+    productCategories = response.data.map(form => form);
+    return productCategories;
+  } catch (error) {
+    console.error("Error fetching dosage forms:", error);
+    return [];
+  }
+};

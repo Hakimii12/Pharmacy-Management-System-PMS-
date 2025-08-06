@@ -9,7 +9,6 @@ import Api from "../data/API.json"
 import { fetchCategories } from '../data/products';
 import { getCategories } from '../data/products';
 const Backstore = () => { 
-  console.log(productCategories)
   const ApiLink=Api.link
   const [productCategories, setProductCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);

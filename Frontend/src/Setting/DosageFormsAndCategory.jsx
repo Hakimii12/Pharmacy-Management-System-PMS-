@@ -420,12 +420,12 @@ const DosageFormsAndCategories = () => {
                           </div>
                         ) : (
                           <div className="flex justify-end space-x-4">
-                            <button
+                            {/* <button
                               onClick={() => startEditing(category._id, category.name, 'category')}
                               className="text-blue-600 hover:text-blue-900"
                             >
                               <FaEdit className="inline mr-1" /> Edit
-                            </button>
+                            </button> */}
                             <button
                               onClick={() => handleDeleteCategory(category._id)}
                               className="text-red-600 hover:text-red-900"

@@ -3,7 +3,7 @@ import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Api from "../data/API.json"
-import { fetchCategories,getCategories  } from '../data/products';
+import { fetchCategories,getCategories ,GetDosageForm,fetchDosageForm } from '../data/products';
 const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const ApiLink=Api.link
   // State initialization with product data if available
@@ -21,19 +21,18 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const [distributorName, setDistributorName] = useState(product?.distributor?.name || '');
   const [distributorContact, setDistributorContact] = useState(product?.distributor?.contact || '');
   const [errors, setErrors] = useState({});
-const [isSubmitting,setisSubmitting] = useState(false);
-const [productType, setProductType] = useState(product?.type || '');
-const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
-const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
-const [unit, setUnit] = useState(product?.unit || ''); // Add with other useState hooks
+ const [isSubmitting,setisSubmitting] = useState(false);
+ const [productType, setProductType] = useState(product?.type || '');
+ const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
+ const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
+ const [unit, setUnit] = useState(product?.unit || ''); // Add with other useState hooks
   const [productCategories, setProductCategories] = useState([]);
+  const [fetchDosageForms, setFetchDosageForms] = useState([]);
   const categories = productCategories
-  const dosageFormsOptions = [
-    { value: 'tablet', label: 'Tablet' },
-    { value: 'syrup', label: 'Syrup' },
-    { value: 'injection', label: 'Injection' },
-    { value: 'ointment', label: 'Ointment' }
-  ];
+  const dosageFormsOptions = fetchDosageForms.map(form => ({
+    value: form._id,
+    label: form.name
+  }));
  useEffect(() => {
     const loadCategories = async () => {
       await fetchCategories();
@@ -41,6 +40,13 @@ const [unit, setUnit] = useState(product?.unit || ''); // Add with other useStat
     };
     loadCategories();
     fetchProducts();
+  }, []);
+   useEffect(() => {
+    const loadCategories = async () => {
+      await fetchDosageForm();
+      setFetchDosageForms(GetDosageForm());
+    };
+    loadCategories();
   }, []);
   useEffect(() => {
     // Reset form when switching between create and edit
