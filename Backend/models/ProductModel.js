@@ -16,8 +16,8 @@ const ProductSchema = new mongoose.Schema({
   markup: { type: Number, required: true },
   sellingPrice: { type: Number, required: true },
   totalSellingPrice: { type: Number, required: true },
-  DosageForms: { type: String, enum: ["tablet", "syrup", "injection", "ointment",""] },
-  category: { type: String, enum: ["medicine", "cosmetic", "supplement", "Medical Equipment", "Other"] },
+  DosageForms: { type: String },
+  category: { type: String },
   distributor: {
     name: { type: String, required: true },
     contact: String,

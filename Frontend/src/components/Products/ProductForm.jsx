@@ -3,8 +3,11 @@ import { FaTimes, FaSave, FaCalculator, FaSpinner } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Api from "../../data/API.json"
+import { fetchCategories,getCategories ,GetDosageForm,fetchDosageForm } from '../../data/products';
 const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDeleting}) => {
   const ApiLink=Api.link
+  const [productCategories, setProductCategories] = useState([]);
+  const [fetchDosageForms, setFetchDosageForms] = useState([]);
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
   const [unitPrice, setUnitPrice] = useState(product?.unitPrice || '');
@@ -25,15 +28,25 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
   const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
   const [isDeletingState, setIsDeleting] = useState(false);
   const [unit, setUnit] = useState(product?.unit || ''); // Add this line at the top with other useState hooks
-
-  const categories = ["medicine", "cosmetic", "Supplements", "Medical Equipment", "Other"];
-  const dosageFormsOptions = [
-    { value: 'tablet', label: 'Tablet' },
-    { value: 'syrup', label: 'Syrup' },
-    { value: 'injection', label: 'Injection' },
-    { value: 'ointment', label: 'Ointment' }
-  ];
-
+  const dosageFormsOptions = fetchDosageForms.map(form => ({
+    value: form._id,
+    label: form.name
+  }));
+   useEffect(() => {
+    const loadCategories = async () => {
+      await fetchCategories();
+      setProductCategories(getCategories());
+    };
+    loadCategories();
+    fetchProducts();
+  }, []);
+    useEffect(() => {
+      const loadCategories = async () => {
+        await fetchDosageForm();
+        setFetchDosageForms(GetDosageForm());
+      };
+      loadCategories();
+    }, []);
   useEffect(() => {
     // Reset form when switching between create and edit
     if (product) {
@@ -195,7 +208,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                 required
               >
                 <option value="">Select a category</option>
-                {categories.map(cat => (
+                {productCategories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
