@@ -9,6 +9,5 @@ const CategorySchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-const Category = mongoose.models.Category || 
-                 mongoose.model("Category", CategorySchema);
-export default Category;
+const Category = mongoose.model("Category", CategorySchema);
+export default Category

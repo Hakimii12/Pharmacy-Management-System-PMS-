@@ -9,6 +9,5 @@ const DosageFormSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-const DosageForm = mongoose.models.DosageForm || 
-                   mongoose.model("DosageForm", DosageFormSchema);
+const DosageForm = mongoose.model("DosageForm", DosageFormSchema);
 export default DosageForm;
