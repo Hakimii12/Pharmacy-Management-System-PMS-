@@ -9,7 +9,7 @@ import UserRoutes from "./routes/UserRoutes.js";
 import {startExpirationChecker} from "./utils/expairDateCounter.js"
 import NotificationRoutes from "./routes/NotificationRoutes.js"
 import ProfitRoutes from "./routes/ProfitRoutes.js"
-import DosageFormsCategoryRoutes from "./routes/DosageFormsAndcategoryRoutes.js"
+import DosageFormsRoutes from "./routes/DosageFormsAndcategoryRoutes.js"
 const app =express();
 app.use(express.json())
 app.use(cors({
@@ -27,9 +27,20 @@ app.use("/api/sales", SalesRoutes);
 app.use("/api/user", UserRoutes);
 app.use("/api/notify", NotificationRoutes);
 app.use("/api/profit",ProfitRoutes)
-app.use("/api/form",DosageFormsCategoryRoutes)
+app.use("/api/form",DosageFormsRoutes)
 //Database connection initialization
-Database();
-app.listen(process.env.PORT,()=>{
-    console.log(`server is running on port ${process.env.PORT}`)
+Database()
+  .then(() => {
+    startExpirationChecker();
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error("Database connection failed", err);
+    process.exit(1);
+  });
+app.listen(process.env.PORT, () => {
+  console.log(`server is running on port ${process.env.PORT}`);
 })

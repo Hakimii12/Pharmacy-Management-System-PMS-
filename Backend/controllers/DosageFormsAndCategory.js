@@ -1,6 +1,6 @@
-import DosageForm from "../models/DosageFormsModel.js";
 import Product from "../models/ProductModel.js";
 import Category from "../models/categoryModel.js";
+import DosageForm from "../models/dosageformsmodel.js";
 export async function GetAllDosageForms(req, res) {
   try {
     const forms = await DosageForm.find().sort({ name: 1 });
