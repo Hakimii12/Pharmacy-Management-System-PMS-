@@ -1,13 +1,14 @@
 import ProductItem from './ProductItem';
 import ProductForm from './ProductForm';
 import { FaPlus, FaSearch } from 'react-icons/fa';
-import { products, productCategories } from '../../data/products';
+import { fetchCategories, getCategories } from '../../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import Loading from '../Loading/Loading';
 import axios from 'axios';
 import Api from "../../data/API.json"
 const ProductList = () => {
+  const [productCategories, setProductCategories] = useState([]);
   const ApiLink=Api.link
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -16,6 +17,14 @@ const ProductList = () => {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [fetched,setFetched]=useState([])
   const [isLoading,setIsLoading]=useState(false)
+  useEffect(() => {
+    const loadCategories = async () => {
+      await fetchCategories();
+      setProductCategories(getCategories());
+    };
+    loadCategories();
+    fetchProducts();
+  }, []);
   async function fetchProducts(){
     setIsLoading(true)
   try {

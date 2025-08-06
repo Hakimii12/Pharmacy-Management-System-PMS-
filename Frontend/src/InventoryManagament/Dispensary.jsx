@@ -1,14 +1,17 @@
 import DispensaryForm from './DispensaryForm';
 import DispensaryItem from './DispensaryItem';
 import { FaPlus, FaSearch } from 'react-icons/fa';
-import { products, productCategories } from '../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
 import Loading from '../components/Loading/Loading';
 import Api from "../data/API.json"
+import { fetchCategories } from '../data/products';
+import { getCategories } from '../data/products';
+
 const Dispensary = () => {
   const ApiLink=Api.link
+  const [productCategories, setProductCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,6 +36,14 @@ const Dispensary = () => {
     setIsLoading(false)
   }
 };
+ useEffect(() => {
+    const loadCategories = async () => {
+      await fetchCategories();
+      setProductCategories(getCategories());
+    };
+    loadCategories();
+    fetchProducts();
+  }, []);
 useEffect(()=>{
   fetchProducts()
 },[])

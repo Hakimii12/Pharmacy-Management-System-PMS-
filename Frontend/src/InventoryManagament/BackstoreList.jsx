@@ -1,14 +1,17 @@
 import BackstoreForm from './BackstoreForm';
 import BackstoreItem from './BackstoreItem';
 import { FaPlus, FaSearch } from 'react-icons/fa';
-import { products, productCategories } from '../data/products';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import axios from 'axios';
 import Loading from '../components/Loading/Loading';
 import Api from "../data/API.json"
-const Backstore = () => {
+import { fetchCategories } from '../data/products';
+import { getCategories } from '../data/products';
+const Backstore = () => { 
+  console.log(productCategories)
   const ApiLink=Api.link
+  const [productCategories, setProductCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +19,14 @@ const Backstore = () => {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [fetched,setFetched]=useState([])
   const [isLoading,setIsLoading]=useState(false)
+      useEffect(() => {
+      const loadCategories = async () => {
+        await fetchCategories();
+        setProductCategories(getCategories());
+      };
+      loadCategories();
+      fetchProducts();
+    }, []);
   async function fetchProducts(){
     setIsLoading(true)
   try {
@@ -95,7 +106,7 @@ useEffect(()=>{
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
               <option value="All">All Categories</option>
-              {productCategories.map(category => (
+              {productCategories?.map(category => (
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>

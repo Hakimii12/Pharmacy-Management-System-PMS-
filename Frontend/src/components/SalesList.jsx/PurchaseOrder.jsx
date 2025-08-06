@@ -5,11 +5,20 @@ import OrderCart from './SalesComponent/OrderCart';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Loading from '../Loading/Loading';
-import Api from "../../data/API.json"
+import Api from "../../data/API.json";
+import { fetchCategories, getCategories} from '../../data/products';
   const PurchaseOrder = () => {
     const ApiLink=Api.link
 const [products,setProdcuts]=useState([])
 const [loading,setLoading]=useState(false)
+const [productCategories, setProductCategories] = useState([]);
+useEffect(() => {
+    const loadCategories = async () => {
+      await fetchCategories();
+      setProductCategories(getCategories());
+    };
+    loadCategories();
+  }, []);
 async function FetchItems(){
   setLoading(true)
   try {
@@ -28,7 +37,7 @@ async function FetchItems(){
     
 }
 useEffect(()=>{
-  FetchItems()
+  FetchItems();
 },[])
   const [filters, setFilters] = useState({
     name: '',
@@ -160,12 +169,9 @@ const handleSubmitOrder = async () => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                 >
                   <option value="">All</option>
-                  <option value="medicine">Medicine</option>
-                  <option value="supplement">Supplement</option>
-                  <option value="sanitary">Sanitary</option>
-                  <option value="cosmetic">Cosmetic</option>
-                  <option value="Medical Equipment">Medical Equipment</option>
-                  <option value="Other">Other</option>
+                  {productCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
                 </select>
               </div>
               <div>

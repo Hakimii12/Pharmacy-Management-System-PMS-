@@ -3,7 +3,8 @@ import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Api from "../data/API.json"
-const DispensaryForm = ({ product, onClose, onSuccess }) => {
+import { fetchCategories,getCategories  } from '../data/products';
+const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const ApiLink=Api.link
   // State initialization with product data if available
   const [name, setName] = useState(product?.name || '');
@@ -25,15 +26,22 @@ const [productType, setProductType] = useState(product?.type || '');
 const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
 const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
 const [unit, setUnit] = useState(product?.unit || ''); // Add with other useState hooks
-
-  const categories = ["medicine", "cosmetic", "Supplements", "Medical Equipment", "Other"];
+  const [productCategories, setProductCategories] = useState([]);
+  const categories = productCategories
   const dosageFormsOptions = [
     { value: 'tablet', label: 'Tablet' },
     { value: 'syrup', label: 'Syrup' },
     { value: 'injection', label: 'Injection' },
     { value: 'ointment', label: 'Ointment' }
   ];
-
+ useEffect(() => {
+    const loadCategories = async () => {
+      await fetchCategories();
+      setProductCategories(getCategories());
+    };
+    loadCategories();
+    fetchProducts();
+  }, []);
   useEffect(() => {
     // Reset form when switching between create and edit
     if (product) {
@@ -118,6 +126,7 @@ const [unit, setUnit] = useState(product?.unit || ''); // Add with other useStat
 
       if (onSuccess) onSuccess(); // Refresh data in parent component
       onClose(); // Close the form
+      fetchProducts()
     } catch (error) {
       console.error('Error:', error);
       toast.error(error.response?.data?.message || 'An error occurred');
