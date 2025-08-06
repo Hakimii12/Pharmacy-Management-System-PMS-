@@ -4,8 +4,9 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Api from "../data/API.json"
+
 const DosageFormsAndCategories = () => {
-  const ApiLink = Api.link;
+    const ApiLink = Api.link;
   const [activeTab, setActiveTab] = useState('dosageForms');
   const [dosageForms, setDosageForms] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -174,75 +175,77 @@ const DosageFormsAndCategories = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
+    <div className="container mx-auto p-2 sm:p-4 max-w-6xl">
       <ToastContainer position="top-right" autoClose={3000} />
       
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-          <FaPills className="mr-3 text-emerald-600" />
-          Dosage Forms & Categories Management
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-xl sm:text-3xl font-bold text-gray-800 flex items-center">
+          <FaPills className="mr-2 sm:mr-3 text-emerald-600" />
+          <span className="text-sm sm:text-base md:text-xl lg:text-3xl">
+            Dosage Forms & Categories
+          </span>
         </h1>
-        <p className="text-gray-600 mt-2">
+        <p className="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm">
           Manage medication dosage forms and product categories
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex space-x-8">
+      {/* Responsive Tabs */}
+      <div className="border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
+        <nav className="flex space-x-2 sm:space-x-8 min-w-max">
           <button
             onClick={() => setActiveTab('dosageForms')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm ${
               activeTab === 'dosageForms'
                 ? 'border-emerald-500 text-emerald-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             <div className="flex items-center">
-              <FaPills className="mr-2" />
+              <FaPills className="mr-1 sm:mr-2" />
               Dosage Forms
               {loading.dosageForms && (
-                <span className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-r-transparent"></span>
+                <span className="ml-1 sm:ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-r-transparent"></span>
               )}
             </div>
           </button>
           
           <button
             onClick={() => setActiveTab('categories')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm ${
               activeTab === 'categories'
                 ? 'border-emerald-500 text-emerald-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             <div className="flex items-center">
-              <FaTag className="mr-2" />
+              <FaTag className="mr-1 sm:mr-2" />
               Categories
               {loading.categories && (
-                <span className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-r-transparent"></span>
+                <span className="ml-1 sm:ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-r-transparent"></span>
               )}
             </div>
           </button>
         </nav>
       </div>
 
-      {/* Dosage Forms Tab */}
+      {/* Dosage Forms Tab - Responsive */}
       {activeTab === 'dosageForms' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">Dosage Forms</h2>
-            <div className="flex">
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Dosage Forms</h2>
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
               <input
                 type="text"
                 value={newDosageForm}
                 onChange={(e) => setNewDosageForm(e.target.value)}
                 placeholder="Add new dosage form"
-                className="px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-64"
+                className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded sm:rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-full"
               />
               <button
                 onClick={handleCreateDosageForm}
                 disabled={loading.addingDosage}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-r-md flex items-center disabled:opacity-50"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded sm:rounded-r-md flex items-center justify-center disabled:opacity-50"
               >
                 {loading.addingDosage ? (
                   <>
@@ -251,107 +254,95 @@ const DosageFormsAndCategories = () => {
                   </>
                 ) : (
                   <>
-                    <FaPlus className="mr-2" />
-                    Add
+                    <FaPlus className="mr-1 sm:mr-2" />
+                    <span className="text-sm sm:text-base">Add</span>
                   </>
                 )}
               </button>
             </div>
           </div>
 
-          {dosageForms.length === 0 ? (
-            <div className="text-center py-12">
-              <FaPills className="mx-auto text-4xl text-gray-400 mb-4" />
-              <p className="text-gray-500">No dosage forms found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+          {/* Responsive Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {dosageForms.map((form) => (
+                  <tr key={form._id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
+                      {editingId === form._id ? (
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded-md w-full max-w-xs"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="text-xs sm:text-sm font-medium text-gray-900">{form.name}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-right text-xs sm:text-sm font-medium">
+                      {editingId === form._id ? (
+                        <div className="flex justify-end space-x-1 sm:space-x-2">
+                          <button
+                            onClick={() => saveEdit(form._id, 'dosageForm')}
+                            className="text-emerald-600 hover:text-emerald-900 flex items-center"
+                          >
+                            <FaSave className="sm:mr-1" /> <span className="hidden sm:inline">Save</span>
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="text-gray-600 hover:text-gray-900 flex items-center ml-2"
+                          >
+                            <FaTimes className="sm:mr-1" /> <span className="hidden sm:inline">Cancel</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end space-x-2 sm:space-x-4">
+                          <button
+                            onClick={() => handleDeleteDosageForm(form._id)}
+                            className="text-red-600 hover:text-red-900 flex items-center"
+                          >
+                            <FaTrash className="mr-0 sm:mr-1" /> <span className="hidden sm:inline">Delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {dosageForms.map((form) => (
-                    <tr key={form._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {editingId === form._id ? (
-                          <input
-                            type="text"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="px-3 py-1 border border-gray-300 rounded-md w-full max-w-xs"
-                            autoFocus
-                          />
-                        ) : (
-                          <div className="text-sm font-medium text-gray-900">{form.name}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {editingId === form._id ? (
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => saveEdit(form._id, 'dosageForm')}
-                              className="text-emerald-600 hover:text-emerald-900"
-                            >
-                              <FaSave className="inline mr-1" /> Save
-                            </button>
-                            <button
-                              onClick={cancelEditing}
-                              className="text-gray-600 hover:text-gray-900"
-                            >
-                              <FaTimes className="inline mr-1" /> Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex justify-end space-x-4">
-                            {/* <button
-                              onClick={() => startEditing(form._id, form.name, 'dosageForm')}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <FaEdit className="inline mr-1" /> Edit
-                            </button> */}
-                            <button
-                              onClick={() => handleDeleteDosageForm(form._id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <FaTrash className="inline mr-1" /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Categories Tab */}
+      {/* Categories Tab - Responsive */}
       {activeTab === 'categories' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">Categories</h2>
-            <div className="flex">
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Categories</h2>
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
               <input
                 type="text"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="Add new category"
-                className="px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-64"
+                className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded sm:rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-full"
               />
               <button
                 onClick={handleCreateCategory}
                 disabled={loading.addingCategory}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-r-md flex items-center disabled:opacity-50"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded sm:rounded-r-md flex items-center justify-center disabled:opacity-50"
               >
                 {loading.addingCategory ? (
                   <>
@@ -360,87 +351,75 @@ const DosageFormsAndCategories = () => {
                   </>
                 ) : (
                   <>
-                    <FaPlus className="mr-2" />
-                    Add
+                    <FaPlus className="mr-1 sm:mr-2" />
+                    <span className="text-sm sm:text-base">Add</span>
                   </>
                 )}
               </button>
             </div>
           </div>
 
-          {categories.length === 0 ? (
-            <div className="text-center py-12">
-              <FaTag className="mx-auto text-4xl text-gray-400 mb-4" />
-              <p className="text-gray-500">No categories found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+          {/* Responsive Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {categories.map((category) => (
+                  <tr key={category._id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
+                      {editingId === category._id ? (
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded-md w-full max-w-xs"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="text-xs sm:text-sm font-medium text-gray-900">{category.name}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-right text-xs sm:text-sm font-medium">
+                      {editingId === category._id ? (
+                        <div className="flex justify-end space-x-1 sm:space-x-2">
+                          <button
+                            onClick={() => saveEdit(category._id, 'category')}
+                            className="text-emerald-600 hover:text-emerald-900 flex items-center"
+                          >
+                            <FaSave className="sm:mr-1" /> <span className="hidden sm:inline">Save</span>
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="text-gray-600 hover:text-gray-900 flex items-center ml-2"
+                          >
+                            <FaTimes className="sm:mr-1" /> <span className="hidden sm:inline">Cancel</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end space-x-2 sm:space-x-4">
+                          <button
+                            onClick={() => handleDeleteCategory(category._id)}
+                            className="text-red-600 hover:text-red-900 flex items-center"
+                          >
+                            <FaTrash className="mr-0 sm:mr-1" /> <span className="hidden sm:inline">Delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {categories.map((category) => (
-                    <tr key={category._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {editingId === category._id ? (
-                          <input
-                            type="text"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="px-3 py-1 border border-gray-300 rounded-md w-full max-w-xs"
-                            autoFocus
-                          />
-                        ) : (
-                          <div className="text-sm font-medium text-gray-900">{category.name}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {editingId === category._id ? (
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => saveEdit(category._id, 'category')}
-                              className="text-emerald-600 hover:text-emerald-900"
-                            >
-                              <FaSave className="inline mr-1" /> Save
-                            </button>
-                            <button
-                              onClick={cancelEditing}
-                              className="text-gray-600 hover:text-gray-900"
-                            >
-                              <FaTimes className="inline mr-1" /> Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex justify-end space-x-4">
-                            {/* <button
-                              onClick={() => startEditing(category._id, category.name, 'category')}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <FaEdit className="inline mr-1" /> Edit
-                            </button> */}
-                            <button
-                              onClick={() => handleDeleteCategory(category._id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <FaTrash className="inline mr-1" /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
