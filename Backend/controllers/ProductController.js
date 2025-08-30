@@ -339,10 +339,6 @@ export async function UpdateProduct(req, res) {
       return res.status(404).json({ message: "Product not found" })
     }
 
-    if (existingProduct.addedBy.toString() !== userId.toString()) {
-      return res.status(403).json({ message: "Only the person who launched can update this product" })
-    }
-
     if (updates.distributor) {
       if (!updates.distributor.name || !updates.distributor.contact) {
         return res.status(400).json({
@@ -641,7 +637,7 @@ export async function GetAllProducts(req, res) {
 
 export async function GetStoreProduct(req, res) {
   try {
-    const storeProducts = await Store.find({ quantity: { $gt: 0 }, isDeleted: { $ne: true }, isActive: true }).populate(
+    const storeProducts = await Store.find({ quantity: { $gte: 0 }, isDeleted: { $ne: true }, isActive: true }).populate(
       "product",
     )
     const products = storeProducts.map((store) => store.product).filter(Boolean)
@@ -927,5 +923,76 @@ export async function CountAllProduct(req, res) {
     return res.json(result)
   } catch (error) {
     return res.status(500).json({ message: error.message })
+  }
+}
+export async function UpdateStoreQuantity(req, res) {
+  try {
+    const productId = req.params.id;
+    let { quantity } = req.body;
+    quantity = Number(quantity); // Ensure it's a number
+
+    const store = await Store.findOne({ product: productId });
+    const dispensary = await Dispensary.findOne({ product: productId });
+
+    if (!store) return res.status(404).json({ message: "Store record not found" });
+
+    // Update store quantity
+    store.quantity = quantity;
+    await store.save();
+
+    // Update product total quantity
+    const dispensaryQty = dispensary ? Number(dispensary.quantity) : 0;
+    await Product.findByIdAndUpdate(productId, {
+      quantity: quantity + dispensaryQty,
+    });
+
+    await Store.updateStatus(productId);
+    await Dispensary.updateStatus(productId);
+
+    const updatedProduct = await Product.findById(productId);
+    const productWithInventory = await populateProductWithInventory(updatedProduct);
+
+    return res.status(200).json({
+      message: "Store quantity updated successfully",
+      product: productWithInventory,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+}
+
+export async function UpdateDispensaryQuantity(req, res) {
+  try {
+    const productId = req.params.id;
+    let { quantity } = req.body;
+    quantity = Number(quantity); // Ensure it's a number
+
+    const dispensary = await Dispensary.findOne({ product: productId });
+    const store = await Store.findOne({ product: productId });
+
+    if (!dispensary) return res.status(404).json({ message: "Dispensary record not found" });
+
+    // Update dispensary quantity
+    dispensary.quantity = quantity;
+    await dispensary.save();
+
+    // Update product total quantity
+    const storeQty = store ? Number(store.quantity) : 0;
+    await Product.findByIdAndUpdate(productId, {
+      quantity: storeQty + quantity,
+    });
+
+    await Store.updateStatus(productId);
+    await Dispensary.updateStatus(productId);
+
+    const updatedProduct = await Product.findById(productId);
+    const productWithInventory = await populateProductWithInventory(updatedProduct);
+
+    return res.status(200).json({
+      message: "Dispensary quantity updated successfully",
+      product: productWithInventory,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 }

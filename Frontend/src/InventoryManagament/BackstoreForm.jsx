@@ -12,7 +12,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
   const [unitPrice, setUnitPrice] = useState(product?.unitPrice || '');
-  const [quantity, setQuantity] = useState(product?.quantity || '');
+  const [quantity, setQuantity] = useState(product?.inventory?.store || '');
   const [expiryDate, setExpiryDate] = useState(
     product?.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
   );
@@ -53,7 +53,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       setName(product.name || '');
       setBrand(product.brand || '');
       setUnitPrice(product.unitPrice || '');
-      setQuantity(product.quantity || '');
+      setQuantity(product.inventory?.store || '');
       setExpiryDate(
         product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
       );
@@ -108,7 +108,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       if (product) {
         // Update existing product
         const response = await axios.put(
-          `${ApiLink}/api/product/update/${product._id}`,
+          `${ApiLink}/api/product/updateStoreQuantity/${product._id}`,
           data,
           {
             headers: { 'Content-Type': 'application/json' },
