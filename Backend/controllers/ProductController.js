@@ -928,7 +928,7 @@ export async function CountAllProduct(req, res) {
 export async function UpdateStoreQuantity(req, res) {
   try {
     const productId = req.params.id;
-    let { quantity } = req.body;
+    let { quantity, ...otherUpdates } = req.body;
     quantity = Number(quantity); // Ensure it's a number
 
     const store = await Store.findOne({ product: productId });
@@ -940,20 +940,18 @@ export async function UpdateStoreQuantity(req, res) {
     store.quantity = quantity;
     await store.save();
 
-    // Update product total quantity
+    // Update product total quantity and other fields
     const dispensaryQty = dispensary ? Number(dispensary.quantity) : 0;
-    await Product.findByIdAndUpdate(productId, {
-      quantity: quantity + dispensaryQty,
-    });
+    otherUpdates.quantity = quantity + dispensaryQty;
+    const updatedProduct = await Product.findByIdAndUpdate(productId, otherUpdates, { new: true, runValidators: true });
 
     await Store.updateStatus(productId);
     await Dispensary.updateStatus(productId);
 
-    const updatedProduct = await Product.findById(productId);
     const productWithInventory = await populateProductWithInventory(updatedProduct);
 
     return res.status(200).json({
-      message: "Store quantity updated successfully",
+      message: "Store quantity and product details updated successfully",
       product: productWithInventory,
     });
   } catch (error) {
@@ -964,7 +962,7 @@ export async function UpdateStoreQuantity(req, res) {
 export async function UpdateDispensaryQuantity(req, res) {
   try {
     const productId = req.params.id;
-    let { quantity } = req.body;
+    let { quantity, ...otherUpdates } = req.body;
     quantity = Number(quantity); // Ensure it's a number
 
     const dispensary = await Dispensary.findOne({ product: productId });
@@ -976,20 +974,18 @@ export async function UpdateDispensaryQuantity(req, res) {
     dispensary.quantity = quantity;
     await dispensary.save();
 
-    // Update product total quantity
+    // Update product total quantity and other fields
     const storeQty = store ? Number(store.quantity) : 0;
-    await Product.findByIdAndUpdate(productId, {
-      quantity: storeQty + quantity,
-    });
+    otherUpdates.quantity = storeQty + quantity;
+    const updatedProduct = await Product.findByIdAndUpdate(productId, otherUpdates, { new: true, runValidators: true });
 
     await Store.updateStatus(productId);
     await Dispensary.updateStatus(productId);
 
-    const updatedProduct = await Product.findById(productId);
     const productWithInventory = await populateProductWithInventory(updatedProduct);
 
     return res.status(200).json({
-      message: "Dispensary quantity updated successfully",
+      message: "Dispensary quantity and product details updated successfully",
       product: productWithInventory,
     });
   } catch (error) {

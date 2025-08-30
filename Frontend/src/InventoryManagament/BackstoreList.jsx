@@ -8,6 +8,7 @@ import Loading from '../components/Loading/Loading';
 import Api from "../data/API.json"
 import { fetchCategories } from '../data/products';
 import { getCategories } from '../data/products';
+import Pagination from '../Pagination/Pagination';
 const Backstore = () => { 
   const ApiLink=Api.link
   const [productCategories, setProductCategories] = useState([]);
@@ -18,6 +19,8 @@ const Backstore = () => {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [fetched,setFetched]=useState([])
   const [isLoading,setIsLoading]=useState(false)
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
       useEffect(() => {
       const loadCategories = async () => {
         await fetchCategories();
@@ -69,6 +72,11 @@ useEffect(()=>{
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -150,8 +158,8 @@ useEffect(()=>{
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map(product => (
-                <BackstoreItem key={product.id} product={product} onEdit={handleEdit} fetchProducts={fetchProducts} />
+              {paginatedProducts.map(product => (
+                <BackstoreItem key={product.id || product._id} product={product} onEdit={handleEdit} fetchProducts={fetchProducts} />
                 
               ))}
             </tbody>
@@ -169,6 +177,15 @@ useEffect(()=>{
       
       {showForm && (
         <BackstoreForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );
