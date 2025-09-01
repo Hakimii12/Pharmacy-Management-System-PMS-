@@ -6,7 +6,7 @@ import {
   GetAllCategories,
   CreateCategory,
   DeleteCategory
-} from "../controllers/DosageFormsAndCategory.js";
+} from "../controllers/dosageformsandcategory.js";
 
 const router = express.Router();
 

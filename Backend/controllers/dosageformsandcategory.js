@@ -1,5 +1,5 @@
 import Product from "../models/ProductModel.js";
-import Category from "../models/categoryModel.js";
+import Category from "../models/categorymodel.js";
 import DosageForm from "../models/dosageformsmodel.js";
 export async function GetAllDosageForms(req, res) {
   try {

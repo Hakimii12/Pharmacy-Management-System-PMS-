@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import Loading from '../Loading/Loading';
 import axios from 'axios';
 import Api from "../../data/API.json"
+import Pagination from '../../Pagination/Pagination';
 const ProductList = () => {
   const [productCategories, setProductCategories] = useState([]);
   const ApiLink=Api.link
@@ -17,6 +18,8 @@ const ProductList = () => {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [fetched,setFetched]=useState([])
   const [isLoading,setIsLoading]=useState(false)
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
   useEffect(() => {
     const loadCategories = async () => {
       await fetchCategories();
@@ -66,6 +69,14 @@ useEffect(()=>{
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, selectedStatus]);
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -156,10 +167,9 @@ useEffect(()=>{
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map(product => (
+              {paginatedProducts.map(product => (
                 <ProductItem key={product._id} product={product} onEdit={handleEdit} fetchProducts={fetchProducts}/>
-                
-              ))}
+  ))}
             </tbody>
             
           </table>
@@ -174,6 +184,15 @@ useEffect(()=>{
       {showForm && (
         <ProductForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
       )}
+      {totalPages > 1 && (
+  <div className="px-6 py-4">
+    <Pagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={setCurrentPage}
+    />
+  </div>
+)}
     </div>
   );
 };

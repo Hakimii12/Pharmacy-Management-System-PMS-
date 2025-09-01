@@ -10,7 +10,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
   const [unitPrice, setUnitPrice] = useState(product?.unitPrice || '');
-  const [quantity, setQuantity] = useState(product?.quantity || '');
+  const [quantity, setQuantity] = useState(product?.inventory?.dispensary || '');
   const [expiryDate, setExpiryDate] = useState(
     product?.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
   );
@@ -30,7 +30,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   const [fetchDosageForms, setFetchDosageForms] = useState([]);
   const categories = productCategories
   const dosageFormsOptions = fetchDosageForms.map(form => ({
-    value: form._id,
+    value: form.name,
     label: form.name
   }));
  useEffect(() => {
@@ -54,7 +54,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       setName(product.name || '');
       setBrand(product.brand || '');
       setUnitPrice(product.unitPrice || '');
-      setQuantity(product.quantity || '');
+      setQuantity(product.inventory?.dispensary || ''); // <-- dispensary quantity
       setExpiryDate(
         product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
       );
@@ -109,7 +109,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
       if (product) {
         // Update existing product
         const response = await axios.put(
-          `${ApiLink}/api/product/update/${product._id}`,
+          `${ApiLink}/api/product/updateDispensaryQuantity/${product._id}`,
           data,
           {
             headers: { 'Content-Type': 'application/json' },
@@ -266,7 +266,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                   <input
                     type="number"
                     min="0"
-                    value={quantity}
+                    value={quantity} // <-- use state, not product.inventory.dispensary
                     onChange={(e) => setQuantity(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.quantity ? 'border-red-500' : 'border-gray-300'
