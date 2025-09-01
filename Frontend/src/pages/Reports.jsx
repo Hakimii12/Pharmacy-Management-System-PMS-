@@ -1,747 +1,591 @@
-// import React, { useState, useEffect } from 'react';
-// import { 
-//   FaChartLine, FaMoneyBillWave, FaFileExport, FaEdit, FaTrash, 
-//   FaSearch, FaChevronLeft, FaChevronRight, FaTimes, FaSave 
-// } from 'react-icons/fa';
+"use client"
 
-// const EditReportItemModal = ({ 
-//   isOpen, 
-//   onClose, 
-//   item, 
-//   listType, 
-//   onSave 
-// }) => {
-//   const [formData, setFormData] = useState({});
+import { useState, useEffect, useCallback } from "react"
+import axios from "axios"
+import {
+  BarChart3,
+  Package,
+  AlertTriangle,
+  Calendar,
+  ArrowUpDown,
+  Warehouse,
+  Pill,
+  RefreshCw,
+  Activity,
+  Eye,
+  Calculator,
+  History,
+  TrendingUp,
+  Download,
+  Filter,
+  Search,
+  CheckCircle,
+  XCircle,
+  Plus,
+  Minus
+} from "lucide-react"
 
-//   useEffect(() => {
-//     if (item) {
-//       setFormData({ ...item });
-//     }
-//   }, [item]);
+const InventoryManagement = () => {
+  const [activeTab, setActiveTab] = useState("product")
+  const [productInventory, setProductInventory] = useState(null)
+  const [dispensaryCalculation, setDispensaryCalculation] = useState(null)
+  const [inventoryHistory, setInventoryHistory] = useState([])
+  const [reconcileResult, setReconcileResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [filters, setFilters] = useState({
+    productId: "",
+    startDate: "",
+    endDate: ""
+  })
+  const [reconcileForm, setReconcileForm] = useState({
+    adjustmentQty: 0,
+    reason: "",
+    location: "dispensary"
+  })
 
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     setFormData(prev => ({ ...prev, [name]: value }));
-//   };
+  // API base URL - adjust as needed
+  const API_BASE = "http://localhost:5000/api"
 
-//   const handleSubmit = (e) => {
-//     e.preventDefault();
-//     onSave(formData, listType);
-//     onClose();
-//   };
+  // Fetch product inventory
+  const fetchProductInventory = useCallback(async (productId) => {
+    if (!productId) return
+    setLoading(true)
+    setError("")
+    try {
+      const response = await axios.get(
+        `${API_BASE}/inventory/product/${productId}`,
+        { withCredentials: true }
+      )
+      setProductInventory(response.data)
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to fetch product inventory")
+    } finally {
+      setLoading(false)
+    }
+  }, [API_BASE])
 
-//   if (!isOpen || !item) return null;
+  // Calculate dispensary inventory
+  const calculateDispensaryInventory = useCallback(async (productId, startDate, endDate) => {
+    if (!productId) return
+    setLoading(true)
+    setError("")
+    try {
+      let url = `${API_BASE}/inventory/calculate/${productId}`
+      if (startDate && endDate) {
+        url += `?startDate=${startDate}&endDate=${endDate}`
+      }
+      const response = await axios.get(
+        url,
+        { withCredentials: true }
+      )
+      setDispensaryCalculation(response.data)
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to calculate dispensary inventory")
+    } finally {
+      setLoading(false)
+    }
+  }, [API_BASE])
 
-//   return (
-//     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//       <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
-//         <div className="flex justify-between items-center px-6 py-4 border-b">
-//           <h2 className="text-xl font-bold text-gray-800">Edit Report Item</h2>
-//           <button 
-//             onClick={onClose}
-//             className="text-gray-500 hover:text-gray-700 transition-colors"
-//           >
-//             <FaTimes />
-//           </button>
-//         </div>
-        
-//         <form onSubmit={handleSubmit} className="p-6">
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-//               <input
-//                 type="text"
-//                 name="name"
-//                 value={formData.name || ''}
-//                 onChange={handleChange}
-//                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                 required
-//               />
-//             </div>
-            
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-//               <input
-//                 type="text"
-//                 name="brand"
-//                 value={formData.brand || ''}
-//                 onChange={handleChange}
-//                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                 required
-//               />
-//             </div>
-            
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number</label>
-//               <input
-//                 type="text"
-//                 name="batch"
-//                 value={formData.batch || ''}
-//                 onChange={handleChange}
-//                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                 required
-//               />
-//             </div>
-            
-//             {/* Conditional Fields Based on Report Type */}
-//             {listType === 'sold' && (
-//               <>
-//                 <div>
-//                   <label className="block text-sm font-medium text-gray-700 mb-1">Date Sold</label>
-//                   <input
-//                     type="date"
-//                     name="date"
-//                     value={formData.date || ''}
-//                     onChange={handleChange}
-//                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                     required
-//                   />
-//                 </div>
-//                 <div>
-//                   <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-//                   <input
-//                     type="number"
-//                     min="1"
-//                     name="quantity"
-//                     value={formData.quantity || ''}
-//                     onChange={handleChange}
-//                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                     required
-//                   />
-//                 </div>
-//               </>
-//             )}
-            
-//             {listType === 'zeroStock' && (
-//               <div>
-//                 <label className="block text-sm font-medium text-gray-700 mb-1">Last Sold Date</label>
-//                 <input
-//                   type="date"
-//                   name="lastSold"
-//                   value={formData.lastSold || ''}
-//                   onChange={handleChange}
-//                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                   required
-//                 />
-//               </div>
-//             )}
-            
-//             {listType === 'lowStock' && (
-//               <>
-//                 <div>
-//                   <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
-//                   <input
-//                     type="number"
-//                     min="0"
-//                     name="stock"
-//                     value={formData.stock || ''}
-//                     onChange={handleChange}
-//                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                     required
-//                   />
-//                 </div>
-//                 <div>
-//                   <label className="block text-sm font-medium text-gray-700 mb-1">Threshold</label>
-//                   <input
-//                     type="number"
-//                     min="0"
-//                     name="threshold"
-//                     value={formData.threshold || ''}
-//                     onChange={handleChange}
-//                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                     required
-//                   />
-//                 </div>
-//               </>
-//             )}
-            
-//             {listType === 'expired' && (
-//               <div>
-//                 <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-//                 <input
-//                   type="date"
-//                   name="expiryDate"
-//                   value={formData.expiryDate || ''}
-//                   onChange={handleChange}
-//                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-//                   required
-//                 />
-//               </div>
-//             )}
-//           </div>
-          
-//           <div className="mt-6 flex justify-end space-x-3">
-//             <button
-//               type="button"
-//               onClick={onClose}
-//               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-//             >
-//               Cancel
-//             </button>
-//             <button
-//               type="submit"
-//               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center transition-colors"
-//             >
-//               <FaSave className="mr-2" />
-//               Save Changes
-//             </button>
-//           </div>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// };
+  // Fetch inventory history
+  const fetchInventoryHistory = useCallback(async (productId, limit = 50) => {
+    if (!productId) return
+    setLoading(true)
+    setError("")
+    try {
+      const response = await axios.get(
+        `${API_BASE}/inventory/history/${productId}?limit=${limit}`,
+        { withCredentials: true }
+      )
+      setInventoryHistory(response.data.history || [])
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to fetch inventory history")
+    } finally {
+      setLoading(false)
+    }
+  }, [API_BASE])
 
-// const Reports = () => {
-//   // Mock data for inventory reports with additional fields
-//   const [soldItems, setSoldItems] = useState([
-//     { id: 1, name: "Paracetamol", brand: "Panadol", batch: "BATCH001", date: "2025-06-20", quantity: 45, status: "Sold" },
-//     { id: 2, name: "Ibuprofen", brand: "Advil", batch: "BATCH002", date: "2025-06-19", quantity: 32, status: "Sold" },
-//     { id: 3, name: "Vitamin C", brand: "NatureMade", batch: "BATCH003", date: "2025-06-18", quantity: 28, status: "Sold" },
-//     { id: 4, name: "Omeprazole", brand: "Prilosec", batch: "BATCH004", date: "2025-06-17", quantity: 15, status: "Sold" },
-//     { id: 5, name: "Aspirin", brand: "Bayer", batch: "BATCH005", date: "2025-06-16", quantity: 22, status: "Sold" },
-//     { id: 6, name: "Antacid", brand: "Tums", batch: "BATCH006", date: "2025-06-15", quantity: 18, status: "Sold" },
-//     { id: 7, name: "Allergy Relief", brand: "Claritin", batch: "BATCH007", date: "2025-06-14", quantity: 12, status: "Sold" },
-//     { id: 8, name: "Cough Syrup", brand: "Robitussin", batch: "BATCH008", date: "2025-06-13", quantity: 8, status: "Sold" },
-//     { id: 9, name: "Pain Relief Cream", brand: "Bengay", batch: "BATCH009", date: "2025-06-12", quantity: 5, status: "Sold" },
-//     { id: 10, name: "Multivitamin", brand: "Centrum", batch: "BATCH010", date: "2025-06-11", quantity: 30, status: "Sold" },
-//   ]);
-  
-//   const [zeroStockItems, setZeroStockItems] = useState([
-//     { id: 11, name: "Aspirin", brand: "Bayer", batch: "BATCH011", lastSold: "2025-06-15", stock: 0, status: "Out of Stock" },
-//     { id: 12, name: "Antacid", brand: "Tums", batch: "BATCH012", lastSold: "2025-06-10", stock: 0, status: "Out of Stock" },
-//     { id: 13, name: "Allergy Relief", brand: "Claritin", batch: "BATCH013", lastSold: "2025-06-08", stock: 0, status: "Out of Stock" },
-//     { id: 14, name: "Vitamin D", brand: "NatureMade", batch: "BATCH014", lastSold: "2025-06-05", stock: 0, status: "Out of Stock" },
-//     { id: 15, name: "Probiotics", brand: "Culturelle", batch: "BATCH015", lastSold: "2025-06-03", stock: 0, status: "Out of Stock" },
-//   ]);
-  
-//   const [lowStockItems, setLowStockItems] = useState([
-//     { id: 16, name: "Cough Syrup", brand: "Robitussin", batch: "BATCH016", stock: 8, threshold: 15, status: "Low Stock" },
-//     { id: 17, name: "Antihistamine", brand: "Zyrtec", batch: "BATCH017", stock: 12, threshold: 20, status: "Low Stock" },
-//     { id: 18, name: "Pain Relief Cream", brand: "Bengay", batch: "BATCH018", stock: 5, threshold: 10, status: "Low Stock" },
-//     { id: 19, name: "Antacid", brand: "Rolaids", batch: "BATCH019", stock: 3, threshold: 10, status: "Low Stock" },
-//     { id: 20, name: "Eye Drops", brand: "Visine", batch: "BATCH020", stock: 7, threshold: 15, status: "Low Stock" },
-//     { id: 21, name: "Nasal Spray", brand: "Flonase", batch: "BATCH021", stock: 4, threshold: 10, status: "Low Stock" },
-//     { id: 22, name: "Laxative", brand: "Dulcolax", batch: "BATCH022", stock: 6, threshold: 12, status: "Low Stock" },
-//   ]);
-  
-//   const [expiredItems, setExpiredItems] = useState([
-//     { id: 23, name: "Vitamin D", brand: "NatureMade", batch: "BATCH023", expiryDate: "2025-05-15", status: "Expired" },
-//     { id: 24, name: "Multivitamin", brand: "Centrum", batch: "BATCH024", expiryDate: "2025-04-30", status: "Expired" },
-//     { id: 25, name: "Probiotics", brand: "Align", batch: "BATCH025", expiryDate: "2025-06-01", status: "Expired" },
-//     { id: 26, name: "Fish Oil", brand: "Nordic Naturals", batch: "BATCH026", expiryDate: "2025-05-20", status: "Expired" },
-//     { id: 27, name: "Vitamin B12", brand: "Nature's Bounty", batch: "BATCH027", expiryDate: "2025-05-25", status: "Expired" },
-//   ]);
-  
-//   // State for filters and pagination
-//   const [filters, setFilters] = useState({
-//     sold: { name: '', brand: '', batch: '' },
-//     zeroStock: { name: '', brand: '', batch: '' },
-//     lowStock: { name: '', brand: '', batch: '' },
-//     expired: { name: '', brand: '', batch: '' }
-//   });
-  
-//   const [pagination, setPagination] = useState({
-//     sold: { currentPage: 1, itemsPerPage: 5 },
-//     zeroStock: { currentPage: 1, itemsPerPage: 5 },
-//     lowStock: { currentPage: 1, itemsPerPage: 5 },
-//     expired: { currentPage: 1, itemsPerPage: 5 }
-//   });
-  
-//   // State for edit modal
-//   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-//   const [currentEditItem, setCurrentEditItem] = useState(null);
-//   const [currentListType, setCurrentListType] = useState('');
+  // Reconcile inventory
+  const reconcileInventory = useCallback(async (productId, adjustmentQty, reason, location) => {
+    if (!productId) return
+    setLoading(true)
+    setError("")
+    setSuccess("")
+    try {
+      const response = await axios.post(
+        `${API_BASE}/inventory/reconcile/${productId}`,
+        { adjustmentQty, reason, location },
+        { withCredentials: true }
+      )
+      setReconcileResult(response.data)
+      setSuccess("Inventory reconciled successfully")
+      // Refresh the data
+      fetchProductInventory(productId)
+      calculateDispensaryInventory(productId, filters.startDate, filters.endDate)
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to reconcile inventory")
+    } finally {
+      setLoading(false)
+    }
+  }, [API_BASE, fetchProductInventory, calculateDispensaryInventory, filters])
 
-//   // Status badge component
-//   const StatusBadge = ({ status }) => {
-//     let bgColor = 'bg-blue-100 text-blue-800';
-    
-//     switch(status) {
-//       case 'Sold':
-//         bgColor = 'bg-green-100 text-green-800';
-//         break;
-//       case 'Out of Stock':
-//         bgColor = 'bg-red-100 text-red-800';
-//         break;
-//       case 'Low Stock':
-//         bgColor = 'bg-yellow-100 text-yellow-800';
-//         break;
-//       case 'Expired':
-//         bgColor = 'bg-gray-100 text-gray-800';
-//         break;
-//       default:
-//         break;
-//     }
-    
-//     return (
-//       <span className={`px-2 py-1 text-xs font-medium rounded-full ${bgColor}`}>
-//         {status}
-//       </span>
-//     );
-//   };
-  
-//   // Filter items based on filter criteria
-//   const filterItems = (items, filterType) => {
-//     const { name, brand, batch } = filters[filterType];
-    
-//     return items.filter(item => {
-//       const nameMatch = name ? item.name.toLowerCase().includes(name.toLowerCase()) : true;
-//       const brandMatch = brand ? item.brand.toLowerCase().includes(brand.toLowerCase()) : true;
-//       const batchMatch = batch ? item.batch.toLowerCase().includes(batch.toLowerCase()) : true;
-      
-//       return nameMatch && brandMatch && batchMatch;
-//     });
-//   };
-  
-//   // Paginate items
-//   const paginateItems = (items, filterType) => {
-//     const { currentPage, itemsPerPage } = pagination[filterType];
-//     const startIndex = (currentPage - 1) * itemsPerPage;
-//     const endIndex = startIndex + itemsPerPage;
-    
-//     return items.slice(startIndex, endIndex);
-//   };
-  
-//   // Handle filter changes
-//   const handleFilterChange = (filterType, field, value) => {
-//     setFilters(prev => ({
-//       ...prev,
-//       [filterType]: {
-//         ...prev[filterType],
-//         [field]: value
-//       }
-//     }));
-    
-//     // Reset to first page when filters change
-//     setPagination(prev => ({
-//       ...prev,
-//       [filterType]: {
-//         ...prev[filterType],
-//         currentPage: 1
-//       }
-//     }));
-//   };
-  
-//   // Handle page changes
-//   const handlePageChange = (filterType, newPage) => {
-//     setPagination(prev => ({
-//       ...prev,
-//       [filterType]: {
-//         ...prev[filterType],
-//         currentPage: newPage
-//       }
-//     }));
-//   };
-  
-//   // Edit and delete handlers
-//   const handleEdit = (id, listType) => {
-//     let itemToEdit;
-//     switch(listType) {
-//       case 'sold':
-//         itemToEdit = soldItems.find(item => item.id === id);
-//         break;
-//       case 'zeroStock':
-//         itemToEdit = zeroStockItems.find(item => item.id === id);
-//         break;
-//       case 'lowStock':
-//         itemToEdit = lowStockItems.find(item => item.id === id);
-//         break;
-//       case 'expired':
-//         itemToEdit = expiredItems.find(item => item.id === id);
-//         break;
-//       default:
-//         itemToEdit = null;
-//     }
-//     if (itemToEdit) {
-//       setCurrentEditItem(itemToEdit);
-//       setCurrentListType(listType);
-//       setIsEditModalOpen(true);
-//     }
-//   };
-  
-//   const handleDelete = (id, listType) => {
-//     // Update the appropriate list
-//     switch(listType) {
-//       case 'sold':
-//         setSoldItems(soldItems.filter(item => item.id !== id));
-//         break;
-//       case 'zeroStock':
-//         setZeroStockItems(zeroStockItems.filter(item => item.id !== id));
-//         break;
-//       case 'lowStock':
-//         setLowStockItems(lowStockItems.filter(item => item.id !== id));
-//         break;
-//       case 'expired':
-//         setExpiredItems(expiredItems.filter(item => item.id !== id));
-//         break;
-//       default:
-//         break;
-//     }
-//   };
-  
-//   // Save edited item
-//   const handleSaveEdit = (updatedItem, listType) => {
-//     switch(listType) {
-//       case 'sold':
-//         setSoldItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-//         break;
-//       case 'zeroStock':
-//         setZeroStockItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-//         break;
-//       case 'lowStock':
-//         setLowStockItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-//         break;
-//       case 'expired':
-//         setExpiredItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-//         break;
-//       default:
-//         break;
-//     }
-//     setIsEditModalOpen(false);
-//     setCurrentEditItem(null);
-//     setCurrentListType('');
-//   };
-  
-//   // Filter and paginate data
-//   const filteredSoldItems = filterItems(soldItems, 'sold');
-//   const paginatedSoldItems = paginateItems(filteredSoldItems, 'sold');
-  
-//   const filteredZeroStockItems = filterItems(zeroStockItems, 'zeroStock');
-//   const paginatedZeroStockItems = paginateItems(filteredZeroStockItems, 'zeroStock');
-  
-//   const filteredLowStockItems = filterItems(lowStockItems, 'lowStock');
-//   const paginatedLowStockItems = paginateItems(filteredLowStockItems, 'lowStock');
-  
-//   const filteredExpiredItems = filterItems(expiredItems, 'expired');
-//   const paginatedExpiredItems = paginateItems(filteredExpiredItems, 'expired');
-  
-//   // Pagination component
-//   const Pagination = ({ 
-//     currentPage, 
-//     totalItems, 
-//     itemsPerPage, 
-//     onPageChange,
-//     filterType 
-//   }) => {
-//     const totalPages = Math.ceil(totalItems / itemsPerPage);
-    
-//     return (
-//       <div className="flex justify-between items-center mt-4">
-//         <div className="text-sm text-gray-600">
-//           Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} to{" "}
-//           {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
-//         </div>
-//         <div className="flex items-center space-x-2">
-//           <button
-//             onClick={() => onPageChange(filterType, currentPage - 1)}
-//             disabled={currentPage === 1}
-//             className={`p-2 rounded-md ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}`}
-//           >
-//             <FaChevronLeft className="text-sm" />
-//           </button>
-          
-//           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md">
-//             {currentPage}
-//           </span>
-          
-//           <button
-//             onClick={() => onPageChange(filterType, currentPage + 1)}
-//             disabled={currentPage === totalPages}
-//             className={`p-2 rounded-md ${currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}`}
-//           >
-//             <FaChevronRight className="text-sm" />
-//           </button>
-//         </div>
-//       </div>
-//     );
-//   };
-  
-//   // Filter input component
-//   const FilterInput = ({ filterType, field, placeholder }) => (
-//     <div className="relative">
-//       <input
-//         type="text"
-//         placeholder={placeholder}
-//         value={filters[filterType][field]}
-//         onChange={(e) => handleFilterChange(filterType, field, e.target.value)}
-//         className="w-full pl-10 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-//       />
-//       <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
-//     </div>
-//   );
-  
-//   // Report section component
-//   const ReportSection = ({ 
-//     title, 
-//     description, 
-//     items, 
-//     filteredItems, 
-//     paginatedItems, 
-//     filterType, 
-//     columns, 
-//     children 
-//   }) => {
-//     const { currentPage, itemsPerPage } = pagination[filterType];
-    
-//     return (
-//       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-//         <div className="p-4 bg-blue-50 border-b border-blue-100">
-//           <h2 className="font-bold text-blue-800">{title}</h2>
-//           <p className="text-xs text-blue-600 mt-1">{description}</p>
-//         </div>
-        
-//         <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 border-b">
-//           <FilterInput 
-//             filterType={filterType} 
-//             field="name" 
-//             placeholder="Filter by name..." 
-//           />
-//           <FilterInput 
-//             filterType={filterType} 
-//             field="brand" 
-//             placeholder="Filter by brand..." 
-//           />
-//           <FilterInput 
-//             filterType={filterType} 
-//             field="batch" 
-//             placeholder="Filter by batch..." 
-//           />
-//         </div>
-        
-//         <div className="overflow-x-auto">
-//           <table className="min-w-full">
-//             <thead>
-//               <tr className="bg-gray-50">
-//                 {columns.map((column, index) => (
-//                   <th 
-//                     key={index} 
-//                     className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-//                   >
-//                     {column}
-//                   </th>
-//                 ))}
-//                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-//                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-//               </tr>
-//             </thead>
-//             <tbody className="divide-y divide-gray-200">
-//               {paginatedItems.length > 0 ? (
-//                 paginatedItems.map(item => (
-//                   <tr key={item.id} className="border-b hover:bg-gray-50">
-//                     <td className="py-3 px-4">
-//                       <div className="text-sm font-medium text-gray-900">{item.name}</div>
-//                       <div className="text-xs text-gray-500">{item.brand}</div>
-//                     </td>
-//                     {children(item)}
-//                     <td className="py-3 px-4">
-//                       <StatusBadge status={item.status} />
-//                     </td>
-//                     <td className="py-3 px-4 text-right">
-//                       <div className="flex justify-end space-x-2">
-//                         <button 
-//                           onClick={() => handleEdit(item.id, filterType)}
-//                           className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full"
-//                         >
-//                           <FaEdit size={14} />
-//                         </button>
-//                         <button 
-//                           onClick={() => handleDelete(item.id, filterType)}
-//                           className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full"
-//                         >
-//                           <FaTrash size={14} />
-//                         </button>
-//                       </div>
-//                     </td>
-//                   </tr>
-//                 ))
-//               ) : (
-//                 <tr>
-//                   <td colSpan={columns.length + 2} className="py-4 px-4 text-center text-sm text-gray-500">
-//                     No items found matching your filters
-//                   </td>
-//                 </tr>
-//               )}
-//             </tbody>
-//           </table>
-//         </div>
-        
-//         <div className="p-4">
-//           <Pagination
-//             currentPage={currentPage}
-//             totalItems={filteredItems.length}
-//             itemsPerPage={itemsPerPage}
-//             onPageChange={handlePageChange}
-//             filterType={filterType}
-//           />
-//         </div>
-//       </div>
-//     );
-//   };
-  
-//   return (
-//     <div className="space-y-6">
-//       <div className="bg-white rounded-xl shadow p-6">
-//         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-//           <h1 className="text-2xl font-bold text-gray-800">Inventory Status Reports</h1>
-//           <button className="mt-3 md:mt-0 flex items-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200">
-//             <FaFileExport className="mr-2" /> Export Report
-//           </button>
-//         </div>
-        
-//         <div className="grid grid-cols-1 gap-6">
-//           {/* Recently Sold Items */}
-//           <ReportSection
-//             title="Recently Sold Items"
-//             description="Items sold in the last 7 days"
-//             items={soldItems}
-//             filteredItems={filteredSoldItems}
-//             paginatedItems={paginatedSoldItems}
-//             filterType="sold"
-//             columns={["Product", "Batch", "Date Sold", "Qty"]}
-//           >
-//             {(item) => (
-//               <>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.batch}</td>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.date}</td>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.quantity}</td>
-//               </>
-//             )}
-//           </ReportSection>
-          
-//           {/* Out of Stock Items */}
-//           <ReportSection
-//             title="Out of Stock Items"
-//             description="Items that need restocking"
-//             items={zeroStockItems}
-//             filteredItems={filteredZeroStockItems}
-//             paginatedItems={paginatedZeroStockItems}
-//             filterType="zeroStock"
-//             columns={["Product", "Batch", "Last Sold", "Stock"]}
-//           >
-//             {(item) => (
-//               <>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.batch}</td>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.lastSold}</td>
-//                 <td className="py-3 px-4 text-sm font-medium text-red-600">{item.stock}</td>
-//               </>
-//             )}
-//           </ReportSection>
-          
-//           {/* Low Stock Items */}
-//           <ReportSection
-//             title="Low Stock Items"
-//             description="Items below minimum stock level"
-//             items={lowStockItems}
-//             filteredItems={filteredLowStockItems}
-//             paginatedItems={paginatedLowStockItems}
-//             filterType="lowStock"
-//             columns={["Product", "Batch", "Current", "Threshold"]}
-//           >
-//             {(item) => (
-//               <>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.batch}</td>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.stock}</td>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.threshold}</td>
-//               </>
-//             )}
-//           </ReportSection>
-          
-//           {/* Expired Products */}
-//           <ReportSection
-//             title="Expired Products"
-//             description="Items past their expiration date"
-//             items={expiredItems}
-//             filteredItems={filteredExpiredItems}
-//             paginatedItems={paginatedExpiredItems}
-//             filterType="expired"
-//             columns={["Product", "Batch", "Expiry Date"]}
-//           >
-//             {(item) => (
-//               <>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.batch}</td>
-//                 <td className="py-3 px-4 text-sm text-gray-600">{item.expiryDate}</td>
-//               </>
-//             )}
-//           </ReportSection>
-//         </div>
-//       </div>
-      
-//       {/* Inventory Summary */}
-//       <div className="bg-white rounded-xl shadow p-6">
-//         <h2 className="text-xl font-bold text-gray-800 mb-4">Inventory Summary</h2>
-//         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-//           <div className="bg-blue-50 rounded-lg p-5 border border-blue-100">
-//             <div className="flex items-center">
-//               <div className="p-3 rounded-lg bg-blue-100 mr-4">
-//                 <FaChartLine className="text-blue-600 text-xl" />
-//               </div>
-//               <div>
-//                 <p className="text-sm text-gray-600">Recently Sold</p>
-//                 <p className="text-2xl font-bold text-gray-800">{soldItems.length}</p>
-//               </div>
-//             </div>
-//           </div>
-          
-//           <div className="bg-red-50 rounded-lg p-5 border border-red-100">
-//             <div className="flex items-center">
-//               <div className="p-3 rounded-lg bg-red-100 mr-4">
-//                 <FaChartLine className="text-red-600 text-xl" />
-//               </div>
-//               <div>
-//                 <p className="text-sm text-gray-600">Out of Stock</p>
-//                 <p className="text-2xl font-bold text-gray-800">{zeroStockItems.length}</p>
-//               </div>
-//             </div>
-//           </div>
-          
-//           <div className="bg-yellow-50 rounded-lg p-5 border border-yellow-100">
-//             <div className="flex items-center">
-//               <div className="p-3 rounded-lg bg-yellow-100 mr-4">
-//                 <FaChartLine className="text-yellow-600 text-xl" />
-//               </div>
-//               <div>
-//                 <p className="text-sm text-gray-600">Low Stock</p>
-//                 <p className="text-2xl font-bold text-gray-800">{lowStockItems.length}</p>
-//               </div>
-//             </div>
-//           </div>
-          
-//           <div className="bg-gray-100 rounded-lg p-5 border border-gray-200">
-//             <div className="flex items-center">
-//               <div className="p-3 rounded-lg bg-gray-200 mr-4">
-//                 <FaMoneyBillWave className="text-gray-600 text-xl" />
-//               </div>
-//               <div>
-//                 <p className="text-sm text-gray-600">Expired Items</p>
-//                 <p className="text-2xl font-bold text-gray-800">{expiredItems.length}</p>
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-      
-//       {/* Edit Modal */}
-//       <EditReportItemModal
-//         isOpen={isEditModalOpen}
-//         onClose={() => setIsEditModalOpen(false)}
-//         item={currentEditItem}
-//         listType={currentListType}
-//         onSave={handleSaveEdit}
-//       />
-//     </div>
-//   );
-// };
+  // Handle form changes
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target
+    setFilters(prev => ({ ...prev, [name]: value }))
+  }
 
-// export default Reports;
-import React from 'react'
+  const handleReconcileChange = (e) => {
+    const { name, value } = e.target
+    setReconcileForm(prev => ({ ...prev, [name]: value }))
+  }
 
-function Reports() {
+  // Apply filters
+  const applyFilters = () => {
+    if (filters.productId) {
+      if (activeTab === "product") {
+        fetchProductInventory(filters.productId)
+      } else if (activeTab === "calculate") {
+        calculateDispensaryInventory(filters.productId, filters.startDate, filters.endDate)
+      } else if (activeTab === "history") {
+        fetchInventoryHistory(filters.productId)
+      }
+    }
+  }
+
+  // Handle reconcile form submission
+  const handleReconcileSubmit = (e) => {
+    e.preventDefault()
+    if (filters.productId) {
+      reconcileInventory(
+        filters.productId,
+        parseInt(reconcileForm.adjustmentQty),
+        reconcileForm.reason,
+        reconcileForm.location
+      )
+    }
+  }
+
+  // Reset messages after 5 seconds
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError("")
+        setSuccess("")
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error, success])
+
   return (
-    <div className='flex items-center justify-center'>
-      under devlopment
+    <div className="container mx-auto p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+          <BarChart3 className="mr-3" />
+          Inventory Management
+        </h1>
+        <p className="text-gray-600">Track and manage your pharmacy inventory</p>
+      </div>
+
+      {/* Notification messages */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center">
+          <AlertTriangle className="mr-2" size={20} />
+          {error}
+        </div>
+      )}
+      
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 flex items-center">
+          <CheckCircle className="mr-2" size={20} />
+          {success}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button
+          className={`py-2 px-4 font-medium ${activeTab === "product" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          onClick={() => setActiveTab("product")}
+        >
+          <Package className="inline mr-2" size={18} />
+          Product Inventory
+        </button>
+        <button
+          className={`py-2 px-4 font-medium ${activeTab === "calculate" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          onClick={() => setActiveTab("calculate")}
+        >
+          <Calculator className="inline mr-2" size={18} />
+          Calculate Inventory
+        </button>
+        <button
+          className={`py-2 px-4 font-medium ${activeTab === "history" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          onClick={() => setActiveTab("history")}
+        >
+          <History className="inline mr-2" size={18} />
+          Inventory History
+        </button>
+        <button
+          className={`py-2 px-4 font-medium ${activeTab === "reconcile" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          onClick={() => setActiveTab("reconcile")}
+        >
+          <RefreshCw className="inline mr-2" size={18} />
+          Reconcile Inventory
+        </button>
+      </div>
+
+      {/* Filter Section */}
+      <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+        <div className="flex items-center mb-4">
+          <Filter className="text-gray-500 mr-2" size={20} />
+          <h3 className="text-lg font-medium">Filters</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Product ID</label>
+            <input
+              type="text"
+              name="productId"
+              value={filters.productId}
+              onChange={handleFilterChange}
+              className="w-full p-2 border border-gray-300 rounded-md"
+              placeholder="Enter product ID"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input
+              type="date"
+              name="startDate"
+              value={filters.startDate}
+              onChange={handleFilterChange}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+            <input
+              type="date"
+              name="endDate"
+              value={filters.endDate}
+              onChange={handleFilterChange}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={applyFilters}
+              disabled={loading || !filters.productId}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center disabled:opacity-50"
+            >
+              <Search className="mr-2" size={18} />
+              {loading ? "Loading..." : "Apply Filters"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content based on active tab */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        {loading && (
+          <div className="flex justify-center items-center py-8">
+            <RefreshCw className="animate-spin text-blue-500 mr-2" />
+            <span>Loading data...</span>
+          </div>
+        )}
+
+        {/* Product Inventory Tab */}
+        {activeTab === "product" && productInventory && !loading && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <Package className="mr-2" />
+              Product Inventory Details
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2">Product Information</h3>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Name:</span> {productInventory.product?.name}</p>
+                  <p><span className="font-medium">Batch No:</span> {productInventory.product?.batchNo}</p>
+                  <p><span className="font-medium">Expiry Date:</span> {new Date(productInventory.product?.expiryDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2">Inventory Summary</h3>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Store Quantity:</span> {productInventory.inventory?.store}</p>
+                  <p><span className="font-medium">Dispensary Quantity:</span> {productInventory.inventory?.dispensary}</p>
+                  <p><span className="font-medium">Total Quantity:</span> {productInventory.inventory?.total}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-medium mb-2">Recent Transfers</h3>
+                <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                  {productInventory.recentTransfers?.length > 0 ? (
+                    <ul className="divide-y divide-gray-200">
+                      {productInventory.recentTransfers.map((transfer, index) => (
+                        <li key={index} className="py-2">
+                          <p className="font-medium">{transfer.type}</p>
+                          <p>Quantity: {transfer.quantity}</p>
+                          <p>Date: {new Date(transfer.date).toLocaleDateString()}</p>
+                          <p>By: {transfer.user?.name}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500">No recent transfers</p>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-2">Recent Sales</h3>
+                <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                  {productInventory.recentSales?.length > 0 ? (
+                    <ul className="divide-y divide-gray-200">
+                      {productInventory.recentSales.map((sale, index) => (
+                        <li key={index} className="py-2">
+                          <p className="font-medium">Sale: {sale.quantitySold} units</p>
+                          <p>Amount: ${sale.saleAmount}</p>
+                          <p>Date: {new Date(sale.completedAt).toLocaleDateString()}</p>
+                          <p>By: {sale.cashier?.name || sale.pharmacist?.name}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500">No recent sales</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Calculate Inventory Tab */}
+        {activeTab === "calculate" && dispensaryCalculation && !loading && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <Calculator className="mr-2" />
+              Dispensary Inventory Calculation
+            </h2>
+            
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-medium mb-2">Formula:</h3>
+              <p className="text-sm">
+                Closing Dispensary Inventory = (Opening Balance + Received from Store) - (Sold to Patient + Returned to Store)
+              </p>
+              <p className="text-sm mt-2">
+                Time Period: {dispensaryCalculation.timePeriod.startDate} to {dispensaryCalculation.timePeriod.endDate}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2">Product Information</h3>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Name:</span> {dispensaryCalculation.product?.name}</p>
+                  <p><span className="font-medium">Batch No:</span> {dispensaryCalculation.product?.batchNo}</p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2">Calculation Results</h3>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Total Issued:</span> {dispensaryCalculation.calculations.totalIssued} units</p>
+                  <p><span className="font-medium">Total Returned:</span> {dispensaryCalculation.calculations.totalReturned} units</p>
+                  <p><span className="font-medium">Total Sold:</span> {dispensaryCalculation.calculations.totalSold} units</p>
+                  <p><span className="font-medium">Expected in Dispensary:</span> {dispensaryCalculation.calculations.expectedDispensaryQty} units</p>
+                  <p><span className="font-medium">Actual in Dispensary:</span> {dispensaryCalculation.calculations.actualDispensaryQty} units</p>
+                  <p className={`font-medium ${dispensaryCalculation.calculations.discrepancy !== 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    Discrepancy: {dispensaryCalculation.calculations.discrepancy} units
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-100 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-blue-800">
+                  {dispensaryCalculation.calculations.totalIssued}
+                </div>
+                <p className="text-sm">Total Issued</p>
+              </div>
+              
+              <div className="bg-green-100 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-green-800">
+                  {dispensaryCalculation.calculations.totalReturned}
+                </div>
+                <p className="text-sm">Total Returned</p>
+              </div>
+              
+              <div className="bg-red-100 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-red-800">
+                  {dispensaryCalculation.calculations.totalSold}
+                </div>
+                <p className="text-sm">Total Sold</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Inventory History Tab */}
+        {activeTab === "history" && inventoryHistory.length > 0 && !loading && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <History className="mr-2" />
+              Inventory History
+            </h2>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {inventoryHistory.map((event, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(event.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {event.type}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {event.action}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {event.quantity}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {event.user}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Reconcile Inventory Tab */}
+        {activeTab === "reconcile" && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <RefreshCw className="mr-2" />
+              Reconcile Inventory
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <form onSubmit={handleReconcileSubmit} className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium mb-4">Reconciliation Form</h3>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment Quantity</label>
+                    <div className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => setReconcileForm(prev => ({ ...prev, adjustmentQty: parseInt(prev.adjustmentQty) - 1 }))}
+                        className="p-2 bg-gray-200 rounded-l-md"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <input
+                        type="number"
+                        name="adjustmentQty"
+                        value={reconcileForm.adjustmentQty}
+                        onChange={handleReconcileChange}
+                        className="w-20 p-2 border-y border-gray-300 text-center"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReconcileForm(prev => ({ ...prev, adjustmentQty: parseInt(prev.adjustmentQty) + 1 }))}
+                        className="p-2 bg-gray-200 rounded-r-md"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <select
+                      name="location"
+                      value={reconcileForm.location}
+                      onChange={handleReconcileChange}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="store">Store</option>
+                      <option value="dispensary">Dispensary</option>
+                    </select>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                    <textarea
+                      name="reason"
+                      value={reconcileForm.reason}
+                      onChange={handleReconcileChange}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      rows="3"
+                      placeholder="Explain why this adjustment is needed"
+                    />
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    disabled={loading || !filters.productId}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md disabled:opacity-50"
+                  >
+                    {loading ? "Processing..." : "Reconcile Inventory"}
+                  </button>
+                </form>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">Reconciliation Result</h3>
+                {reconcileResult ? (
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <CheckCircle className="text-green-500 mr-2" />
+                      <span className="font-medium">Reconciliation Successful</span>
+                    </div>
+                    <p className="mb-2">Adjustment: {reconcileResult.adjustment.quantity} units</p>
+                    <p>Reason: {reconcileResult.adjustment.adjustmentReason}</p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-100 p-4 rounded-lg text-center text-gray-500">
+                    <p>No reconciliation performed yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state when no data */}
+        {!loading && !productInventory && !dispensaryCalculation && inventoryHistory.length === 0 && activeTab !== "reconcile" && (
+          <div className="text-center py-12">
+            <Package className="mx-auto text-gray-400 mb-4" size={48} />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">No inventory data</h3>
+            <p className="text-gray-500">Enter a product ID and apply filters to view inventory information</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-export default Reports
+export default InventoryManagement
