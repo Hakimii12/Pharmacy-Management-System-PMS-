@@ -4,6 +4,7 @@ import {
   CalculateDispensaryInventory,
   ReconcileInventory,
   GetInventoryHistory,
+  GetDispensarySummary,
 } from "../controllers/InventoryController.js"
 import Authenticated from "../middlewares/Authenticated.js"
 
@@ -20,5 +21,5 @@ router.get("/reconcile/:id", Authenticated(), ReconcileInventory)
 
 // Get inventory valuation report
 router.get("/history/:id", Authenticated(), GetInventoryHistory)
-
+router.get("/getDispensarySummary", Authenticated(), GetDispensarySummary)
 export default router

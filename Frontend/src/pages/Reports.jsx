@@ -22,15 +22,17 @@ import {
   CheckCircle,
   XCircle,
   Plus,
-  Minus
+  Minus,
+  List
 } from "lucide-react"
 
 const InventoryManagement = () => {
-  const [activeTab, setActiveTab] = useState("product")
+  const [activeTab, setActiveTab] = useState("dispensarySummary")
   const [productInventory, setProductInventory] = useState(null)
   const [dispensaryCalculation, setDispensaryCalculation] = useState(null)
   const [inventoryHistory, setInventoryHistory] = useState([])
   const [reconcileResult, setReconcileResult] = useState(null)
+  const [dispensarySummary, setDispensarySummary] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -44,9 +46,39 @@ const InventoryManagement = () => {
     reason: "",
     location: "dispensary"
   })
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [productMap, setProductMap] = useState(new Map()) // To map product names to IDs
+  const [summarySearch, setSummarySearch] = useState("")
+  const [summaryStatus, setSummaryStatus] = useState("")
 
   // API base URL - adjust as needed
   const API_BASE = "http://localhost:5000/api"
+
+  // Fetch dispensary summary
+  const fetchDispensarySummary = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const response = await axios.get(
+        `${API_BASE}/inventory/getDispensarySummary`,
+        { withCredentials: true }
+      )
+      setDispensarySummary(response.data)
+      
+      // Create a mapping of product names to IDs for easier lookup
+      const newProductMap = new Map()
+      response.data.products.forEach(product => {
+        // In a real application, you'd use the actual product ID
+        // For now, we'll use the name as ID since the sample data doesn't include IDs
+        newProductMap.set(product.name, product.productId) // Replace with product.id when available
+      })
+      setProductMap(newProductMap)
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to fetch dispensary summary")
+    } finally {
+      setLoading(false)
+    }
+  }, [API_BASE])
 
   // Fetch product inventory
   const fetchProductInventory = useCallback(async (productId) => {
@@ -167,6 +199,19 @@ const InventoryManagement = () => {
     }
   }
 
+  // Handle product selection from the dispensary summary
+  const handleProductSelect = (product) => {
+    setSelectedProduct(product)
+    // Use the product ID (in a real app, you'd use product.id)
+    // For now, we'll use the product name as ID since the sample data doesn't include IDs
+    const productId = product.productId // Replace with product.id when available
+    setFilters(prev => ({ ...prev, productId }))
+    
+    // Automatically switch to the product details tab and fetch data
+    setActiveTab("product")
+    fetchProductInventory(productId)
+  }
+
   // Reset messages after 5 seconds
   useEffect(() => {
     if (error || success) {
@@ -177,6 +222,11 @@ const InventoryManagement = () => {
       return () => clearTimeout(timer)
     }
   }, [error, success])
+
+  // Load dispensary summary on component mount
+  useEffect(() => {
+    fetchDispensarySummary()
+  }, [fetchDispensarySummary])
 
   return (
     <div className="container mx-auto p-6">
@@ -204,30 +254,37 @@ const InventoryManagement = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
         <button
-          className={`py-2 px-4 font-medium ${activeTab === "product" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          className={`py-2 px-4 font-medium whitespace-nowrap ${activeTab === "dispensarySummary" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          onClick={() => setActiveTab("dispensarySummary")}
+        >
+          <Warehouse className="inline mr-2" size={18} />
+          Dispensary Summary
+        </button>
+        <button
+          className={`py-2 px-4 font-medium whitespace-nowrap ${activeTab === "product" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
           onClick={() => setActiveTab("product")}
         >
           <Package className="inline mr-2" size={18} />
           Product Inventory
         </button>
         <button
-          className={`py-2 px-4 font-medium ${activeTab === "calculate" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          className={`py-2 px-4 font-medium whitespace-nowrap ${activeTab === "calculate" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
           onClick={() => setActiveTab("calculate")}
         >
           <Calculator className="inline mr-2" size={18} />
           Calculate Inventory
         </button>
         <button
-          className={`py-2 px-4 font-medium ${activeTab === "history" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          className={`py-2 px-4 font-medium whitespace-nowrap ${activeTab === "history" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
           onClick={() => setActiveTab("history")}
         >
           <History className="inline mr-2" size={18} />
           Inventory History
         </button>
         <button
-          className={`py-2 px-4 font-medium ${activeTab === "reconcile" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
+          className={`py-2 px-4 font-medium whitespace-nowrap ${activeTab === "reconcile" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
           onClick={() => setActiveTab("reconcile")}
         >
           <RefreshCw className="inline mr-2" size={18} />
@@ -235,56 +292,63 @@ const InventoryManagement = () => {
         </button>
       </div>
 
-      {/* Filter Section */}
-      <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-        <div className="flex items-center mb-4">
-          <Filter className="text-gray-500 mr-2" size={20} />
-          <h3 className="text-lg font-medium">Filters</h3>
+      {/* Filter Section (only show for tabs that need it) */}
+      {activeTab !== "dispensarySummary" && (
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+          <div className="flex items-center mb-4">
+            <Filter className="text-gray-500 mr-2" size={20} />
+            <h3 className="text-lg font-medium">Filters</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Select Product</label>
+              <select
+                name="productId"
+                value={filters.productId}
+                onChange={handleFilterChange}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="">Select a product</option>
+                {dispensarySummary?.products?.map((product, index) => (
+                  <option key={index} value={product.productId}>
+                    {product.name} - {product.brand}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+              <input
+                type="date"
+                name="startDate"
+                value={filters.startDate}
+                onChange={handleFilterChange}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+              <input
+                type="date"
+                name="endDate"
+                value={filters.endDate}
+                onChange={handleFilterChange}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={applyFilters}
+                disabled={loading || !filters.productId}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center disabled:opacity-50"
+              >
+                <Search className="mr-2" size={18} />
+                {loading ? "Loading..." : "Apply Filters"}
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Product ID</label>
-            <input
-              type="text"
-              name="productId"
-              value={filters.productId}
-              onChange={handleFilterChange}
-              className="w-full p-2 border border-gray-300 rounded-md"
-              placeholder="Enter product ID"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-            <input
-              type="date"
-              name="startDate"
-              value={filters.startDate}
-              onChange={handleFilterChange}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-            <input
-              type="date"
-              name="endDate"
-              value={filters.endDate}
-              onChange={handleFilterChange}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={applyFilters}
-              disabled={loading || !filters.productId}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center disabled:opacity-50"
-            >
-              <Search className="mr-2" size={18} />
-              {loading ? "Loading..." : "Apply Filters"}
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Content based on active tab */}
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -292,6 +356,156 @@ const InventoryManagement = () => {
           <div className="flex justify-center items-center py-8">
             <RefreshCw className="animate-spin text-blue-500 mr-2" />
             <span>Loading data...</span>
+          </div>
+        )}
+
+        {/* Dispensary Summary Tab */}
+        {activeTab === "dispensarySummary" && dispensarySummary && !loading && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Warehouse className="mr-2" />
+                Dispensary Summary
+              </h2>
+              <button
+                onClick={fetchDispensarySummary}
+                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center"
+              >
+                <RefreshCw className="mr-2" size={18} />
+                Refresh
+              </button>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-100 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-blue-800">
+                  {dispensarySummary.products.length}
+                </div>
+                <p className="text-sm">Total Products</p>
+              </div>
+              <div className="bg-green-100 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-green-800">
+                  {dispensarySummary.products.filter(p => p.status === "In Stock").length}
+                </div>
+                <p className="text-sm">In Stock</p>
+              </div>
+              <div className="bg-yellow-100 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-yellow-800">
+                  {dispensarySummary.products.filter(p => p.status === "Low Stock").length}
+                </div>
+                <p className="text-sm">Low Stock</p>
+              </div>
+              <div className="bg-red-100 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-red-800">
+                  {dispensarySummary.products.filter(p => p.status === "Sold Out").length}
+                </div>
+                <p className="text-sm">Sold Out</p>
+              </div>
+            </div>
+
+            {/* Products Table */}
+            <div className="flex flex-col md:flex-row gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="Search by name, brand, batch number..."
+                value={summarySearch}
+                onChange={e => setSummarySearch(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md flex-1"
+              />
+              <select
+                value={summaryStatus}
+                onChange={e => setSummaryStatus(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md w-48"
+              >
+                <option value="">All Status</option>
+                <option value="In Stock">In Stock</option>
+                <option value="Low Stock">Low Stock</option>
+                <option value="Sold Out">Sold Out</option>
+              </select>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sold</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">In Dispensary</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {dispensarySummary.products
+                    .filter(product => {
+                      const name = product.name?.toLowerCase() || "";
+                      const brand = product.brand?.toLowerCase() || "";
+                      const batchNo = product.batchNo?.toLowerCase() || "";
+                      const search = summarySearch.toLowerCase();
+
+                      const matchesSearch =
+                        name.includes(search) ||
+                        brand.includes(search) ||
+                        batchNo.includes(search);
+
+                      const matchesStatus = summaryStatus === "" || product.status === summaryStatus;
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((product, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">{product.name}</div>
+                        <div className="text-sm text-gray-500">{product.brand}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          product.status === "In Stock" ? "bg-green-100 text-green-800" :
+                          product.status === "Low Stock" ? "bg-yellow-100 text-yellow-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {product.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(product.expiryDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.totalSold}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.actualInDispensary}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleProductSelect(product)}
+                          className="text-blue-600 hover:text-blue-900 mr-3"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Totals Section */}
+            <div className="mt-8 p-6 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-medium mb-4">Financial Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-2">Expected Values</h4>
+                  <p>Total Unit Price: ${dispensarySummary.totals.totalUnitPriceExpected.toFixed(2)}</p>
+                  <p>Total Selling Price: ${dispensarySummary.totals.totalSellingPriceExpected.toFixed(2)}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Actual Values</h4>
+                  <p>Total Unit Price: ${dispensarySummary.totals.totalUnitPriceActual.toFixed(2)}</p>
+                  <p>Total Selling Price: ${dispensarySummary.totals.totalSellingPriceActual.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -576,11 +790,11 @@ const InventoryManagement = () => {
         )}
 
         {/* Empty state when no data */}
-        {!loading && !productInventory && !dispensaryCalculation && inventoryHistory.length === 0 && activeTab !== "reconcile" && (
+        {!loading && !productInventory && !dispensaryCalculation && inventoryHistory.length === 0 && activeTab !== "reconcile" && activeTab !== "dispensarySummary" && (
           <div className="text-center py-12">
             <Package className="mx-auto text-gray-400 mb-4" size={48} />
             <h3 className="text-lg font-medium text-gray-600 mb-2">No inventory data</h3>
-            <p className="text-gray-500">Enter a product ID and apply filters to view inventory information</p>
+            <p className="text-gray-500">Select a product from the filters to view inventory information</p>
           </div>
         )}
       </div>
@@ -588,4 +802,4 @@ const InventoryManagement = () => {
   )
 }
 
-export default InventoryManagement
+export default InventoryManagement;

@@ -52,11 +52,13 @@ export async function GetProductInventory(req, res) {
 }
 
 // Calculate dispensary inventory based on transfers and sales
+// Calculate dispensary inventory based on transfers and sales
+// Calculate dispensary inventory based on transfers and sales
 export async function CalculateDispensaryInventory(req, res) {
   try {
     const productId = req.params.id;
     const { startDate, endDate } = req.query;
-    
+    console.log(productId);
     // Find the product
     const product = await Product.findById(productId);
     if (!product) {
@@ -101,12 +103,26 @@ export async function CalculateDispensaryInventory(req, res) {
     const totalReturned = returns.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
     const totalSold = sales.reduce((sum, sale) => sum + sale.quantitySold, 0);
     
-    // Get current dispensary quantity6
-    const dispensary = await Dispensary.findOne({ product: productId, isDeleted: { $ne: true } });
-    const currentDispensaryQty = dispensary ? dispensary.quantity : 0;
-    
     // Calculate expected quantity based on transfers and sales
     const expectedDispensaryQty = totalIssued - totalReturned - totalSold;
+    
+    // Get the actual quantity at the end of the period
+    let actualDispensaryQty;
+    
+    if (endDate) {
+      // If we have an end date, find the most recent inventory record before the end date
+      const latestDispensaryRecord = await Dispensary.findOne({
+        product: productId,
+        isDeleted: { $ne: true },
+        updatedAt: { $lte: new Date(endDate) }
+      }).sort({ updatedAt: -1 });
+      
+      actualDispensaryQty = latestDispensaryRecord ? latestDispensaryRecord.quantity : 0;
+    } else {
+      // If no end date, use current quantity
+      const dispensary = await Dispensary.findOne({ product: productId, isDeleted: { $ne: true } });
+      actualDispensaryQty = dispensary ? dispensary.quantity : 0;
+    }
     
     res.json({
       product: {
@@ -119,8 +135,8 @@ export async function CalculateDispensaryInventory(req, res) {
         totalReturned,
         totalSold,
         expectedDispensaryQty,
-        actualDispensaryQty: currentDispensaryQty,
-        discrepancy: currentDispensaryQty - expectedDispensaryQty
+        actualDispensaryQty,
+        discrepancy: actualDispensaryQty - expectedDispensaryQty
       },
       timePeriod: {
         startDate: startDate || "Beginning of records",
@@ -254,6 +270,136 @@ export async function ReconcileInventory(req, res) {
     res.json({
       message: "Inventory reconciled successfully",
       adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+// Add this function to InventoryController.js
+export async function GetDispensarySummary(req, res) {
+  try {
+    // Get all active dispensary products
+    const dispensaryProducts = await Dispensary.find({
+      isDeleted: { $ne: true },
+      isActive: true
+    }).populate({
+      path: 'product',
+      match: { isDeleted: { $ne: true } },
+      select: 'name brand expiryDate type DosageForms unitPrice sellingPrice'
+    });
+
+    // Filter out products that might have been deleted but still referenced
+    const validProducts = dispensaryProducts.filter(item => item.product !== null);
+
+    // Get product IDs for aggregation
+    const productIds = validProducts.map(item => item.product._id);
+
+    // Calculate totals from transfers
+    const transferResults = await Transfare.aggregate([
+      {
+        $match: {
+          product: { $in: productIds }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            product: "$product",
+            type: "$type"
+          },
+          totalQuantity: { $sum: "$quantity" }
+        }
+      }
+    ]);
+
+    // Calculate totals from sales
+    const salesResults = await Sales.aggregate([
+      {
+        $match: {
+          product: { $in: productIds },
+          status: "completed"
+        }
+      },
+      {
+        $group: {
+          _id: "$product",
+          totalSold: { $sum: "$quantitySold" }
+        }
+      }
+    ]);
+
+    // Create maps for easy lookup
+    const transferMap = {};
+    transferResults.forEach(item => {
+      const productId = item._id.product.toString();
+      if (!transferMap[productId]) {
+        transferMap[productId] = { issued: 0, returned: 0 };
+      }
+      if (item._id.type === "ISSUE_TO_DISPENSARY") {
+        transferMap[productId].issued = item.totalQuantity;
+      } else if (item._id.type === "RETURN_TO_STORE") {
+        transferMap[productId].returned = item.totalQuantity;
+      }
+    });
+
+    const salesMap = {};
+    salesResults.forEach(item => {
+      salesMap[item._id.toString()] = item.totalSold;
+    });
+
+    // Prepare response data
+    let totalUnitPriceExpected = 0;
+    let totalSellingPriceExpected = 0;
+    let totalUnitPriceActual = 0;
+    let totalSellingPriceActual = 0;
+
+    const productsSummary = validProducts.map(item => {
+      const productId = item.product._id.toString();
+      const transfers = transferMap[productId] || { issued: 0, returned: 0 };
+      const totalSold = salesMap[productId] || 0;
+      
+      const expectedInDispensary = transfers.issued - transfers.returned - totalSold;
+      const actualInDispensary = item.quantity;
+      
+      const unitPriceExpected = item.product.unitPrice * expectedInDispensary;
+      const sellingPriceExpected = item.product.sellingPrice * expectedInDispensary;
+      const unitPriceActual = item.product.unitPrice * actualInDispensary;
+      const sellingPriceActual = item.product.sellingPrice * actualInDispensary;
+      
+      // Add to totals
+      totalUnitPriceExpected += unitPriceExpected;
+      totalSellingPriceExpected += sellingPriceExpected;
+      totalUnitPriceActual += unitPriceActual;
+      totalSellingPriceActual += sellingPriceActual;
+
+      return {
+        productId: item.product._id,
+        name: item.product.name,
+        brand: item.product.brand,
+        status: item.status,
+        expiryDate: item.product.expiryDate,
+        type: item.product.type,
+        dosageForm: item.product.DosageForms,
+        totalIssued: transfers.issued,
+        totalReturned: transfers.returned,
+        totalSold: totalSold,
+        expectedInDispensary: expectedInDispensary,
+        actualInDispensary: actualInDispensary,
+        unitPriceExpected: unitPriceExpected,
+        sellingPriceExpected: sellingPriceExpected,
+        unitPriceActual: unitPriceActual,
+        sellingPriceActual: sellingPriceActual
+      };
+    });
+
+    res.json({
+      products: productsSummary,
+      totals: {
+        totalUnitPriceExpected: totalUnitPriceExpected,
+        totalSellingPriceExpected: totalSellingPriceExpected,
+        totalUnitPriceActual: totalUnitPriceActual,
+        totalSellingPriceActual: totalSellingPriceActual
+      }
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
