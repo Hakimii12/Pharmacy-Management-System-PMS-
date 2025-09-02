@@ -25,7 +25,7 @@ import {
   Minus,
   List
 } from "lucide-react"
-
+import Api from "../data/API.json"
 const InventoryManagement = () => {
   const [activeTab, setActiveTab] = useState("dispensarySummary")
   const [productInventory, setProductInventory] = useState(null)
@@ -52,7 +52,7 @@ const InventoryManagement = () => {
   const [summaryStatus, setSummaryStatus] = useState("")
 
   // API base URL - adjust as needed
-  const API_BASE = "http://localhost:5000/api"
+  const API_BASE = `${Api.link}/api`
 
   // Fetch dispensary summary
   const fetchDispensarySummary = useCallback(async () => {
