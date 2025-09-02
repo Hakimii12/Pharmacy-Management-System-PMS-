@@ -55,33 +55,31 @@ const InventoryManagement = () => {
   const API_BASE = `${Api.link}/api`
 
   // Fetch dispensary summary
-  const fetchDispensarySummary = useCallback(async () => {
-    setLoading(true)
-    setError("")
-    try {
-      const response = await axios.get(
-        `${API_BASE}/inventory/getDispensarySummary`,
-        { withCredentials: true }
-      )
-      setDispensarySummary(response.data)
-      
-      // Create a mapping of product names to IDs for easier lookup
-      const newProductMap = new Map()
-      response.data.products.forEach(product => {
-        // In a real application, you'd use the actual product ID
-        // For now, we'll use the name as ID since the sample data doesn't include IDs
-        newProductMap.set(product.name, product.productId) // Replace with product.id when available
-      })
-      setProductMap(newProductMap)
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to fetch dispensary summary")
-    } finally {
-      setLoading(false)
-    }
-  }, [API_BASE])
+const fetchDispensarySummary = useCallback(async () => {
+  setLoading(true)
+  setError("")
+  try {
+    const response = await axios.get(
+      `${API_BASE}/inventory/getDispensarySummary`,
+      { withCredentials: true }
+    )
+    setDispensarySummary(response.data)
+    
+    // Create a mapping of product names to IDs for easier lookup
+    const newProductMap = new Map()
+    response.data.products.forEach(product => {
+      newProductMap.set(product.name, product.productId)
+    })
+    setProductMap(newProductMap)
+  } catch (err) {
+    setError(err.response?.data?.message || "Failed to fetch dispensary summary")
+  } finally {
+    setLoading(false)
+  }
+}, [API_BASE])
 
   // Fetch product inventory
-  const fetchProductInventory = useCallback(async (productId) => {
+const fetchProductInventory = useCallback(async (productId) => {
     if (!productId) return
     setLoading(true)
     setError("")
@@ -99,26 +97,26 @@ const InventoryManagement = () => {
   }, [API_BASE])
 
   // Calculate dispensary inventory
-  const calculateDispensaryInventory = useCallback(async (productId, startDate, endDate) => {
-    if (!productId) return
-    setLoading(true)
-    setError("")
-    try {
-      let url = `${API_BASE}/inventory/calculate/${productId}`
-      if (startDate && endDate) {
-        url += `?startDate=${startDate}&endDate=${endDate}`
-      }
-      const response = await axios.get(
-        url,
-        { withCredentials: true }
-      )
-      setDispensaryCalculation(response.data)
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to calculate dispensary inventory")
-    } finally {
-      setLoading(false)
+ const calculateDispensaryInventory = useCallback(async (productId, startDate, endDate) => {
+  if (!productId) return
+  setLoading(true)
+  setError("")
+  try {
+    let url = `${API_BASE}/inventory/calculate/${productId}`
+    if (startDate && endDate) {
+      url += `?startDate=${startDate}&endDate=${endDate}`
     }
-  }, [API_BASE])
+    const response = await axios.get(
+      url,
+      { withCredentials: true }
+    )
+    setDispensaryCalculation(response.data)
+  } catch (err) {
+    setError(err.response?.data?.message || "Failed to calculate dispensary inventory")
+  } finally {
+    setLoading(false)
+  }
+}, [API_BASE])
 
   // Fetch inventory history
   const fetchInventoryHistory = useCallback(async (productId, limit = 50) => {
@@ -361,153 +359,159 @@ const InventoryManagement = () => {
 
         {/* Dispensary Summary Tab */}
         {activeTab === "dispensarySummary" && dispensarySummary && !loading && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold flex items-center">
-                <Warehouse className="mr-2" />
-                Dispensary Summary
-              </h2>
-              <button
-                onClick={fetchDispensarySummary}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center"
-              >
-                <RefreshCw className="mr-2" size={18} />
-                Refresh
-              </button>
-            </div>
+  <div>
+    <div className="flex justify-between items-center mb-6">
+      <h2 className="text-xl font-semibold flex items-center">
+        <Warehouse className="mr-2" />
+        Dispensary Summary
+      </h2>
+      <button
+        onClick={fetchDispensarySummary}
+        className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md flex items-center"
+      >
+        <RefreshCw className="mr-2" size={18} />
+        Refresh
+      </button>
+    </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-blue-100 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-blue-800">
-                  {dispensarySummary.products.length}
-                </div>
-                <p className="text-sm">Total Products</p>
-              </div>
-              <div className="bg-green-100 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-green-800">
-                  {dispensarySummary.products.filter(p => p.status === "In Stock").length}
-                </div>
-                <p className="text-sm">In Stock</p>
-              </div>
-              <div className="bg-yellow-100 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-yellow-800">
-                  {dispensarySummary.products.filter(p => p.status === "Low Stock").length}
-                </div>
-                <p className="text-sm">Low Stock</p>
-              </div>
-              <div className="bg-red-100 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-red-800">
-                  {dispensarySummary.products.filter(p => p.status === "Sold Out").length}
-                </div>
-                <p className="text-sm">Sold Out</p>
-              </div>
-            </div>
+    {/* Summary Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="bg-blue-100 p-4 rounded-lg text-center">
+        <div className="text-2xl font-bold text-blue-800">
+          {dispensarySummary.products.length}
+        </div>
+        <p className="text-sm">Total Products</p>
+      </div>
+      <div className="bg-green-100 p-4 rounded-lg text-center">
+        <div className="text-2xl font-bold text-green-800">
+          {dispensarySummary.products.filter(p => p.status === "In Stock").length}
+        </div>
+        <p className="text-sm">In Stock</p>
+      </div>
+      <div className="bg-yellow-100 p-4 rounded-lg text-center">
+        <div className="text-2xl font-bold text-yellow-800">
+          {dispensarySummary.products.filter(p => p.status === "Low Stock").length}
+        </div>
+        <p className="text-sm">Low Stock</p>
+      </div>
+      <div className="bg-red-100 p-4 rounded-lg text-center">
+        <div className="text-2xl font-bold text-red-800">
+          {dispensarySummary.products.filter(p => p.status === "Sold Out" || p.status === "Expired").length}
+        </div>
+        <p className="text-sm">Out of Stock/Expired</p>
+      </div>
+    </div>
 
-            {/* Products Table */}
-            <div className="flex flex-col md:flex-row gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Search by name, brand, batch number..."
-                value={summarySearch}
-                onChange={e => setSummarySearch(e.target.value)}
-                className="p-2 border border-gray-300 rounded-md flex-1"
-              />
-              <select
-                value={summaryStatus}
-                onChange={e => setSummaryStatus(e.target.value)}
-                className="p-2 border border-gray-300 rounded-md w-48"
-              >
-                <option value="">All Status</option>
-                <option value="In Stock">In Stock</option>
-                <option value="Low Stock">Low Stock</option>
-                <option value="Sold Out">Sold Out</option>
-              </select>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sold</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">In Dispensary</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {dispensarySummary.products
-                    .filter(product => {
-                      const name = product.name?.toLowerCase() || "";
-                      const brand = product.brand?.toLowerCase() || "";
-                      const batchNo = product.batchNo?.toLowerCase() || "";
-                      const search = summarySearch.toLowerCase();
+    {/* Products Table */}
+    <div className="flex flex-col md:flex-row gap-4 mb-4">
+      <input
+        type="text"
+        placeholder="Search by name, brand, type..."
+        value={summarySearch}
+        onChange={e => setSummarySearch(e.target.value)}
+        className="p-2 border border-gray-300 rounded-md flex-1"
+      />
+      <select
+        value={summaryStatus}
+        onChange={e => setSummaryStatus(e.target.value)}
+        className="p-2 border border-gray-300 rounded-md w-48"
+      >
+        <option value="">All Status</option>
+        <option value="In Stock">In Stock</option>
+        <option value="Low Stock">Low Stock</option>
+        <option value="Sold Out">Sold Out</option>
+        <option value="Expired">Expired</option>
+      </select>
+    </div>
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selling Price</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {dispensarySummary.products
+            .filter(product => {
+              const name = product.name?.toLowerCase() || "";
+              const brand = product.brand?.toLowerCase() || "";
+              const type = product.type?.toLowerCase() || "";
+              const search = summarySearch.toLowerCase();
 
-                      const matchesSearch =
-                        name.includes(search) ||
-                        brand.includes(search) ||
-                        batchNo.includes(search);
+              const matchesSearch =
+                name.includes(search) ||
+                brand.includes(search) ||
+                type.includes(search);
 
-                      const matchesStatus = summaryStatus === "" || product.status === summaryStatus;
-                      return matchesSearch && matchesStatus;
-                    })
-                    .map((product, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{product.name}</div>
-                        <div className="text-sm text-gray-500">{product.brand}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          product.status === "In Stock" ? "bg-green-100 text-green-800" :
-                          product.status === "Low Stock" ? "bg-yellow-100 text-yellow-800" :
-                          "bg-red-100 text-red-800"
-                        }`}>
-                          {product.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(product.expiryDate).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {product.totalSold}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {product.actualInDispensary}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleProductSelect(product)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              const matchesStatus = summaryStatus === "" || product.status === summaryStatus;
+              return matchesSearch && matchesStatus;
+            })
+            .map((product, index) => (
+            <tr key={index} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="font-medium text-gray-900">{product.name}</div>
+                <div className="text-sm text-gray-500">{product.brand} - {product.type}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  product.status === "In Stock" ? "bg-green-100 text-green-800" :
+                  product.status === "Low Stock" ? "bg-yellow-100 text-yellow-800" :
+                  product.status === "Expired" ? "bg-red-100 text-red-800" :
+                  "bg-gray-100 text-gray-800"
+                }`}>
+                  {product.status}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {new Date(product.expiryDate).toLocaleDateString()}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {product.quantity}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${product.unitPrice.toFixed(2)}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${product.sellingPrice.toFixed(2)}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <button
+                  onClick={() => handleProductSelect(product)}
+                  className="text-blue-600 hover:text-blue-900 mr-3"
+                >
+                  View Details
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
 
-            {/* Totals Section */}
-            <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-medium mb-4">Financial Summary</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-2">Expected Values</h4>
-                  <p>Total Unit Price: ${dispensarySummary.totals.totalUnitPriceExpected.toFixed(2)}</p>
-                  <p>Total Selling Price: ${dispensarySummary.totals.totalSellingPriceExpected.toFixed(2)}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-2">Actual Values</h4>
-                  <p>Total Unit Price: ${dispensarySummary.totals.totalUnitPriceActual.toFixed(2)}</p>
-                  <p>Total Selling Price: ${dispensarySummary.totals.totalSellingPriceActual.toFixed(2)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+    {/* Totals Section */}
+    <div className="mt-8 p-6 bg-gray-50 rounded-lg">
+      <h3 className="text-lg font-medium mb-4">Financial Summary</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <h4 className="font-medium mb-2 text-blue-600">Total Inventory Value</h4>
+          <p className="text-2xl font-bold">${dispensarySummary.totals.totalUnitPrice.toFixed(2)}</p>
+          <p className="text-sm text-gray-500">Based on unit cost</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <h4 className="font-medium mb-2 text-green-600">Total Potential Revenue</h4>
+          <p className="text-2xl font-bold">${dispensarySummary.totals.totalSellingPrice.toFixed(2)}</p>
+          <p className="text-sm text-gray-500">Based on selling price</p>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Product Inventory Tab */}
         {activeTab === "product" && productInventory && !loading && (
@@ -583,70 +587,87 @@ const InventoryManagement = () => {
 
         {/* Calculate Inventory Tab */}
         {activeTab === "calculate" && dispensaryCalculation && !loading && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Calculator className="mr-2" />
-              Dispensary Inventory Calculation
-            </h2>
-            
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-medium mb-2">Formula:</h3>
-              <p className="text-sm">
-                Closing Dispensary Inventory = (Opening Balance + Received from Store) - (Sold to Patient + Returned to Store)
-              </p>
-              <p className="text-sm mt-2">
-                Time Period: {dispensaryCalculation.timePeriod.startDate} to {dispensaryCalculation.timePeriod.endDate}
-              </p>
-            </div>
+  <div>
+    <h2 className="text-xl font-semibold mb-4 flex items-center">
+      <Calculator className="mr-2" />
+      Dispensary Inventory Calculation
+    </h2>
+    
+    <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+      <h3 className="font-medium mb-2">Time Period:</h3>
+      <p className="text-sm">
+        {dispensaryCalculation.timePeriod.startDate} to {dispensaryCalculation.timePeriod.endDate}
+      </p>
+    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">Product Information</h3>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Name:</span> {dispensaryCalculation.product?.name}</p>
-                  <p><span className="font-medium">Batch No:</span> {dispensaryCalculation.product?.batchNo}</p>
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">Calculation Results</h3>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Total Issued:</span> {dispensaryCalculation.calculations.totalIssued} units</p>
-                  <p><span className="font-medium">Total Returned:</span> {dispensaryCalculation.calculations.totalReturned} units</p>
-                  <p><span className="font-medium">Total Sold:</span> {dispensaryCalculation.calculations.totalSold} units</p>
-                  <p><span className="font-medium">Expected in Dispensary:</span> {dispensaryCalculation.calculations.expectedDispensaryQty} units</p>
-                  <p><span className="font-medium">Actual in Dispensary:</span> {dispensaryCalculation.calculations.actualDispensaryQty} units</p>
-                  <p className={`font-medium ${dispensaryCalculation.calculations.discrepancy !== 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    Discrepancy: {dispensaryCalculation.calculations.discrepancy} units
-                  </p>
-                </div>
-              </div>
-            </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h3 className="text-lg font-medium mb-2">Product Information</h3>
+        <div className="space-y-2">
+          <p><span className="font-medium">Name:</span> {dispensaryCalculation.product.name}</p>
+          <p><span className="font-medium">Batch No:</span> {dispensaryCalculation.product.batchNo}</p>
+          <p><span className="font-medium">Unit Price:</span> ${dispensaryCalculation.product.unitPrice.toFixed(2)}</p>
+          <p><span className="font-medium">Selling Price:</span> ${dispensaryCalculation.product.sellingPrice.toFixed(2)}</p>
+        </div>
+      </div>
+      
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h3 className="text-lg font-medium mb-2">Calculation Results</h3>
+        <div className="space-y-2">
+          <p><span className="font-medium">Initial Quantity:</span> {dispensaryCalculation.calculations.initialDispensaryQty} units</p>
+          <p><span className="font-medium">Issued in Period:</span> {dispensaryCalculation.calculations.totalIssuedInPeriod} units</p>
+          <p><span className="font-medium">Returned in Period:</span> {dispensaryCalculation.calculations.totalReturnedInPeriod} units</p>
+          <p><span className="font-medium">Sold in Period:</span> {dispensaryCalculation.calculations.totalSoldInPeriod} units</p>
+          <p><span className="font-medium">Expected in Dispensary:</span> {dispensaryCalculation.calculations.expectedDispensaryQty} units</p>
+        </div>
+      </div>
+    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-blue-100 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-blue-800">
-                  {dispensaryCalculation.calculations.totalIssued}
-                </div>
-                <p className="text-sm">Total Issued</p>
-              </div>
-              
-              <div className="bg-green-100 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-green-800">
-                  {dispensaryCalculation.calculations.totalReturned}
-                </div>
-                <p className="text-sm">Total Returned</p>
-              </div>
-              
-              <div className="bg-red-100 p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-red-800">
-                  {dispensaryCalculation.calculations.totalSold}
-                </div>
-                <p className="text-sm">Total Sold</p>
-              </div>
-            </div>
-          </div>
-        )}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="bg-blue-100 p-4 rounded-lg text-center">
+        <div className="text-2xl font-bold text-blue-800">
+          {dispensaryCalculation.calculations.totalIssuedInPeriod}
+        </div>
+        <p className="text-sm">Issued</p>
+      </div>
+      
+      <div className="bg-green-100 p-4 rounded-lg text-center">
+        <div className="text-2xl font-bold text-green-800">
+          {dispensaryCalculation.calculations.totalReturnedInPeriod}
+        </div>
+        <p className="text-sm">Returned</p>
+      </div>
+      
+      <div className="bg-red-100 p-4 rounded-lg text-center">
+        <div className="text-2xl font-bold text-red-800">
+          {dispensaryCalculation.calculations.totalSoldInPeriod}
+        </div>
+        <p className="text-sm">Sold</p>
+      </div>
+    </div>
+
+    {/* Financial Results */}
+    <div className="bg-gray-50 p-6 rounded-lg">
+      <h3 className="text-lg font-medium mb-4">Financial Results</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow-sm text-center">
+          <h4 className="font-medium text-blue-600 mb-2">Total Unit Price</h4>
+          <p className="text-2xl font-bold">${dispensaryCalculation.calculations.financials.totalUnitPrice.toFixed(2)}</p>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow-sm text-center">
+          <h4 className="font-medium text-green-600 mb-2">Total Selling Price</h4>
+          <p className="text-2xl font-bold">${dispensaryCalculation.calculations.financials.totalSellingPrice.toFixed(2)}</p>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow-sm text-center">
+          <h4 className="font-medium text-purple-600 mb-2">Potential Profit</h4>
+          <p className="text-2xl font-bold">${dispensaryCalculation.calculations.financials.potentialProfit.toFixed(2)}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Inventory History Tab */}
         {activeTab === "history" && inventoryHistory.length > 0 && !loading && (
