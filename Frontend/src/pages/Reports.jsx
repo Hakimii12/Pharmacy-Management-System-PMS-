@@ -281,13 +281,6 @@ const fetchProductInventory = useCallback(async (productId) => {
           <History className="inline mr-2" size={18} />
           Inventory History
         </button>
-        <button
-          className={`py-2 px-4 font-medium whitespace-nowrap ${activeTab === "reconcile" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-500"}`}
-          onClick={() => setActiveTab("reconcile")}
-        >
-          <RefreshCw className="inline mr-2" size={18} />
-          Reconcile Inventory
-        </button>
       </div>
 
       {/* Filter Section (only show for tabs that need it) */}
@@ -515,75 +508,76 @@ const fetchProductInventory = useCallback(async (productId) => {
 
         {/* Product Inventory Tab */}
         {activeTab === "product" && productInventory && !loading && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Package className="mr-2" />
-              Product Inventory Details
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">Product Information</h3>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Name:</span> {productInventory.product?.name}</p>
-                  <p><span className="font-medium">Batch No:</span> {productInventory.product?.batchNo}</p>
-                  <p><span className="font-medium">Expiry Date:</span> {new Date(productInventory.product?.expiryDate).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">Inventory Summary</h3>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Store Quantity:</span> {productInventory.inventory?.store}</p>
-                  <p><span className="font-medium">Dispensary Quantity:</span> {productInventory.inventory?.dispensary}</p>
-                  <p><span className="font-medium">Total Quantity:</span> {productInventory.inventory?.total}</p>
-                </div>
-              </div>
-            </div>
+  <div>
+    <h2 className="text-xl font-semibold mb-4 flex items-center">
+      <Package className="mr-2" />
+      Product Inventory Details
+    </h2>
+    
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h3 className="text-lg font-medium mb-2">Product Information</h3>
+        <div className="space-y-2">
+          <p><span className="font-medium">Name:</span> {productInventory.product?.name}</p>
+          <p><span className="font-medium">Batch No:</span> {productInventory.product?.batchNo}</p>
+          <p><span className="font-medium">Expiry Date:</span> {new Date(productInventory.product?.expiryDate).toLocaleDateString()}</p>
+        </div>
+      </div>
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h3 className="text-lg font-medium mb-2">Inventory Summary</h3>
+        <div className="space-y-2">
+          <p><span className="font-medium">Store Quantity:</span> {productInventory.inventory?.store}</p>
+          <p><span className="font-medium">Dispensary Quantity:</span> {productInventory.inventory?.dispensary}</p>
+          <p><span className="font-medium">Total Quantity:</span> {productInventory.inventory?.total}</p>
+          <p><span className="font-medium text-blue-600">Quantity Added (Updates):</span> {productInventory.inventory?.totalQuantityAdded}</p>
+          <p><span className="font-medium text-red-600">Quantity Deducted (Updates):</span> {productInventory.inventory?.totalQuantityDeducted}</p>
+        </div>
+      </div>
+    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-medium mb-2">Recent Transfers</h3>
-                <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
-                  {productInventory.recentTransfers?.length > 0 ? (
-                    <ul className="divide-y divide-gray-200">
-                      {productInventory.recentTransfers.map((transfer, index) => (
-                        <li key={index} className="py-2">
-                          <p className="font-medium">{transfer.type}</p>
-                          <p>Quantity: {transfer.quantity}</p>
-                          <p>Date: {new Date(transfer.date).toLocaleDateString()}</p>
-                          <p>By: {transfer.user?.name}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500">No recent transfers</p>
-                  )}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-medium mb-2">Recent Sales</h3>
-                <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
-                  {productInventory.recentSales?.length > 0 ? (
-                    <ul className="divide-y divide-gray-200">
-                      {productInventory.recentSales.map((sale, index) => (
-                        <li key={index} className="py-2">
-                          <p className="font-medium">Sale: {sale.quantitySold} units</p>
-                          <p>Amount: ${sale.saleAmount}</p>
-                          <p>Date: {new Date(sale.completedAt).toLocaleDateString()}</p>
-                          <p>By: {sale.cashier?.name || sale.pharmacist?.name}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500">No recent sales</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <h3 className="text-lg font-medium mb-2">Recent Transfers</h3>
+        <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
+          {productInventory.recentTransfers?.length > 0 ? (
+            <ul className="divide-y divide-gray-200">
+              {productInventory.recentTransfers.map((transfer, index) => (
+                <li key={index} className="py-2">
+                  <p className="font-medium">{transfer.type}</p>
+                  <p>Quantity: {transfer.quantity}</p>
+                  <p>Date: {new Date(transfer.date).toLocaleDateString()}</p>
+                  <p>By: {transfer.user?.name}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">No recent transfers</p>
+          )}
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-lg font-medium mb-2">Recent Sales</h3>
+        <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
+          {productInventory.recentSales?.length > 0 ? (
+            <ul className="divide-y divide-gray-200">
+              {productInventory.recentSales.map((sale, index) => (
+                <li key={index} className="py-2">
+                  <p className="font-medium">Sale: {sale.quantitySold} units</p>
+                  <p>Amount: ${sale.saleAmount}</p>
+                  <p>Date: {new Date(sale.completedAt).toLocaleDateString()}</p>
+                  <p>By: {sale.cashier?.name || sale.pharmacist?.name}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">No recent sales</p>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Calculate Inventory Tab */}
         {activeTab === "calculate" && dispensaryCalculation && !loading && (
@@ -618,6 +612,8 @@ const fetchProductInventory = useCallback(async (productId) => {
           <p><span className="font-medium">Issued in Period:</span> {dispensaryCalculation.calculations.totalIssuedInPeriod} units</p>
           <p><span className="font-medium">Returned in Period:</span> {dispensaryCalculation.calculations.totalReturnedInPeriod} units</p>
           <p><span className="font-medium">Sold in Period:</span> {dispensaryCalculation.calculations.totalSoldInPeriod} units</p>
+          <p><span className="font-medium text-blue-600">Quantity Added (Updates):</span> {dispensaryCalculation.calculations.totalQuantityAddedInPeriod} units</p>
+          <p><span className="font-medium text-red-600">Quantity Deducted (Updates):</span> {dispensaryCalculation.calculations.totalQuantityDeductedInPeriod} units</p>
           <p><span className="font-medium">Expected in Dispensary:</span> {dispensaryCalculation.calculations.expectedDispensaryQty} units</p>
         </div>
       </div>
@@ -686,6 +682,7 @@ const fetchProductInventory = useCallback(async (productId) => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    {/* Add column for update type if needed */}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -701,7 +698,18 @@ const fetchProductInventory = useCallback(async (productId) => {
                         {event.action}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {event.quantity}
+                        {event.type === "UPDATE" ? (
+                          <>
+                            {event.action === "QUANTITY_ADDED" && (
+                              <span className="text-blue-600 font-semibold">+{event.quantity}</span>
+                            )}
+                            {event.action === "QUANTITY_DEDUCTED" && (
+                              <span className="text-red-600 font-semibold">-{event.quantity}</span>
+                            )}
+                          </>
+                        ) : (
+                          event.quantity
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {event.user}
@@ -713,105 +721,8 @@ const fetchProductInventory = useCallback(async (productId) => {
             </div>
           </div>
         )}
-
-        {/* Reconcile Inventory Tab */}
-        {activeTab === "reconcile" && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <RefreshCw className="mr-2" />
-              Reconcile Inventory
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <form onSubmit={handleReconcileSubmit} className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium mb-4">Reconciliation Form</h3>
-                  
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment Quantity</label>
-                    <div className="flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => setReconcileForm(prev => ({ ...prev, adjustmentQty: parseInt(prev.adjustmentQty) - 1 }))}
-                        className="p-2 bg-gray-200 rounded-l-md"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <input
-                        type="number"
-                        name="adjustmentQty"
-                        value={reconcileForm.adjustmentQty}
-                        onChange={handleReconcileChange}
-                        className="w-20 p-2 border-y border-gray-300 text-center"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setReconcileForm(prev => ({ ...prev, adjustmentQty: parseInt(prev.adjustmentQty) + 1 }))}
-                        className="p-2 bg-gray-200 rounded-r-md"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <select
-                      name="location"
-                      value={reconcileForm.location}
-                      onChange={handleReconcileChange}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="store">Store</option>
-                      <option value="dispensary">Dispensary</option>
-                    </select>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-                    <textarea
-                      name="reason"
-                      value={reconcileForm.reason}
-                      onChange={handleReconcileChange}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                      rows="3"
-                      placeholder="Explain why this adjustment is needed"
-                    />
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={loading || !filters.productId}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md disabled:opacity-50"
-                  >
-                    {loading ? "Processing..." : "Reconcile Inventory"}
-                  </button>
-                </form>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-medium mb-4">Reconciliation Result</h3>
-                {reconcileResult ? (
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="flex items-center mb-2">
-                      <CheckCircle className="text-green-500 mr-2" />
-                      <span className="font-medium">Reconciliation Successful</span>
-                    </div>
-                    <p className="mb-2">Adjustment: {reconcileResult.adjustment.quantity} units</p>
-                    <p>Reason: {reconcileResult.adjustment.adjustmentReason}</p>
-                  </div>
-                ) : (
-                  <div className="bg-gray-100 p-4 rounded-lg text-center text-gray-500">
-                    <p>No reconciliation performed yet</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Empty state when no data */}
-        {!loading && !productInventory && !dispensaryCalculation && inventoryHistory.length === 0 && activeTab !== "reconcile" && activeTab !== "dispensarySummary" && (
+        {!loading && !productInventory && !dispensaryCalculation && inventoryHistory.length === 0 && /* REMOVE RECONCILE CHECK */ activeTab !== "dispensarySummary" && (
           <div className="text-center py-12">
             <Package className="mx-auto text-gray-400 mb-4" size={48} />
             <h3 className="text-lg font-medium text-gray-600 mb-2">No inventory data</h3>

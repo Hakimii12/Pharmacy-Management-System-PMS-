@@ -31,6 +31,20 @@ export async function GetProductInventory(req, res) {
       .populate("pharmacist", "name")
       .populate("cashier", "name");
     
+    // Get recent updates
+    const recentUpdates = await Transfare.find({ product: productId, type: "UPDATED_IN_DISPENSARY" })
+      .sort({ date: -1 })
+      .limit(10)
+      .populate("user", "name");
+
+    const totalQuantityAdded = recentUpdates
+      .filter(update => update.UpdateType === "QUANTITY_ADDED")
+      .reduce((sum, update) => sum + update.quantity, 0);
+
+    const totalQuantityDeducted = recentUpdates
+      .filter(update => update.UpdateType === "QUANTITY_DEDUCTED")
+      .reduce((sum, update) => sum + update.quantity, 0);
+
     res.json({
       product: {
         id: product._id,
@@ -41,21 +55,18 @@ export async function GetProductInventory(req, res) {
       inventory: {
         store: store ? store.quantity : 0,
         dispensary: dispensary ? dispensary.quantity : 0,
-        total: product.quantity
+        total: product.quantity,
+        totalQuantityAdded,
+        totalQuantityDeducted
       },
       recentTransfers,
-      recentSales
+      recentSales,
+      recentUpdates
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 }
-
-// Calculate dispensary inventory based on transfers and sales
-// Calculate dispensary inventory based on transfers and sales
-// Calculate dispensary inventory based on transfers and sales
-// Calculate dispensary inventory based on transfers and sales - FIXED VERSION
-// Calculate dispensary inventory based on transfers and sales - UPDATED VERSION
 export async function CalculateDispensaryInventory(req, res) {
   try {
     const productId = req.params.id;
@@ -106,12 +117,29 @@ export async function CalculateDispensaryInventory(req, res) {
         timestamp: { $lt: new Date(startDate) }
       });
       
+      // Get all quantity updates before the start date
+      const preStartUpdates = await Transfare.find({
+        product: productId,
+        type: "UPDATED_IN_DISPENSARY",
+        date: { $lt: new Date(startDate) }
+      });
+      
       // Calculate initial quantity
       const preStartIssued = preStartIssues.reduce((sum, issue) => sum + issue.quantity, 0);
       const preStartReturned = preStartReturns.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
       const preStartSold = preStartSales.reduce((sum, sale) => sum + sale.quantitySold, 0);
       
-      initialDispensaryQty = preStartIssued - preStartReturned - preStartSold;
+      // Calculate net updates (added - deducted)
+      const preStartNetUpdates = preStartUpdates.reduce((sum, update) => {
+        if (update.UpdateType === "QUANTITY_ADDED") {
+          return sum + update.quantity;
+        } else if (update.UpdateType === "QUANTITY_DEDUCTED") {
+          return sum - update.quantity;
+        }
+        return sum;
+      }, 0);
+      
+      initialDispensaryQty = preStartIssued - preStartReturned - preStartSold + preStartNetUpdates;
     }
     
     // Get all transfers to dispensary within date range
@@ -135,16 +163,35 @@ export async function CalculateDispensaryInventory(req, res) {
       ...salesDateFilter
     });
     
+    // Get all quantity updates within date range
+    const updates = await Transfare.find({
+      product: productId,
+      type: "UPDATED_IN_DISPENSARY",
+      ...dateFilter
+    });
+    
     // Calculate totals within the date range
     const totalIssuedInPeriod = issues.reduce((sum, issue) => sum + issue.quantity, 0);
     const totalReturnedInPeriod = returns.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
     const totalSoldInPeriod = sales.reduce((sum, sale) => sum + sale.quantitySold, 0);
     
-    // Calculate expected quantity based on transfers and sales
+    // Calculate net updates (added - deducted)
+    const totalQuantityAddedInPeriod = updates
+      .filter(update => update.UpdateType === "QUANTITY_ADDED")
+      .reduce((sum, update) => sum + update.quantity, 0);
+
+    const totalQuantityDeductedInPeriod = updates
+      .filter(update => update.UpdateType === "QUANTITY_DEDUCTED")
+      .reduce((sum, update) => sum + update.quantity, 0);
+
+    const totalNetUpdatesInPeriod = totalQuantityAddedInPeriod - totalQuantityDeductedInPeriod;
+    
+    // Calculate expected quantity based on transfers, sales, and updates
     const expectedDispensaryQty = initialDispensaryQty + 
                                  totalIssuedInPeriod - 
                                  totalReturnedInPeriod - 
-                                 totalSoldInPeriod;
+                                 totalSoldInPeriod +
+                                 totalNetUpdatesInPeriod;
     
     // Calculate financial values
     const totalUnitPrice = product.unitPrice * expectedDispensaryQty;
@@ -164,6 +211,9 @@ export async function CalculateDispensaryInventory(req, res) {
         totalIssuedInPeriod,
         totalReturnedInPeriod,
         totalSoldInPeriod,
+        totalNetUpdatesInPeriod,
+        totalQuantityAddedInPeriod,
+        totalQuantityDeductedInPeriod,
         expectedDispensaryQty,
         financials: {
           totalUnitPrice,
@@ -196,7 +246,13 @@ export async function GetInventoryHistory(req, res) {
       .sort({ date: -1 })
       .limit(parseInt(limit))
       .populate("user", "name");
-    
+
+    // Get updates
+    const updates = await Transfare.find({ product: productId, type: "UPDATED_IN_DISPENSARY" })
+      .sort({ date: -1 })
+      .limit(parseInt(limit))
+      .populate("user", "name");
+
     // Get sales
     const sales = await Sales.find({ product: productId, status: "completed" })
       .sort({ completedAt: -1 })
@@ -213,6 +269,14 @@ export async function GetInventoryHistory(req, res) {
         quantity: t.quantity,
         user: t.user.name,
         details: t
+      })),
+      ...updates.map(u => ({
+        type: "UPDATE",
+        date: u.date,
+        action: u.UpdateType,
+        quantity: u.quantity,
+        user: u.user.name,
+        details: u
       })),
       ...sales.map(s => ({
         type: "SALE",
