@@ -529,12 +529,8 @@ const fetchProductInventory = useCallback(async (productId) => {
           <p><span className="font-medium">Store Quantity:</span> {productInventory.inventory?.store}</p>
           <p><span className="font-medium">Dispensary Quantity:</span> {productInventory.inventory?.dispensary}</p>
           <p><span className="font-medium">Total Quantity:</span> {productInventory.inventory?.total}</p>
-          <p><span className="font-medium text-blue-600">Quantity Added (Updates):</span> 
-  {productInventory.inventory?.totalQuantityAdded ?? 0}
-</p>
-<p><span className="font-medium text-red-600">Quantity Deducted (Updates):</span> 
-  {productInventory.inventory?.totalQuantityDeducted ?? 0}
-</p>
+          <p><span className="font-medium text-blue-600">Quantity Added (Updates):</span> {productInventory.inventory?.totalQuantityAdded}</p>
+          <p><span className="font-medium text-red-600">Quantity Deducted (Updates):</span> {productInventory.inventory?.totalQuantityDeducted}</p>
         </div>
       </div>
     </div>

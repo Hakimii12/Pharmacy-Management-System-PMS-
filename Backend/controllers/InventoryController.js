@@ -38,11 +38,11 @@ export async function GetProductInventory(req, res) {
       .populate("user", "name");
 
     const totalQuantityAdded = recentUpdates
-      .filter(update => update.updateType === "QUANTITY_ADDED")
+      .filter(update => update.UpdateType === "QUANTITY_ADDED")
       .reduce((sum, update) => sum + update.quantity, 0);
 
     const totalQuantityDeducted = recentUpdates
-      .filter(update => update.updateType === "QUANTITY_DEDUCTED")
+      .filter(update => update.UpdateType === "QUANTITY_DEDUCTED")
       .reduce((sum, update) => sum + update.quantity, 0);
 
     res.json({
