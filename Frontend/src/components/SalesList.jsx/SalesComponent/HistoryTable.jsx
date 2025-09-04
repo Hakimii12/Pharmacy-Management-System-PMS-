@@ -1,8 +1,14 @@
 // src/components/SalesList.jsx/components/HistoryTable.jsx
 import React, { useState } from 'react';
+import Api from "../../../data/API.json"
+import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-const HistoryTable = ({ history, onUndoProduct }) => {
+const HistoryTable = ({ history: initialHistory }) => {
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [history, setHistory] = useState(initialHistory);
+  const [loadingUndo, setLoadingUndo] = useState({}); // { [orderId_productId]: true }
 
   const toggleExpand = (orderId) => {
     setExpandedOrder(expandedOrder === orderId ? null : orderId);
@@ -12,8 +18,48 @@ const HistoryTable = ({ history, onUndoProduct }) => {
     return new Date(dateString).toLocaleString();
   };
 
+  const handleUndoProduct = async (orderId, productId) => {
+    const key = `${orderId}_${productId}`;
+    setLoadingUndo(prev => ({ ...prev, [key]: true }));
+    try {
+      const response = await axios.post(
+        `${Api.link}/api/sales/undo`,
+        { transactionId: orderId, productId },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        setHistory(prev =>
+          prev.map(order => {
+            if (order.id === orderId) {
+              const updatedItems = order.items.filter(item => item.productId !== productId);
+              if (updatedItems.length === 0) {
+                return null;
+              }
+              return {
+                ...order,
+                items: updatedItems,
+                totalAmount: updatedItems.reduce((sum, item) => sum + item.total, 0)
+              };
+            }
+            return order;
+          }).filter(Boolean)
+        );
+        toast.success('Product refund processed successfully');
+      } else {
+        toast.error('Failed to process refund');
+      }
+    } catch (error) {
+      console.error('Error undoing transaction:', error);
+      toast.error('Failed to process refund: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoadingUndo(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
+      <ToastContainer position="top-right" autoClose={3000} />
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
@@ -74,27 +120,31 @@ const HistoryTable = ({ history, onUndoProduct }) => {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {order.items.map((item, index) => (
-                            <tr key={index}>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">{item.name}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">{item.brand}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">{item.category}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">{item.dosageForm}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">{item.quantity}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">${item.sellingPrice.toFixed(2)}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">${item.total.toFixed(2)}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">
-                                {order.status === 'completed' && (
-                                  <button
-                                    onClick={() => onUndoProduct(order.id, item.productId)}
-                                    className="text-red-600 hover:text-red-900"
-                                  >
-                                    Undo
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                          {order.items.map((item, index) => {
+                            const key = `${order.id}_${item.productId}`;
+                            return (
+                              <tr key={index}>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.name}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.brand}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.category}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.dosageForm}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.quantity}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.sellingPrice.toFixed(2)} <span className='text-xs text-green-800'>(ETB)</span></td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.total.toFixed(2)} <span className='text-xs text-green-800'>(ETB)</span></td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                  {order.status === 'completed' && (
+                                    <button
+                                      onClick={() => handleUndoProduct(order.id, item.productId)}
+                                      className={`text-red-600 hover:text-red-900 px-2 py-1 rounded ${loadingUndo[key] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                      disabled={loadingUndo[key]}
+                                    >
+                                      {loadingUndo[key] ? 'Undoing...' : 'Undo'}
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

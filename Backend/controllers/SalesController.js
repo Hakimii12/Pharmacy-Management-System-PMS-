@@ -7,7 +7,7 @@ import { updateProfitSummary } from "../utils/profitUtils.js" // Assuming this u
 import Notification from "../models/NotificationModel.js"
 import transformSalesRecords from "../utils/transformSalesRecords.js" // Assuming this utility exists
 import User from "../models/UserModel.js"
-
+import Transfare from "../models/Transfer.js"
 export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -491,7 +491,11 @@ export async function GetAllPendingStatus(req, res) {
 export async function GetAbortAndComplatedSale(req, res) {
   try {
     const TransactionHistory = await Sales.find({
-      $or: [{ status: "completed" }, { status: "aborted" }],
+      $or: [
+        { status: "completed" },
+        { status: "aborted" },
+        { status: "refunded" } // Include refunded
+      ],
     })
       .populate("pharmacist", "name email role")
       .populate("product", "name brand batchNo sellingPrice DosageForms category unitPrice")
@@ -524,6 +528,7 @@ export async function GetAbortAndComplatedSale(req, res) {
         unitPrice: record.product.unitPrice,
         sellingPrice: record.product.sellingPrice,
         total: record.saleAmount,
+        refundedAt: record.refundedAt // Add refundedAt for frontend
       })
       // Update transaction total
       groupedTransactions[tid].totalAmount += record.saleAmount
@@ -615,3 +620,81 @@ export const GetTotalSales = async (req, res) => {
     })
   }
 }
+export const UndoSale = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const { transactionId, productId } = req.body;
+    const userId = req.user._id;
+
+    // Find the sales record
+    const salesRecord = await Sales.findOne({
+      transactionId,
+      product: productId,
+      status: "completed"
+    }).session(session);
+
+    if (!salesRecord) {
+      throw new Error("Sales record not found");
+    }
+
+    // Get product details
+    const product = await Product.findById(productId).session(session);
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    // Update dispensary quantity
+    await Dispensary.findOneAndUpdate(
+      { product: productId },
+      { $inc: { quantity: salesRecord.quantitySold } },
+      { session }
+    );
+
+    // Update product total quantity
+    await Product.findByIdAndUpdate(
+      productId,
+      { $inc: { quantity: salesRecord.quantitySold } },
+      { session }
+    );
+
+    // Create transfer record for refund
+    const transfer = new Transfare({
+      product: productId,
+      user: userId,
+      type: "RETURN_REFUND",
+      quantity: salesRecord.quantitySold,
+      quantityLeft: (await Dispensary.findOne({ product: productId }).session(session)).quantity,
+      totalQuantity: product.quantity + salesRecord.quantitySold,
+      issuedPrice: salesRecord.saleAmount / salesRecord.quantitySold,
+      unitPrice: product.unitPrice,
+      totalIssuedPrice: salesRecord.saleAmount,
+      totalUnitPrice: product.unitPrice * salesRecord.quantitySold,
+      date: new Date()
+    });
+
+    await transfer.save({ session });
+
+    // Mark sales record as refunded instead of deleting it
+    salesRecord.status = "refunded";
+    salesRecord.refundedAt = new Date();
+    await salesRecord.save({ session });
+
+    await session.commitTransaction();
+    
+    res.json({
+      success: true,
+      message: "Transaction undone successfully",
+      transferId: transfer._id
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  } finally {
+    session.endSession();
+  }
+};

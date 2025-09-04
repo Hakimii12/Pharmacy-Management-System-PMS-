@@ -13,6 +13,9 @@ const StoreSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
+  initialStoreQty:{
+    type:Number
+  },
   threshold: {
     type: Number,
     default: 10,

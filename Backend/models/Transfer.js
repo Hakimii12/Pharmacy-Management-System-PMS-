@@ -14,7 +14,7 @@ const TransfareSchema = new mongoose.Schema({
    },
    type:{
     type:String,
-    enum: ['ISSUE_TO_DISPENSARY', 'RETURN_TO_STORE',"UPDATED_IN_STORE","UPDATED_IN_DISPENSARY"],
+    enum: ['ISSUE_TO_DISPENSARY', 'RETURN_TO_STORE',"UPDATED_IN_STORE","UPDATED_IN_DISPENSARY","RETURN_REFUND"],
     required:true
    },
    UpdateType:{

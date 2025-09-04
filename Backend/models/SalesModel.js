@@ -1,23 +1,24 @@
 import mongoose, { Schema } from "mongoose";
 import User from "./UserModel.js";
 const salesSchema = new mongoose.Schema({
-  transactionId: { type: String, required: true, index: true }, // Group multiple products
-  patientName:{type:String,required:true},
+  transactionId: { type: String, required: true, index: true },
+  patientName: { type: String, required: true },
   product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
   quantitySold: { type: Number, required: true },
   profit: { type: Number, required: true },
   saleAmount: { type: Number, required: true },
-   status: { 
+  status: { 
     type: String, 
-    enum: ["pending", "completed", "aborted"], 
+    enum: ["pending", "completed", "aborted", "refunded"], // Added "refunded"
     default: "pending",
     index: true
   },
   pharmacist: { type: Schema.Types.ObjectId, ref: "User", required: true },
   cashier: { type: Schema.Types.ObjectId, ref: "User" },
-  // completedAt: { type: Date },
-  // abortedAt: { type: Date },
+  completedAt: { type: Date },
+  abortedAt: { type: Date },
+  refundedAt: { type: Date }, // Added refundedAt field
   timestamp: { type: Date, default: Date.now }
 });
-const Sales = mongoose.model("Sales",salesSchema);
+const Sales = mongoose.model("Sales", salesSchema);
 export default Sales;

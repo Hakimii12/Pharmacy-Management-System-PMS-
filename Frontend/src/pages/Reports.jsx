@@ -535,7 +535,7 @@ const fetchProductInventory = useCallback(async (productId) => {
       </div>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div>
         <h3 className="text-lg font-medium mb-2">Recent Transfers</h3>
         <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
@@ -572,6 +572,25 @@ const fetchProductInventory = useCallback(async (productId) => {
             </ul>
           ) : (
             <p className="text-gray-500">No recent sales</p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-medium mb-2">Recent Refunds</h3>
+        <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
+          {productInventory.recentRefunds?.length > 0 ? (
+            <ul className="divide-y divide-gray-200">
+              {productInventory.recentRefunds.map((refund, index) => (
+                <li key={index} className="py-2">
+                  <p className="font-medium text-red-600">Refund: {refund.quantity} units</p>
+                  <p>Date: {new Date(refund.date).toLocaleDateString()}</p>
+                  <p>By: {refund.user?.name}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">No recent refunds</p>
           )}
         </div>
       </div>
@@ -614,6 +633,7 @@ const fetchProductInventory = useCallback(async (productId) => {
           <p><span className="font-medium">Sold in Period:</span> {dispensaryCalculation.calculations.totalSoldInPeriod} units</p>
           <p><span className="font-medium text-blue-600">Quantity Added (Updates):</span> {dispensaryCalculation.calculations.totalQuantityAddedInPeriod} units</p>
           <p><span className="font-medium text-red-600">Quantity Deducted (Updates):</span> {dispensaryCalculation.calculations.totalQuantityDeductedInPeriod} units</p>
+          <p><span className="font-medium text-purple-600">Refunded in Period:</span> {dispensaryCalculation.calculations.totalRefundedInPeriod} units</p>
           <p><span className="font-medium">Expected in Dispensary:</span> {dispensaryCalculation.calculations.expectedDispensaryQty} units</p>
         </div>
       </div>
@@ -682,7 +702,6 @@ const fetchProductInventory = useCallback(async (productId) => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    {/* Add column for update type if needed */}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -707,6 +726,8 @@ const fetchProductInventory = useCallback(async (productId) => {
                               <span className="text-red-600 font-semibold">-{event.quantity}</span>
                             )}
                           </>
+                        ) : event.type === "REFUND" ? (
+                          <span className="text-purple-600 font-semibold">+{event.quantity} (Refund)</span>
                         ) : (
                           event.quantity
                         )}

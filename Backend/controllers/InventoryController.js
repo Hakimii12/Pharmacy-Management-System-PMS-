@@ -37,6 +37,15 @@ export async function GetProductInventory(req, res) {
       .limit(10)
       .populate("user", "name");
 
+    // Get recent refunds (undone transactions)
+    const recentRefunds = await Transfare.find({ 
+      product: productId,
+      type: "RETURN_REFUND"
+    })
+      .sort({ date: -1 })
+      .limit(10)
+      .populate("user", "name");
+
     const totalQuantityAdded = recentUpdates
       .filter(update => update.UpdateType === "QUANTITY_ADDED")
       .reduce((sum, update) => sum + update.quantity, 0);
@@ -61,7 +70,8 @@ export async function GetProductInventory(req, res) {
       },
       recentTransfers,
       recentSales,
-      recentUpdates
+      recentUpdates,
+      recentRefunds // Added refunds here
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -71,17 +81,20 @@ export async function CalculateDispensaryInventory(req, res) {
   try {
     const productId = req.params.id;
     const { startDate, endDate } = req.query;
-    
+
     // Find the product
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    
+
+    // Get current dispensary record
+    const dispensary = await Dispensary.findOne({ product: productId, isDeleted: { $ne: true } });
+
     // Build date filter if provided
     let dateFilter = {};
     let salesDateFilter = {};
-    
+
     if (startDate || endDate) {
       dateFilter.date = {};
       salesDateFilter.timestamp = {};
@@ -94,52 +107,72 @@ export async function CalculateDispensaryInventory(req, res) {
         salesDateFilter.timestamp.$lte = new Date(endDate);
       }
     }
-    
+
+    // Get product creation date
+    const productCreatedAt = product.createdAt;
+
     // Get initial quantity at start date (if startDate provided)
     let initialDispensaryQty = 0;
     if (startDate) {
-      // Get all transfers and sales before the start date
-      const preStartIssues = await Transfare.find({
-        product: productId,
-        type: "ISSUE_TO_DISPENSARY",
-        date: { $lt: new Date(startDate) }
-      });
+      const startDateTime = new Date(startDate);
       
-      const preStartReturns = await Transfare.find({
-        product: productId,
-        type: "RETURN_TO_STORE",
-        date: { $lt: new Date(startDate) }
-      });
-      
-      const preStartSales = await Sales.find({
-        product: productId,
-        status: "completed",
-        timestamp: { $lt: new Date(startDate) }
-      });
-      
-      // Get all quantity updates before the start date
-      const preStartUpdates = await Transfare.find({
-        product: productId,
-        type: "UPDATED_IN_DISPENSARY",
-        date: { $lt: new Date(startDate) }
-      });
-      
-      // Calculate initial quantity
-      const preStartIssued = preStartIssues.reduce((sum, issue) => sum + issue.quantity, 0);
-      const preStartReturned = preStartReturns.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
-      const preStartSold = preStartSales.reduce((sum, sale) => sum + sale.quantitySold, 0);
-      
-      // Calculate net updates (added - deducted)
-      const preStartNetUpdates = preStartUpdates.reduce((sum, update) => {
-        if (update.UpdateType === "QUANTITY_ADDED") {
-          return sum + update.quantity;
-        } else if (update.UpdateType === "QUANTITY_DEDUCTED") {
-          return sum - update.quantity;
-        }
-        return sum;
-      }, 0);
-      
-      initialDispensaryQty = preStartIssued - preStartReturned - preStartSold + preStartNetUpdates;
+      // Check if product was created before start date
+      if (productCreatedAt < startDateTime) {
+        // Get all events before the start date
+        const preStartIssues = await Transfare.find({
+          product: productId,
+          type: "ISSUE_TO_DISPENSARY",
+          date: { $lt: startDateTime }
+        });
+        
+        const preStartReturns = await Transfare.find({
+          product: productId,
+          type: "RETURN_TO_STORE",
+          date: { $lt: startDateTime }
+        });
+        
+        const preStartSales = await Sales.find({
+          product: productId,
+          status: "completed",
+          timestamp: { $lt: startDateTime }
+        });
+        
+        const preStartUpdates = await Transfare.find({
+          product: productId,
+          type: "UPDATED_IN_DISPENSARY",
+          date: { $lt: startDateTime }
+        });
+
+        const preStartRefunds = await Sales.find({
+          product: productId,
+          status: "refunded",
+          refundedAt: { $lt: startDateTime }
+        });
+        
+        // Calculate initial quantity
+        const preStartIssued = preStartIssues.reduce((sum, issue) => sum + issue.quantity, 0);
+        const preStartReturned = preStartReturns.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
+        const preStartSold = preStartSales.reduce((sum, sale) => sum + sale.quantitySold, 0);
+        const preStartRefunded = preStartRefunds.reduce((sum, refund) => sum + refund.quantitySold, 0);
+        
+        // Calculate net updates (added - deducted)
+        const preStartNetUpdates = preStartUpdates.reduce((sum, update) => {
+          if (update.UpdateType === "QUANTITY_ADDED") {
+            return sum + update.quantity;
+          } else if (update.UpdateType === "QUANTITY_DEDUCTED") {
+            return sum - update.quantity;
+          }
+          return sum;
+        }, 0);
+        
+        initialDispensaryQty = preStartIssued - preStartReturned - preStartSold + preStartNetUpdates + preStartRefunded;
+      } else {
+        // Product was created after start date, initial quantity is 0
+        initialDispensaryQty = 0;
+      }
+    } else {
+      // No start date provided, use current dispensary quantity as initial
+      initialDispensaryQty = dispensary ? dispensary.quantity : 0;
     }
     
     // Get all transfers to dispensary within date range
@@ -169,12 +202,18 @@ export async function CalculateDispensaryInventory(req, res) {
       type: "UPDATED_IN_DISPENSARY",
       ...dateFilter
     });
-    
-    // Calculate totals within the date range
+
+    // Get all refunds (undone sales) within date range
+    const refunds = await Sales.find({
+      product: productId,
+      status: "refunded",
+      ...salesDateFilter
+    });
+
     const totalIssuedInPeriod = issues.reduce((sum, issue) => sum + issue.quantity, 0);
-    const totalReturnedInPeriod = returns.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
+    const totalReturnedInPeriod = returns.reduce((sum, returnItem) => sum + (returnItem.quantity || 0), 0);
     const totalSoldInPeriod = sales.reduce((sum, sale) => sum + sale.quantitySold, 0);
-    
+
     // Calculate net updates (added - deducted)
     const totalQuantityAddedInPeriod = updates
       .filter(update => update.UpdateType === "QUANTITY_ADDED")
@@ -185,19 +224,26 @@ export async function CalculateDispensaryInventory(req, res) {
       .reduce((sum, update) => sum + update.quantity, 0);
 
     const totalNetUpdatesInPeriod = totalQuantityAddedInPeriod - totalQuantityDeductedInPeriod;
-    
-    // Calculate expected quantity based on transfers, sales, and updates
-    const expectedDispensaryQty = initialDispensaryQty + 
-                                 totalIssuedInPeriod - 
-                                 totalReturnedInPeriod - 
-                                 totalSoldInPeriod +
-                                 totalNetUpdatesInPeriod;
-    
+
+    // Calculate total refunded in period
+    const totalRefundedInPeriod = refunds.reduce((sum, refund) => sum + (refund.quantitySold || 0), 0);
+
+    // Use actual dispensary quantity for expectedDispensaryQty
+    // const expectedDispensaryQty = dispensary ? dispensary.quantity : 0;
+
+    // Calculate expectedDispensaryQty using all breakdowns
+    const expectedDispensaryQty =
+      (initialDispensaryQty || 0)
+      + (totalIssuedInPeriod || 0)
+      - (totalReturnedInPeriod || 0)
+      - (totalSoldInPeriod || 0)
+      + (totalNetUpdatesInPeriod || 0);
+
     // Calculate financial values
     const totalUnitPrice = product.unitPrice * expectedDispensaryQty;
     const totalSellingPrice = product.sellingPrice * expectedDispensaryQty;
     const potentialProfit = totalSellingPrice - totalUnitPrice;
-    
+
     res.json({
       product: {
         id: product._id,
@@ -214,6 +260,7 @@ export async function CalculateDispensaryInventory(req, res) {
         totalNetUpdatesInPeriod,
         totalQuantityAddedInPeriod,
         totalQuantityDeductedInPeriod,
+        totalRefundedInPeriod,
         expectedDispensaryQty,
         financials: {
           totalUnitPrice,
@@ -259,6 +306,15 @@ export async function GetInventoryHistory(req, res) {
       .limit(parseInt(limit))
       .populate("pharmacist", "name")
       .populate("cashier", "name");
+
+    // Get refunds (undone transactions)
+    const refunds = await Transfare.find({ 
+      product: productId,
+      type: "RETURN_REFUND"
+    })
+      .sort({ date: -1 })
+      .limit(parseInt(limit))
+      .populate("user", "name");
     
     // Combine and sort all events
     const allEvents = [
@@ -285,6 +341,14 @@ export async function GetInventoryHistory(req, res) {
         quantity: s.quantitySold,
         user: s.cashier ? s.cashier.name : (s.pharmacist ? s.pharmacist.name : "Unknown"),
         details: s
+      })),
+      ...refunds.map(r => ({
+        type: "REFUND",
+        date: r.date,
+        action: "RETURN_REFUND",
+        quantity: r.quantity,
+        user: r.user.name,
+        details: r
       }))
     ].sort((a, b) => b.date - a.date);
     

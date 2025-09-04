@@ -98,7 +98,8 @@ async function populateProductWithInventory(product) {
     await Dispensary.create({
       product: newProduct._id,
       quantity: quantity,
-      threshold: storeThresholdValue,
+      initialDispensaryQty: quantity,
+      threshold: dispensaryThresholdValue,
       isDeleted: false,
       isActive: true,
       type: productType,
@@ -106,7 +107,8 @@ async function populateProductWithInventory(product) {
     await Store.create({
       product: newProduct._id,
       quantity: 0,
-      threshold: dispensaryThresholdValue,
+      initialStoreQty: 0,
+      threshold: storeThresholdValue,
       isDeleted: false,
       isActive: true,
       type: productType,
@@ -183,6 +185,7 @@ export async function CreateProduct(req, res) {
     await Store.create({
       product: newProduct._id,
       quantity: quantity,
+      initialStoreQty: quantity,
       threshold: storeThresholdValue,
       isDeleted: false,
       isActive: true,
@@ -191,6 +194,7 @@ export async function CreateProduct(req, res) {
     await Dispensary.create({
       product: newProduct._id,
       quantity: 0,
+      initialDispensaryQty: 0,
       threshold: dispensaryThresholdValue,
       isDeleted: false,
       isActive: true,
