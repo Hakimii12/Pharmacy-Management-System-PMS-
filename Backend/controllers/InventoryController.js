@@ -111,70 +111,14 @@ export async function CalculateDispensaryInventory(req, res) {
     // Get product creation date
     const productCreatedAt = product.createdAt;
 
-    // Get initial quantity at start date (if startDate provided)
-    let initialDispensaryQty = 0;
-    if (startDate) {
-      const startDateTime = new Date(startDate);
-      
-      // Check if product was created before start date
-      if (productCreatedAt < startDateTime) {
-        // Get all events before the start date
-        const preStartIssues = await Transfare.find({
-          product: productId,
-          type: "ISSUE_TO_DISPENSARY",
-          date: { $lt: startDateTime }
-        });
-        
-        const preStartReturns = await Transfare.find({
-          product: productId,
-          type: "RETURN_TO_STORE",
-          date: { $lt: startDateTime }
-        });
-        
-        const preStartSales = await Sales.find({
-          product: productId,
-          status: "completed",
-          timestamp: { $lt: startDateTime }
-        });
-        
-        const preStartUpdates = await Transfare.find({
-          product: productId,
-          type: "UPDATED_IN_DISPENSARY",
-          date: { $lt: startDateTime }
-        });
-
-        const preStartRefunds = await Sales.find({
-          product: productId,
-          status: "refunded",
-          refundedAt: { $lt: startDateTime }
-        });
-        
-        // Calculate initial quantity
-        const preStartIssued = preStartIssues.reduce((sum, issue) => sum + issue.quantity, 0);
-        const preStartReturned = preStartReturns.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
-        const preStartSold = preStartSales.reduce((sum, sale) => sum + sale.quantitySold, 0);
-        const preStartRefunded = preStartRefunds.reduce((sum, refund) => sum + refund.quantitySold, 0);
-        
-        // Calculate net updates (added - deducted)
-        const preStartNetUpdates = preStartUpdates.reduce((sum, update) => {
-          if (update.UpdateType === "QUANTITY_ADDED") {
-            return sum + update.quantity;
-          } else if (update.UpdateType === "QUANTITY_DEDUCTED") {
-            return sum - update.quantity;
-          }
-          return sum;
-        }, 0);
-        
-        initialDispensaryQty = preStartIssued - preStartReturned - preStartSold + preStartNetUpdates + preStartRefunded;
-      } else {
-        // Product was created after start date, initial quantity is 0
-        initialDispensaryQty = 0;
-      }
-    } else {
-      // No start date provided, use current dispensary quantity as initial
-      initialDispensaryQty = dispensary ? dispensary.quantity : 0;
+    // Check if productCreatedAt is within the date range
+    let initialDispensaryQty = dispensary ? dispensary.initialDispensaryQty : 0;
+    if (
+      (startDate && productCreatedAt <= new Date(startDate)) ||
+      (endDate && productCreatedAt >= new Date(endDate))
+    ) {
+      initialDispensaryQty = 0;
     }
-    
     // Get all transfers to dispensary within date range
     const issues = await Transfare.find({
       product: productId,
@@ -321,7 +265,8 @@ export async function GetInventoryHistory(req, res) {
       ...transfers.map(t => ({
         type: "TRANSFER",
         date: t.date,
-        action: t.type === "ISSUE_TO_DISPENSARY" ? "ISSUE_TO_DISPENSARY" : "RETURN_TO_STORE",
+        action: t.type === "ISSUE_TO_DISPENSARY" ? "ISSUE_TO_DISPENSARY" : 
+                t.type === "RETURN_TO_STORE" ? "RETURN_TO_STORE" : t.type,
         quantity: t.quantity,
         user: t.user.name,
         details: t
@@ -342,14 +287,14 @@ export async function GetInventoryHistory(req, res) {
         user: s.cashier ? s.cashier.name : (s.pharmacist ? s.pharmacist.name : "Unknown"),
         details: s
       })),
-      ...refunds.map(r => ({
-        type: "REFUND",
-        date: r.date,
-        action: "RETURN_REFUND",
-        quantity: r.quantity,
-        user: r.user.name,
-        details: r
-      }))
+      // ...refunds.map(r => ({
+      //   type: "REFUND",
+      //   date: r.date,
+      //   action: r.type === "RETURN_REFUND" ? "REFUND" : r.type,
+      //   quantity: r.quantity,
+      //   user: r.user.name,
+      //   details: r
+      // }))
     ].sort((a, b) => b.date - a.date);
     
     res.json({
