@@ -471,20 +471,35 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
             {category && (
               <>
                 <div className="mt-6">
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <h3 className="font-medium text-blue-800 mb-2">Product Summary</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="text-gray-600">Selling Price:</div>
-                      <div className="font-medium text-green-600">
-                        {sellingPrice} <span className="text-xs">ETB</span>
-                      </div>
-                      <div className="text-gray-600">Total Value:</div>
-                      <div className="font-medium">
-                        {totalValue} <span className="text-xs">ETB</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <h3 className="font-medium text-blue-800 mb-2">Product Summary</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm items-center">
+            <div className="text-gray-600">Selling Price:</div>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={sellingPrice}
+              onChange={(e) => {
+                const newSellingPrice = parseFloat(e.target.value);
+                setMarkup(
+                  unitPrice
+                    ? (((newSellingPrice - parseFloat(unitPrice)) / parseFloat(unitPrice)) * 100).toFixed(2)
+                    : ''
+                );
+              }}
+              className="font-medium text-green-600 px-2 py-1 border rounded"
+            />
+            <div className="text-gray-600">Total Value:</div>
+            <div className="font-medium">
+              {totalValue} <span className="text-xs">ETB</span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Adjust selling price to update markup percentage automatically.
+          </p>
+        </div>
+           </div>
                 <div className="p-6 border-t border-gray-200">
                   <div className="flex justify-end space-x-3">
                     <button
