@@ -1,5 +1,5 @@
 import express from "express";
-import {ConfirmSale,AbortSale,CloseDailyBalance, PrepareAndSaveSale, GetAllPendingStatus, GetAbortAndComplatedSale, GetRecentSales, GetTotalSales, GetDailyTransactions, GetAllCashiers, GetDailyBalanceHistory} from "../controllers/SalesController.js";
+import {ConfirmSale,AbortSale,CloseDailyBalance, PrepareAndSaveSale, GetAllPendingStatus, GetAbortAndComplatedSale, GetRecentSales, GetTotalSales, GetDailyTransactions, GetAllCashiers, GetDailyBalanceHistory, UndoSale} from "../controllers/SalesController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 const router = express.Router();
 router.post("/prepareAndSaveSale", Authenticated(), PrepareAndSaveSale);
@@ -17,4 +17,5 @@ router.post("/close-daily-balance", Authenticated(), CloseDailyBalance)
 router.get("/daily/:cashierId", Authenticated(), GetDailyTransactions)
 router.get("/cashiers", Authenticated(), GetAllCashiers)
 router.get("/daily-balance-history", Authenticated(), GetDailyBalanceHistory)
+router.post("/undo", Authenticated(), UndoSale)
 export default router;

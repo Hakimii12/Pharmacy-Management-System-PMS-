@@ -98,7 +98,8 @@ async function populateProductWithInventory(product) {
     await Dispensary.create({
       product: newProduct._id,
       quantity: quantity,
-      threshold: storeThresholdValue,
+      initialDispensaryQty: quantity,
+      threshold: dispensaryThresholdValue,
       isDeleted: false,
       isActive: true,
       type: productType,
@@ -106,7 +107,8 @@ async function populateProductWithInventory(product) {
     await Store.create({
       product: newProduct._id,
       quantity: 0,
-      threshold: dispensaryThresholdValue,
+      initialStoreQty: 0,
+      threshold: storeThresholdValue,
       isDeleted: false,
       isActive: true,
       type: productType,
@@ -183,6 +185,7 @@ export async function CreateProduct(req, res) {
     await Store.create({
       product: newProduct._id,
       quantity: quantity,
+      initialStoreQty: quantity,
       threshold: storeThresholdValue,
       isDeleted: false,
       isActive: true,
@@ -191,6 +194,7 @@ export async function CreateProduct(req, res) {
     await Dispensary.create({
       product: newProduct._id,
       quantity: 0,
+      initialDispensaryQty: 0,
       threshold: dispensaryThresholdValue,
       isDeleted: false,
       isActive: true,
@@ -330,43 +334,66 @@ export async function HardDeleteProduct(req, res) {
 
 export async function UpdateProduct(req, res) {
   try {
-    const productId = req.params.id
-    const userId = req.user._id
-    const updates = { ...req.body }
+    const productId = req.params.id;
+    const userId = req.user._id;
+    const updates = { ...req.body };
 
-    const existingProduct = await Product.findById(productId)
+    const existingProduct = await Product.findById(productId);
     if (!existingProduct) {
-      return res.status(404).json({ message: "Product not found" })
+      return res.status(404).json({ message: "Product not found" });
     }
+
+    // Get current inventory data before updates
+    const oldInventory = await getInventoryData(productId);
 
     if (updates.distributor) {
       if (!updates.distributor.name || !updates.distributor.contact) {
         return res.status(400).json({
           message: "Distributor must include name and contact",
-        })
+        });
       }
     }
 
     // Handle quantity changes
     if (updates.quantity !== undefined) {
-      const dispensary = await Dispensary.findOne({ product: productId })
-      const currentDispensaryQty = dispensary ? dispensary.quantity : 0
-      const newTotalQuantity = updates.quantity
+      const dispensary = await Dispensary.findOne({ product: productId });
+      const currentDispensaryQty = dispensary ? dispensary.quantity : 0;
+      const newTotalQuantity = updates.quantity;
 
       if (newTotalQuantity < currentDispensaryQty) {
         return res.status(400).json({
           message: `Total quantity cannot be less than dispensary stock (${currentDispensaryQty})`,
-        })
+        });
       }
 
-      // Update store quantity based on new total quantity and current dispensary quantity
+      // Calculate store quantity change
+      const newStoreQty = newTotalQuantity - currentDispensaryQty;
+      const oldStoreQty = oldInventory.store;
+      const storeQuantityChange = newStoreQty - oldStoreQty;
+
+      // Update store quantity
       await Store.findOneAndUpdate(
         { product: productId },
-        { quantity: newTotalQuantity - currentDispensaryQty },
-        { upsert: true, new: true }, // Ensure new:true to trigger pre/post hooks
-      )
-      await Store.updateStatus(productId);
-      await Dispensary.updateStatus(productId);
+        { quantity: newStoreQty },
+        { upsert: true, new: true },
+      );
+
+      // Create transfer record for store quantity change
+      if (storeQuantityChange !== 0) {
+        const updateType = storeQuantityChange > 0 ? "QUANTITY_ADDED" : "QUANTITY_DEDUCTED";
+        const transfer = new Transfare({
+          product: productId,
+          user: userId,
+          type: "UPDATED_IN_STORE",
+          UpdateType: updateType,
+          quantity: Math.abs(storeQuantityChange),
+          quantityLeft: newStoreQty,
+          totalQuantity: newTotalQuantity,
+          unitPrice: existingProduct.unitPrice,
+          totalUnitPrice: existingProduct.unitPrice * Math.abs(storeQuantityChange),
+        });
+        await transfer.save();
+      }
     }
 
     // Handle threshold updates
@@ -375,41 +402,44 @@ export async function UpdateProduct(req, res) {
         { product: productId },
         { threshold: updates.storeThreshold },
         { upsert: true, new: true }
-      )
+      );
     }
     if (updates.dispensaryThreshold !== undefined) {
       await Dispensary.findOneAndUpdate(
         { product: productId },
         { threshold: updates.dispensaryThreshold },
         { upsert: true, new: true }
-      )
+      );
     }
 
     // Recalculate prices if relevant fields change
-    const unitPrice = updates.unitPrice !== undefined ? updates.unitPrice : existingProduct.unitPrice
-    const quantity = updates.quantity !== undefined ? updates.quantity : existingProduct.quantity
-    const markup = updates.markup !== undefined ? updates.markup : existingProduct.markup
+    const unitPrice = updates.unitPrice !== undefined ? updates.unitPrice : existingProduct.unitPrice;
+    const quantity = updates.quantity !== undefined ? updates.quantity : existingProduct.quantity;
+    const markup = updates.markup !== undefined ? updates.markup : existingProduct.markup;
 
     if (updates.unitPrice !== undefined || updates.quantity !== undefined || updates.markup !== undefined) {
-      updates.totalPrice = unitPrice * quantity
-      updates.sellingPrice = unitPrice * (1 + markup / 100)
-      updates.totalSellingPrice = updates.sellingPrice * quantity
+      updates.totalPrice = unitPrice * quantity;
+      updates.sellingPrice = unitPrice * (1 + markup / 100);
+      updates.totalSellingPrice = updates.sellingPrice * quantity;
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(
       productId,
       { $set: updates },
       { new: true, runValidators: true },
-    )
+    );
+    
     await Store.updateStatus(productId);
     await Dispensary.updateStatus(productId);
-    const productWithInventory = await populateProductWithInventory(updatedProduct)
+    
+    const productWithInventory = await populateProductWithInventory(updatedProduct);
+    
     return res.status(200).json({
       message: "Product updated successfully",
       product: productWithInventory,
-    })
+    });
   } catch (error) {
-    return res.status(500).json({ message: error.message })
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -928,17 +958,41 @@ export async function CountAllProduct(req, res) {
 export async function UpdateStoreQuantity(req, res) {
   try {
     const productId = req.params.id;
+    const userId = req.user._id;
     let { quantity, ...otherUpdates } = req.body;
     quantity = Number(quantity); // Ensure it's a number
 
     const store = await Store.findOne({ product: productId });
     const dispensary = await Dispensary.findOne({ product: productId });
+    const product = await Product.findById(productId);
 
     if (!store) return res.status(404).json({ message: "Store record not found" });
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // Get old quantity before update
+    const oldQuantity = store.quantity;
+    const quantityChange = quantity - oldQuantity;
 
     // Update store quantity
     store.quantity = quantity;
     await store.save();
+
+    // Create transfer record for store quantity change
+    if (quantityChange !== 0) {
+      const updateType = quantityChange > 0 ? "QUANTITY_ADDED" : "QUANTITY_DEDUCTED";
+      const transfer = new Transfare({
+        product: productId,
+        user: userId,
+        type: "UPDATED_IN_STORE",
+        UpdateType: updateType,
+        quantity: Math.abs(quantityChange),
+        quantityLeft: quantity,
+        totalQuantity: quantity + (dispensary ? dispensary.quantity : 0),
+        unitPrice: product.unitPrice,
+        totalUnitPrice: product.unitPrice * Math.abs(quantityChange),
+      });
+      await transfer.save();
+    }
 
     // Update product total quantity and other fields
     const dispensaryQty = dispensary ? Number(dispensary.quantity) : 0;
@@ -962,17 +1016,41 @@ export async function UpdateStoreQuantity(req, res) {
 export async function UpdateDispensaryQuantity(req, res) {
   try {
     const productId = req.params.id;
+    const userId = req.user._id;
     let { quantity, ...otherUpdates } = req.body;
     quantity = Number(quantity); // Ensure it's a number
 
     const dispensary = await Dispensary.findOne({ product: productId });
     const store = await Store.findOne({ product: productId });
+    const product = await Product.findById(productId);
 
     if (!dispensary) return res.status(404).json({ message: "Dispensary record not found" });
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // Get old quantity before update
+    const oldQuantity = dispensary.quantity;
+    const quantityChange = quantity - oldQuantity;
 
     // Update dispensary quantity
     dispensary.quantity = quantity;
     await dispensary.save();
+
+    // Create transfer record for dispensary quantity change
+    if (quantityChange !== 0) {
+      const updateType = quantityChange > 0 ? "QUANTITY_ADDED" : "QUANTITY_DEDUCTED";
+      const transfer = new Transfare({
+        product: productId,
+        user: userId,
+        type: "UPDATED_IN_DISPENSARY",
+        UpdateType: updateType,
+        quantity: Math.abs(quantityChange),
+        quantityLeft: quantity,
+        totalQuantity: quantity + (store ? store.quantity : 0),
+        unitPrice: product.unitPrice,
+        totalUnitPrice: product.unitPrice * Math.abs(quantityChange),
+      });
+      await transfer.save();
+    }
 
     // Update product total quantity and other fields
     const storeQty = store ? Number(store.quantity) : 0;
