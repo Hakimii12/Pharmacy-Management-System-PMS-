@@ -7,6 +7,8 @@ import { fetchCategories,getCategories ,GetDosageForm,fetchDosageForm } from '..
 const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDeleting}) => {
   const ApiLink=Api.link
   const [productCategories, setProductCategories] = useState([]);
+  const [sellingPrice, setSellingPrice] = useState(product?.sellingPrice || '');
+  const [useSellingPrice, setUseSellingPrice] = useState(false);
   const [fetchDosageForms, setFetchDosageForms] = useState([]);
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
@@ -27,7 +29,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
   const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
   const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
   const [isDeletingState, setIsDeleting] = useState(false);
-  const [unit, setUnit] = useState(product?.unit || ''); // Add this line at the top with other useState hooks
+  // const [unit, setUnit] = useState(product?.unit || ''); // Add this line at the top with other useState hooks
   const dosageFormsOptions = fetchDosageForms.map(form => ({
     value: form.name,
     label: form.name
@@ -54,6 +56,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
       setBrand(product.brand || '');
       setUnitPrice(product.unitPrice || '');
       setQuantity(product.quantity || '');
+      setSellingPrice(product.sellingPrice || '');
       setExpiryDate(
         product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
       );
@@ -63,7 +66,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
       setDosageForm(product.DosageForms || '');
       setDistributorName(product.distributor?.name || '');
       setDistributorContact(product.distributor?.contact || '');
-      setProductType(product.type || '');
+      // setProductType(product.type || '');
       setStoreThreshold(
         product.inventory.storeThreshold !== undefined && product.inventory.storeThreshold !== null
           ? String(product.inventory.storeThreshold)
@@ -74,14 +77,24 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
           ? String(product.inventory.dispensaryThreshold)
           : '10'
       );
-      setUnit(product.unit || ''); // Reset unit
+      // setUnit(product.unit || ''); // Reset unit
     }
   }, [product]);
 
   const handleSubmit = async (e) => {
     setisSubmitting(true)
     e.preventDefault();
-    
+     if (useSellingPrice && (!sellingPrice || !markup)) {
+    toast.error('Please provide both Selling Price and Markup');
+    setisSubmitting(false);
+    return;
+  }
+
+  if (!useSellingPrice && (!unitPrice || !markup)) {
+    toast.error('Please provide both Unit Price and Markup');
+    setisSubmitting(false);
+    return;
+  }
     const distributor = {
       name: distributorName,
       contact: distributorContact
@@ -90,19 +103,33 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
   const data = {
     name,
     brand,
-    unitPrice: parseFloat(unitPrice),
+    // unitPrice: parseFloat(unitPrice),
     quantity: parseInt(quantity),
     expiryDate,
     batchNo: batchNumber,
-    markup: parseFloat(markup),
+    // markup: parseFloat(markup),
     category,
     DosageForms: dosageForm,
     distributor,
     type: category !== "medicine" ? productType : undefined,
     storeThreshold: parseInt(storeThreshold),
     dispensaryThreshold: parseInt(dispensaryThreshold),
-    ...(category === "medicine" && unit ? { unit } : {}), // Add unit if medicine
+    // ...(category === "medicine" && unit ? { unit } : {}),
+    // ...(useSellingPrice ? {
+    //   sellingPrice: parseFloat(sellingPrice),
+    //   markup: parseFloat(markup)
+    // } : {
+    //   unitPrice: parseFloat(unitPrice),
+    //   markup: parseFloat(markup)
+    // })
 };
+ if (useSellingPrice) {
+    data.sellingPrice = parseFloat(sellingPrice);
+    data.markup = parseFloat(markup);
+  } else {
+    data.unitPrice = parseFloat(unitPrice);
+    data.markup = parseFloat(markup);
+  }
 
     try {
       if (product) {
@@ -130,14 +157,9 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
             withCredentials: true
           }
         );
-        setDosageForm('')
-        setBatchNumber('')
-        setExpiryDate('')
+        setBatchNumber('');
         setQuantity('')
-        setQuantity('')
-        setUnitPrice('')
-        setBrand('')
-        setName('')
+        setExpiryDate('');
         fetchProducts()
         toast.success(response.data.message || 'Product created successfully');
         setisSubmitting(false)
@@ -171,14 +193,24 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
     }
   };
 
-  const sellingPrice = unitPrice 
+  // const sellingPrice = unitPrice 
+  //   ? (parseFloat(unitPrice) * (1 + parseFloat(markup || 0) / 100)).toFixed(2)
+  //   : '0.00';
+
+  // const totalValue = unitPrice && quantity
+  //   ? (parseFloat(unitPrice) * parseInt(quantity)).toFixed(2)
+  //   : '0.00';
+const calculatedSellingPrice = unitPrice 
     ? (parseFloat(unitPrice) * (1 + parseFloat(markup || 0) / 100)).toFixed(2)
     : '0.00';
 
-  const totalValue = unitPrice && quantity
-    ? (parseFloat(unitPrice) * parseInt(quantity)).toFixed(2)
+  const calculatedUnitPrice = sellingPrice && markup
+    ? (parseFloat(sellingPrice) / (1 + parseFloat(markup || 0) / 100)).toFixed(2)
     : '0.00';
 
+  const totalValue = (useSellingPrice ? sellingPrice : unitPrice) && quantity
+    ? (parseFloat(useSellingPrice ? sellingPrice : unitPrice) * parseInt(quantity)).toFixed(2)
+    : '0.00';
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl flex flex-col max-h-[90vh]">
@@ -214,7 +246,6 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
               </select>
               {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
             </div>
-
             {category && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -251,7 +282,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                       />
                       {errors.brand && <p className="mt-1 text-sm text-red-500">{errors.brand}</p>}
                     </div>
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Unit *
                       </label>
@@ -261,13 +292,12 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                         onChange={(e) => setUnit(e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
                         placeholder="e.g. tablet, ml, capsule"
-                        required
                       />
-                    </div>
+                    </div> */}
                   </>
                 )}
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Unit Price (ETB) *
                   </label>
@@ -284,7 +314,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                     required
                   />
                   {errors.unitPrice && <p className="mt-1 text-sm text-red-500">{errors.unitPrice}</p>}
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -332,12 +362,11 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                       errors.batchNumber ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter batch number"
-                    required
                   />
                   {errors.batchNumber && <p className="mt-1 text-sm text-red-500">{errors.batchNumber}</p>}
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Markup (%) *
                   </label>
@@ -353,7 +382,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                     required
                   />
                   {errors.markup && <p className="mt-1 text-sm text-red-500">{errors.markup}</p>}
-                </div>
+                </div> */}
 
                 {category === "medicine" && (
                   <div>
@@ -412,7 +441,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                         errors.distributorContact ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter contact information"
-                      required
+                    
                     />
                     {errors.distributorContact && (
                       <p className="mt-1 text-sm text-red-500">{errors.distributorContact}</p>
@@ -431,7 +460,7 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
                       onChange={(e) => setProductType(e.target.value)}
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
                       placeholder="Enter product type"
-                      required
+                    
                     />
                   </div>
                 )}
@@ -470,36 +499,92 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
 
             {category && (
               <>
-                <div className="mt-6">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-          <h3 className="font-medium text-blue-800 mb-2">Product Summary</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm items-center">
-            <div className="text-gray-600">Selling Price:</div>
+                 <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Pricing Method
+          </label>
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={!useSellingPrice}
+                onChange={() => setUseSellingPrice(false)}
+                className="mr-2"
+              />
+              Unit Price + Markup
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={useSellingPrice}
+                onChange={() => setUseSellingPrice(true)}
+                className="mr-2"
+              />
+              Selling Price + Markup
+            </label>
+          </div>
+        </div>
+        
+        {!useSellingPrice ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Unit Price (ETB) *
+            </label>
             <input
               type="number"
               step="0.01"
-              min="0"
-              value={sellingPrice}
-              onChange={(e) => {
-                const newSellingPrice = parseFloat(e.target.value);
-                setMarkup(
-                  unitPrice
-                    ? (((newSellingPrice - parseFloat(unitPrice)) / parseFloat(unitPrice)) * 100).toFixed(2)
-                    : ''
-                );
-              }}
-              className="font-medium text-green-600 px-2 py-1 border rounded"
+              min="0.01"
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+              placeholder="Enter unit price"
+              required={!useSellingPrice}
             />
-            <div className="text-gray-600">Total Value:</div>
-            <div className="font-medium">
-              {totalValue} <span className="text-xs">ETB</span>
-            </div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Adjust selling price to update markup percentage automatically.
-          </p>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Selling Price (ETB) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={sellingPrice}
+              onChange={(e) => setSellingPrice(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+              placeholder="Enter selling price"
+              required={useSellingPrice}
+            />
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Markup (%) *
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={markup}
+            onChange={(e) => setMarkup(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+            placeholder="Enter markup percentage"
+            required
+          />
         </div>
-           </div>
+        <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <h3 className="font-medium text-blue-800 mb-2">Product Summary</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="text-gray-600">{
+              useSellingPrice ? 'Unit Price:' : 'Selling Price:'
+            }</div>
+            <div className="font-medium text-green-600">
+              {useSellingPrice ? calculatedUnitPrice : calculatedSellingPrice} ETB
+            </div>
+            <div className="text-gray-600">Total Value:</div>
+            <div className="font-medium">{totalValue} ETB</div>
+          </div>
+        </div>
                 <div className="p-6 border-t border-gray-200">
                   <div className="flex justify-end space-x-3">
                     <button

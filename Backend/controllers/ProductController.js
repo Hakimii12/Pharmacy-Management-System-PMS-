@@ -4,7 +4,7 @@ import Store from "../models/StoreModel.js"
 import Transfare from "../models/Transfer.js"
 import Sales from "../models/SalesModel.js"
 import Notification from "../models/NotificationModel.js"
-
+import {calculateInterdependentPrices} from "../helper/calculateInterdependentPrices.js"
 // Helper function to get inventory data
 async function getInventoryData(productId) {
   const store = await Store.findOne({ product: productId, isDeleted: { $ne: true } })
@@ -39,7 +39,7 @@ async function populateProductWithInventory(product) {
  export async function CreateProductInDispensary(req, res) {
   try {
     const userId = req.user._id
-    const {
+    let {
       name,
       unitPrice,
       quantity,
@@ -50,22 +50,53 @@ async function populateProductWithInventory(product) {
       category,
       distributor,
       brand,
+      sellingPrice,
       storeThreshold,
       dispensaryThreshold,
       type,
-      unit, // <-- add unit here
     } = req.body
-    const productBrand = brand || ""
+
+// 1. Generate batch number if not provided
+       if (!batchNo) {
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let isUnique = false;
+      while (!isUnique) {
+        batchNo = '';
+        for (let i = 0; i < 8; i++) {
+          batchNo += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        
+        // Check if batch number already exists
+        const existingProduct = await Product.findOne({ 
+          batchNo, 
+          isDeleted: { $ne: true } 
+        });
+        isUnique = !existingProduct;
+      }
+    }
+// 2. Set default distributor if not provided
+    if (!distributor || !distributor.name || !distributor.contact) {
+      distributor = {
+        name: "Unknown",
+        contact: "0000000000"
+      };
+    }
+
+    // 3. Calculate unit price if not provided but sellingPrice and markup are available
+    if (!unitPrice && sellingPrice && markup) {
+       const markupPercentage = markup / 100;
+       const calculatedUnitPrice = sellingPrice / (1 + markupPercentage); // Use new variable
+        unitPrice = calculatedUnitPrice; 
+    } else if (!unitPrice) {
+      return res.status(400).json({ 
+        message: "Unit price is required, or provide sellingPrice and markup to calculate it" 
+      });
+    }
+    const productBrand = brand || "no_brand"
     const productDosageForms = DosageForms || ""
     const productType = type || ""
     const storeThresholdValue = storeThreshold !== undefined ? storeThreshold : 10
     const dispensaryThresholdValue = dispensaryThreshold !== undefined ? dispensaryThreshold : 10
-
-    if (!distributor || !distributor.name || !distributor.contact) {
-      return res.status(400).json({
-        message: "Distributor information must include name and contact",
-      })
-    }
 
     const newProductData = {
       addedBy: userId,
@@ -87,7 +118,6 @@ async function populateProductWithInventory(product) {
       type: productType,
       // Do NOT add threshold here
     }
-    if (unit) newProductData.unit = unit // <-- add unit if provided
 
     const newProduct = new Product(newProductData)
     await newProduct.save()
@@ -126,7 +156,7 @@ async function populateProductWithInventory(product) {
 export async function CreateProduct(req, res) {
   try {
     const userId = req.user._id
-    const {
+    let {
       name,
       unitPrice,
       quantity,
@@ -139,21 +169,53 @@ export async function CreateProduct(req, res) {
       brand,
       storeThreshold,
       dispensaryThreshold,
+      sellingPrice,
       type,
-      unit, // <-- add unit here
     } = req.body
-    const productBrand = brand || ""
+     // 1. Generate batch number if not provided
+    if (!batchNo) {
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let isUnique = false;
+      
+      while (!isUnique) {
+        batchNo = '';
+        for (let i = 0; i < 6; i++) {
+          batchNo += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        
+        // Check if batch number already exists
+        const existingProduct = await Product.findOne({ 
+          batchNo, 
+          isDeleted: { $ne: true } 
+        });
+        isUnique = !existingProduct;
+      }
+    }
+
+    // 2. Set default distributor if not provided
+    if (!distributor || !distributor.name || !distributor.contact) {
+      distributor = {
+        name: "Unknown",
+        contact: "0000000000"
+      };
+    }
+
+    // 3. Calculate unit price if not provided but sellingPrice and markup are available
+    if (!unitPrice && sellingPrice && markup) {
+      const markupPercentage = markup / 100;
+      const calculatedUnitPrice = sellingPrice / (1 + markupPercentage); // Use new variable
+     unitPrice = calculatedUnitPrice; 
+    } else if (!unitPrice) {
+      return res.status(400).json({ 
+        message: "Unit price is required, or provide sellingPrice and markup to calculate it" 
+      });
+    }
+    const productBrand = brand || "no_brand"
     const productDosageForms = DosageForms || ""
     const productType = type || ""
     const storeThresholdValue = storeThreshold !== undefined ? storeThreshold : 10
     const dispensaryThresholdValue = dispensaryThreshold !== undefined ? dispensaryThreshold : 10
-
-    if (!distributor || !distributor.name || !distributor.contact) {
-      return res.status(400).json({
-        message: "Distributor information must include name and contact",
-      })
-    }
-
+    
     const newProductData = {
       addedBy: userId,
       name,
@@ -174,8 +236,6 @@ export async function CreateProduct(req, res) {
       type: productType,
       // Do NOT add threshold here
     }
-    if (unit) newProductData.unit = unit // <-- add unit if provided
-
     const newProduct = new Product(newProductData)
     await newProduct.save()
     await Store.updateStatus(newProduct._id);
@@ -337,12 +397,27 @@ export async function UpdateProduct(req, res) {
     const productId = req.params.id;
     const userId = req.user._id;
     const updates = { ...req.body };
-
+    if (updates.distributor) {
+      if (!updates.distributor.name) {
+        updates.distributor.name = "Unknown";
+      }
+      if (!updates.distributor.contact) {
+        updates.distributor.contact = "0000000000";
+      }
+    }
+   
+    // if (!updates.unitPrice && updates.sellingPrice && updates.markup) {
+    //   const markupPercentage = updates.markup / 100;
+    //   updates.unitPrice = updates.sellingPrice / (1 + markupPercentage);
+    // }
     const existingProduct = await Product.findById(productId);
     if (!existingProduct) {
       return res.status(404).json({ message: "Product not found" });
+    } 
+    updates = calculateInterdependentPrices(existingProduct, updates);
+    if (!updates.brand && updates.type === "medicine") {
+      updates.brand = "no_brand";
     }
-
     // Get current inventory data before updates
     const oldInventory = await getInventoryData(productId);
 
@@ -961,14 +1036,31 @@ export async function UpdateStoreQuantity(req, res) {
     const userId = req.user._id;
     let { quantity, ...otherUpdates } = req.body;
     quantity = Number(quantity); // Ensure it's a number
+ if (otherUpdates.distributor) {
+      if (!otherUpdates.distributor.name) {
+        otherUpdates.distributor.name = "Unknown";
+      }
+      if (!otherUpdates.distributor.contact) {
+        otherUpdates.distributor.contact = "0000000000";
+      }
+    }
 
+    // if (!otherUpdates.unitPrice && otherUpdates.sellingPrice && otherUpdates.markup) {
+    //   const markupPercentage = otherUpdates.markup / 100;
+    //   otherUpdates.unitPrice = otherUpdates.sellingPrice / (1 + markupPercentage);
+    // }
+    
+
+    if (!otherUpdates.brand && otherUpdates.type === "medicine") {
+      otherUpdates.brand = "no_brand";
+    }
     const store = await Store.findOne({ product: productId });
     const dispensary = await Dispensary.findOne({ product: productId });
     const product = await Product.findById(productId);
 
     if (!store) return res.status(404).json({ message: "Store record not found" });
     if (!product) return res.status(404).json({ message: "Product not found" });
-
+    otherUpdates = calculateInterdependentPrices(product, otherUpdates);
     // Get old quantity before update
     const oldQuantity = store.quantity;
     const quantityChange = quantity - oldQuantity;
@@ -1019,14 +1111,30 @@ export async function UpdateDispensaryQuantity(req, res) {
     const userId = req.user._id;
     let { quantity, ...otherUpdates } = req.body;
     quantity = Number(quantity); // Ensure it's a number
+ if (otherUpdates.distributor) {
+      if (!otherUpdates.distributor.name) {
+        otherUpdates.distributor.name = "Unknown";
+      }
+      if (!otherUpdates.distributor.contact) {
+        otherUpdates.distributor.contact = "0000000000";
+      }
+    }
 
+    // if (!otherUpdates.unitPrice && otherUpdates.sellingPrice && otherUpdates.markup) {
+    //   const markupPercentage = otherUpdates.markup / 100;
+    //   otherUpdates.unitPrice = otherUpdates.sellingPrice / (1 + markupPercentage);
+    // }
+
+    if (!otherUpdates.brand && otherUpdates.type === "medicine") {
+      otherUpdates.brand = "no_brand";
+    }
     const dispensary = await Dispensary.findOne({ product: productId });
     const store = await Store.findOne({ product: productId });
     const product = await Product.findById(productId);
 
     if (!dispensary) return res.status(404).json({ message: "Dispensary record not found" });
     if (!product) return res.status(404).json({ message: "Product not found" });
-
+    otherUpdates = calculateInterdependentPrices(product, otherUpdates);
     // Get old quantity before update
     const oldQuantity = dispensary.quantity;
     const quantityChange = quantity - oldQuantity;

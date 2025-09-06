@@ -6,7 +6,6 @@ const ProductSchema = new mongoose.Schema({
   name: { type: String, required: true, index: true },
   type: { type: String },
   brand: { type: String },
-  unit:{type:String},
   unitPrice: { type: Number, required: true },
   quantity: { type: Number, required: true }, // This is the total quantity across all locations
   visibility: { type: String, enum: ["enable", "disable", "deleted"], default: "enable" },
@@ -19,8 +18,8 @@ const ProductSchema = new mongoose.Schema({
   DosageForms: { type: String },
   category: { type: String },
   distributor: {
-    name: { type: String, required: true },
-    contact: String,
+    name: { type: String },
+    contact: { type: Number },
   },
   isDeleted: { type: Boolean, default: false },
   deletedAt: { type: Date },
