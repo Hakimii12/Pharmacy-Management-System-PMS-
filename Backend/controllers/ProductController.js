@@ -756,7 +756,7 @@ export async function GetStoreProduct(req, res) {
 export async function GetDispensaryProduct(req, res) {
   try {
     const dispensaryProducts = await Dispensary.find({
-      quantity: { $gt: 0 },
+      quantity: { $gte: 0 },
       isDeleted: { $ne: true },
       isActive: true,
     }).populate("product")
