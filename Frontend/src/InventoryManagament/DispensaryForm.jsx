@@ -135,7 +135,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
             withCredentials: true
           }
         );
-        onClick()
+        onClose()
         toast.success(response.data.message || 'Product updated successfully');
         fetchProducts()
       } else {
