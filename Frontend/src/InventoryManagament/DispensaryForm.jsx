@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaSave, FaCalculator } from 'react-icons/fa';
+import { FaTimes, FaSave, FaCalculator, FaSpinner } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Api from "../data/API.json"
@@ -9,6 +9,8 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
   // State initialization with product data if available
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || '');
+  const [sellingPrice, setSellingPrice] = useState(product?.sellingPrice || '');
+  const [useSellingPrice, setUseSellingPrice] = useState(false);
   const [unitPrice, setUnitPrice] = useState(product?.unitPrice || '');
   const [quantity, setQuantity] = useState(product?.inventory?.dispensary || '');
   const [expiryDate, setExpiryDate] = useState(
@@ -25,7 +27,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
  const [productType, setProductType] = useState(product?.type || '');
  const [storeThreshold, setStoreThreshold] = useState(product?.storeThreshold || 10);
  const [dispensaryThreshold, setDispensaryThreshold] = useState(product?.dispensaryThreshold || 10);
- const [unit, setUnit] = useState(product?.unit || ''); // Add with other useState hooks
+//  const [unit, setUnit] = useState(product?.unit || ''); // Add with other useState hooks
   const [productCategories, setProductCategories] = useState([]);
   const [fetchDosageForms, setFetchDosageForms] = useState([]);
   const categories = productCategories
@@ -53,8 +55,9 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
     if (product) {
       setName(product.name || '');
       setBrand(product.brand || '');
-      setUnitPrice(product.unitPrice || '');
-      setQuantity(product.inventory?.dispensary || ''); // <-- dispensary quantity
+      // setUnitPrice(product.unitPrice || '');
+      setQuantity(product.inventory?.dispensary || ''); 
+      setSellingPrice(product.sellingPrice || '');
       setExpiryDate(
         product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : ''
       );
@@ -75,14 +78,24 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
           ? String(product.inventory.dispensaryThreshold)
           : '10'
       );
-      setUnit(product.unit || ''); // Add this line
+      // setUnit(product.unit || ''); // Add this line
     }
   }, [product]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setisSubmitting(true); // Start loading
+ if (useSellingPrice && (!sellingPrice || !markup)) {
+    toast.error('Please provide both Selling Price and Markup');
+    setisSubmitting(false);
+    return;
+  }
 
+  if (!useSellingPrice && (!unitPrice || !markup)) {
+    toast.error('Please provide both Unit Price and Markup');
+    setisSubmitting(false);
+    return;
+  }
     const distributor = {
       name: distributorName,
       contact: distributorContact
@@ -91,20 +104,26 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
     const data = {
       name,
       brand,
-      unitPrice: parseFloat(unitPrice),
+      // unitPrice: parseFloat(unitPrice),
       quantity: parseInt(quantity),
       expiryDate,
       batchNo: batchNumber,
-      markup: parseFloat(markup),
+      // markup: parseFloat(markup),
       category,
       DosageForms: dosageForm,
       distributor,
       type: category !== "medicine" ? productType : undefined,
       storeThreshold: parseInt(storeThreshold),
       dispensaryThreshold: parseInt(dispensaryThreshold),
-      ...(category === "medicine" && unit ? { unit } : {}), // Add unit if medicine
+      // ...(category === "medicine" && unit ? { unit } : {}), // Add unit if medicine
     };
-
+    if (useSellingPrice) {
+    data.sellingPrice = parseFloat(sellingPrice);
+    data.markup = parseFloat(markup);
+  } else {
+    data.unitPrice = parseFloat(unitPrice);
+    data.markup = parseFloat(markup);
+  }
     try {
       if (product) {
         // Update existing product
@@ -116,7 +135,9 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
             withCredentials: true
           }
         );
+        onClose()
         toast.success(response.data.message || 'Product updated successfully');
+        fetchProducts()
       } else {
         // Create new product
         const response = await axios.post(
@@ -127,11 +148,13 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
             withCredentials: true
           }
         );
+        setBatchNumber('');
+        setExpiryDate('');
+        setQuantity('');
         toast.success(response.data.message || 'Product created successfully');
       }
 
       if (onSuccess) onSuccess(); // Refresh data in parent component
-      onClose(); // Close the form
       fetchProducts()
     } catch (error) {
       console.error('Error:', error);
@@ -144,14 +167,24 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
     }
   };
 
-  const sellingPrice = unitPrice 
+  // const sellingPrice = unitPrice 
+  //   ? (parseFloat(unitPrice) * (1 + parseFloat(markup || 0) / 100)).toFixed(2)
+  //   : '0.00';
+
+  // const totalValue = unitPrice && quantity
+  //   ? (parseFloat(unitPrice) * parseInt(quantity)).toFixed(2)
+  //   : '0.00';
+const calculatedSellingPrice = unitPrice 
     ? (parseFloat(unitPrice) * (1 + parseFloat(markup || 0) / 100)).toFixed(2)
     : '0.00';
 
-  const totalValue = unitPrice && quantity
-    ? (parseFloat(unitPrice) * parseInt(quantity)).toFixed(2)
+  const calculatedUnitPrice = sellingPrice && markup
+    ? (parseFloat(sellingPrice) / (1 + parseFloat(markup || 0) / 100)).toFixed(2)
     : '0.00';
 
+  const totalValue = (useSellingPrice ? sellingPrice : unitPrice) && quantity
+    ? (parseFloat(useSellingPrice ? sellingPrice : unitPrice) * parseInt(quantity)).toFixed(2)
+    : '0.00';
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl flex flex-col max-h-[90vh]">
@@ -224,7 +257,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                       />
                       {errors.brand && <p className="mt-1 text-sm text-red-500">{errors.brand}</p>}
                     </div>
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Unit *
                       </label>
@@ -236,11 +269,11 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                         placeholder="e.g. tablet, ml, capsule"
                         required
                       />
-                    </div>
+                    </div> */}
                   </>
                 )}
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Unit Price (ETB) *
                   </label>
@@ -257,7 +290,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                     required
                   />
                   {errors.unitPrice && <p className="mt-1 text-sm text-red-500">{errors.unitPrice}</p>}
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -305,12 +338,11 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                       errors.batchNumber ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter batch number"
-                    required
                   />
                   {errors.batchNumber && <p className="mt-1 text-sm text-red-500">{errors.batchNumber}</p>}
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Markup (%) *
                   </label>
@@ -326,7 +358,7 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                     required
                   />
                   {errors.markup && <p className="mt-1 text-sm text-red-500">{errors.markup}</p>}
-                </div>
+                </div> */}
 
                 {category === "medicine" && (
                   <div>
@@ -367,7 +399,6 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                         errors.distributorName ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter distributor name"
-                      required
                     />
                     {errors.distributorName && (
                       <p className="mt-1 text-sm text-red-500">{errors.distributorName}</p>
@@ -385,7 +416,6 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                         errors.distributorContact ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter contact information"
-                      required
                     />
                     {errors.distributorContact && (
                       <p className="mt-1 text-sm text-red-500">{errors.distributorContact}</p>
@@ -419,7 +449,6 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                     onChange={(e) => setStoreThreshold(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
                     placeholder="Enter store threshold"
-                    required
                   />
                 </div>
 
@@ -434,7 +463,6 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                     onChange={(e) => setDispensaryThreshold(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
                     placeholder="Enter dispensary threshold"
-                    required
                   />
                 </div>
               </div>
@@ -442,21 +470,92 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
 
             {category && (
               <>
-                <div className="mt-6">
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <h3 className="font-medium text-blue-800 mb-2">Product Summary</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="text-gray-600">Selling Price:</div>
-                      <div className="font-medium text-green-600">
-                        {sellingPrice} <span className="text-xs">ETB</span>
-                      </div>
-                      <div className="text-gray-600">Total Value:</div>
-                      <div className="font-medium">
-                        {totalValue} <span className="text-xs">ETB</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Pricing Method
+          </label>
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={!useSellingPrice}
+                onChange={() => setUseSellingPrice(false)}
+                className="mr-2"
+              />
+              Unit Price + Markup
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={useSellingPrice}
+                onChange={() => setUseSellingPrice(true)}
+                className="mr-2"
+              />
+              Selling Price + Markup
+            </label>
+          </div>
+        </div>
+        
+        {!useSellingPrice ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Unit Price (ETB) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+              placeholder="Enter unit price"
+              required={!useSellingPrice}
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Selling Price (ETB) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={sellingPrice}
+              onChange={(e) => setSellingPrice(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+              placeholder="Enter selling price"
+              required={useSellingPrice}
+            />
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Markup (%) *
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={markup}
+            onChange={(e) => setMarkup(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+            placeholder="Enter markup percentage"
+            required
+          />
+        </div>
+        <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <h3 className="font-medium text-blue-800 mb-2">Product Summary</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="text-gray-600">{
+              useSellingPrice ? 'Unit Price:' : 'Selling Price:'
+            }</div>
+            <div className="font-medium text-green-600">
+              {useSellingPrice ? calculatedUnitPrice : calculatedSellingPrice} ETB
+            </div>
+            <div className="text-gray-600">Total Value:</div>
+            <div className="font-medium">{totalValue} ETB</div>
+          </div>
+        </div>
                 <div className="p-6 border-t border-gray-200">
                   <div className="flex justify-end space-x-3">
                     <button
@@ -466,16 +565,25 @@ const DispensaryForm = ({ product, onClose, onSuccess ,fetchProducts}) => {
                     >
                       Cancel
                     </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center transition-colors"
-                      disabled={isSubmitting}
-                    >
-                      <FaSave className="mr-2" />
-                      {isSubmitting
-                        ? (product ? 'Updating...' : 'Adding...')
-                        : (product ? 'Update Product' : 'Add Product')}
-                    </button>
+                     <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center transition-colors ${
+                            isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <FaSpinner className="animate-spin mr-2" />
+                              {product ? 'Updating...' : 'Adding...'}
+                            </>
+                          ) : (
+                            <>
+                              <FaSave className="mr-2" />
+                              {product ? 'Update Product' : 'Add Product'}
+                            </>
+                          )}
+                        </button>
                   </div>
                 </div>
               </>
