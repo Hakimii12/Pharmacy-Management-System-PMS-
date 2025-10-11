@@ -8,6 +8,7 @@ const OrderCard = ({ order, onComplete, onAbort, isProcessing, processingType })
           <div>
             <h2 className="font-bold text-lg text-gray-800">Order #{order.id.slice(-6)}</h2>
             <p className="text-gray-600 text-sm mt-1">Patient: {order.patientName}</p>
+            <p className="text-xs text-blue-600 mt-1">💰 Cash Sale</p>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full ${
             isProcessing 
@@ -18,9 +19,9 @@ const OrderCard = ({ order, onComplete, onAbort, isProcessing, processingType })
           }`}>
             {isProcessing 
               ? processingType === 'completing' 
-                ? 'Completing...' 
-                : 'Aborting...' 
-              : 'Pending'
+                ? '🔄 Completing...' 
+                : '🔄 Aborting...' 
+              : '⏳ Pending'
             }
           </span>
         </div>
@@ -37,7 +38,7 @@ const OrderCard = ({ order, onComplete, onAbort, isProcessing, processingType })
                 </div>
               </div>
               <div className="font-medium text-gray-800">
-                ${item.total.toFixed(2)}
+                ETB {item.total.toFixed(2)}
               </div>
             </li>
           ))}
@@ -47,7 +48,7 @@ const OrderCard = ({ order, onComplete, onAbort, isProcessing, processingType })
       <div className="p-4 bg-gray-50 flex justify-between items-center">
         <div>
           <span className="text-sm text-gray-600">Total:</span>
-          <span className="font-bold text-lg text-gray-800 ml-2">${order.totalAmount.toFixed(2)}</span>
+          <span className="font-bold text-lg text-gray-800 ml-2">ETB {order.totalAmount.toFixed(2)}</span>
         </div>
         <div className="space-x-2">
           <button
@@ -63,7 +64,7 @@ const OrderCard = ({ order, onComplete, onAbort, isProcessing, processingType })
               <span className="flex items-center">
                 <span className="mr-1">⏳</span> Aborting...
               </span>
-            ) : 'Abort'}
+            ) : '❌ Abort'}
           </button>
           <button
             onClick={onComplete}
@@ -78,7 +79,7 @@ const OrderCard = ({ order, onComplete, onAbort, isProcessing, processingType })
               <span className="flex items-center">
                 <span className="mr-1">⏳</span> Completing...
               </span>
-            ) : 'Complete'}
+            ) : '✅ Complete'}
           </button>
         </div>
       </div>

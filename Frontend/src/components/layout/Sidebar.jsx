@@ -48,7 +48,7 @@ const Sidebar = ({ closeSidebar }) => {
   const canViewDispensary = () => ['admin', 'superAdmin'].includes(userRole);
   const canViewPurchaseOrder = () => ['pharmacist', 'admin', 'superAdmin'].includes(userRole);
   const canViewReceiveOrder = () => ['cashier', 'admin', 'superAdmin'].includes(userRole);
-  const canViewCloseBalance = () => ['admin', 'superAdmin'].includes(userRole);
+  const canViewCreditManagement = () => ['admin', 'superAdmin'].includes(userRole);
   const canViewUserManagement = () => userRole === 'superAdmin';
   const canViewDosageFormsAndCategory = () => ['admin', 'superAdmin'].includes(userRole);
 
@@ -124,10 +124,10 @@ const Sidebar = ({ closeSidebar }) => {
           show: canViewReceiveOrder()
         },
         { 
-          name: "Close Daily Balance", 
-          path: "/close-daily-balance", 
+          name: "Credit Management", 
+          path: "/credit-management", 
           icon: <FaCashRegister />,
-          show: canViewCloseBalance()
+          show: canViewCreditManagement()
         },
         { 
           name: "History", 

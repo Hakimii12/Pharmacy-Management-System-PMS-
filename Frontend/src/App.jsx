@@ -18,7 +18,7 @@ import ReceiveOrder from './components/SalesList.jsx/ReceiveOrder';
 import SalesHistory from './components/SalesList.jsx/SalesHistory';
 import StoreHistory from './InventoryManagament/StoreHistory/StoreHistory';
 import DispensaryHistory from "./InventoryManagament/DispensaryHistory/DispensaryHistory"
-import CloseDailyBalance from './components/SalesList.jsx/CloseDailyBalance/CloseDailyBalance';
+import CreditManagement from './components/SalesList.jsx/CloseDailyBalance/CloseDailyBalance';
 import UserAdminstration from './pages/userAdminstration/UserAdminstration';
 import Logout from "./security/Logout"
 import DosageFormsAndCategory from './Setting/DosageFormsAndCategory';
@@ -40,7 +40,7 @@ function App() {
           <Route path="/purchase-order" element={<PurchaseOrder />} />
           <Route path="/receive-order" element={<ReceiveOrder />} />
           <Route path="/sales-history" element={<SalesHistory />} />
-          <Route path='/close-daily-balance' element={<CloseDailyBalance/>}/>
+          <Route path='/credit-management' element={<CreditManagement/>}/>
           {/* Notifications */}
           <Route path="/notifications" element={<Notifications />} />
           {/* Reports */}

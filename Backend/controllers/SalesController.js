@@ -101,7 +101,395 @@ export const PrepareAndSaveSale = async (req, res) => {
     session.endSession()
   }
 }
+export const CreateCreditSale = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const pharmacistId = req.user._id;
+    const { 
+      items, 
+      patientName, 
+      customerPhone, 
+      customerAddress, 
+      dueDate,
+      amountPaid = 0 // For partial payments
+    } = req.body;
 
+    const preparedItems = [];
+    let grandTotal = 0;
+    const transactionId = new mongoose.Types.ObjectId().toString();
+    const timestamp = new Date();
+
+    // Use provided due date or set default to 30 days from now
+    let calculatedDueDate = dueDate;
+    if (!calculatedDueDate) {
+      calculatedDueDate = new Date();
+      calculatedDueDate.setDate(calculatedDueDate.getDate() + 30); // Default to 30 days
+    }
+
+    // Validate and prepare items
+    for (const item of items) {
+      const product = await Product.findOne({
+        _id: item.productId,
+        isDeleted: { $ne: true },
+      }).session(session);
+      
+      if (!product) {
+        throw new Error(`Product not found or has been deleted: ${item.productId}`);
+      }
+
+      const dispensary = await Dispensary.findOne({
+        product: item.productId,
+        isDeleted: { $ne: true },
+        isActive: true,
+      }).session(session);
+      
+      if (!dispensary) {
+        throw new Error(`Product ${product.name} is not available in dispensary`);
+      }
+
+      const dispensaryQty = dispensary.quantity;
+      if (dispensaryQty < item.quantity) {
+        throw new Error(`Insufficient stock for ${product.name}. Available: ${dispensaryQty}`);
+      }
+
+      if (product.expiryDate < new Date()) {
+        throw new Error(`Product expired: ${product.name} (Batch: ${product.batchNo})`);
+      }
+
+      const saleAmount = product.sellingPrice * item.quantity;
+      const profit = (product.sellingPrice - product.unitPrice) * item.quantity;
+
+      preparedItems.push({
+        productId: product._id,
+        name: product.name,
+        brand: product.brand,
+        quantity: item.quantity,
+        saleAmount,
+        profit,
+        dosageForm: product.DosageForms,
+        unitPrice: product.unitPrice,
+        sellingPrice: product.sellingPrice
+      });
+      grandTotal += saleAmount;
+    }
+
+    // Validate partial payment
+    if (amountPaid > grandTotal) {
+      throw new Error("Amount paid cannot exceed total sale amount");
+    }
+
+    const remainingBalance = grandTotal - amountPaid;
+    const paymentStatus = amountPaid > 0 ? 
+      (amountPaid === grandTotal ? "paid" : "partial") : 
+      "credit";
+
+    // Create sales records and update stock
+    const salesRecords = [];
+    for (const item of preparedItems) {
+      // Calculate item-wise amounts for partial payments
+      const itemAmountPaid = amountPaid > 0 ? 
+        (item.saleAmount / grandTotal) * amountPaid : 0;
+      const itemRemainingBalance = item.saleAmount - itemAmountPaid;
+
+      const saleRecord = new Sales({
+        transactionId,
+        product: item.productId,
+        patientName,
+        customerPhone,
+        customerAddress,
+        quantitySold: item.quantity,
+        profit: item.profit,
+        saleAmount: item.saleAmount,
+        sellingPrice: item.sellingPrice,
+        totalUnitPrice: item.unitPrice * item.quantity,
+        status: "completed", // Credit sales are immediately completed
+        saleType: "credit",
+        paymentStatus: itemRemainingBalance > 0 ? 
+          (itemAmountPaid > 0 ? "partial" : "credit") : "paid",
+        amountPaid: itemAmountPaid,
+        remainingBalance: itemRemainingBalance,
+        dueDate: calculatedDueDate,
+        creditApprovedBy: pharmacistId,
+        creditApprovedAt: new Date(),
+        paymentHistory: amountPaid > 0 ? [{
+          amount: itemAmountPaid,
+          paymentDate: new Date(),
+          paymentMethod: "cash",
+          receivedBy: pharmacistId,
+          notes: "Initial partial payment"
+        }] : [],
+        pharmacist: pharmacistId,
+        cashier: pharmacistId, // For credit sales, pharmacist acts as cashier
+        completedAt: new Date(),
+        timestamp
+      });
+
+      // Update stock (same as cash sale)
+      await Dispensary.findOneAndUpdate(
+        { product: item.productId },
+        { $inc: { quantity: -item.quantity } },
+        { new: true, session }
+      );
+
+      await Product.findByIdAndUpdate(
+        item.productId, 
+        { $inc: { quantity: -item.quantity } }, 
+        { session }
+      );
+
+      await saleRecord.save({ session });
+      salesRecords.push(saleRecord);
+
+      // Check for expired product
+      const product = await Product.findById(item.productId);
+      if (product.expiryDate <= new Date()) {
+        await Notification.create({
+          type: "Expired",
+          message: `Sold expired product: ${product.name}`,
+          product: product._id,
+          location: "dispensary",
+          read: false,
+        });
+      }
+
+      await Dispensary.updateStatus(item.productId, session);
+    }
+
+    // Update profit summary
+    const totalProfit = preparedItems.reduce((sum, item) => sum + item.profit, 0);
+    updateProfitSummary(totalProfit, new Date());
+
+    await session.commitTransaction();
+    
+    res.status(201).json({
+      success: true,
+      transactionId,
+      grandTotal,
+      amountPaid,
+      remainingBalance,
+      paymentStatus,
+      dueDate: calculatedDueDate,
+      items: preparedItems,
+      salesRecords,
+      message: `Credit sale created successfully. ${amountPaid > 0 ? `Partial payment of ${amountPaid} received.` : 'No initial payment received.'}`
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+export const ProcessCreditPayment = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { transactionId, paymentAmount, paymentMethod = "cash", notes } = req.body;
+    const userId = req.user._id;
+
+    if (!transactionId || !paymentAmount || paymentAmount <= 0) {
+      throw new Error("Valid transaction ID and payment amount are required");
+    }
+
+    // Find all sales records for this transaction
+    const salesRecords = await Sales.find({ 
+      transactionId,
+      saleType: "credit",
+      paymentStatus: { $in: ["partial", "credit"] }
+    }).session(session);
+
+    if (salesRecords.length === 0) {
+      throw new Error("No credit sales found for this transaction");
+    }
+
+    const totalRemainingBalance = salesRecords.reduce((sum, record) => sum + record.remainingBalance, 0);
+    
+    if (paymentAmount > totalRemainingBalance) {
+      throw new Error(`Payment amount exceeds remaining balance. Maximum: ${totalRemainingBalance} ETB`);
+    }
+
+    // FIXED PAYMENT DISTRIBUTION LOGIC
+    const paymentRecords = [];
+    let remainingPayment = paymentAmount;
+    
+    // Calculate total remaining balance for proportional distribution
+    const totalBalance = salesRecords.reduce((sum, record) => sum + record.remainingBalance, 0);
+    
+    for (let i = 0; i < salesRecords.length && remainingPayment > 0; i++) {
+      const record = salesRecords[i];
+      
+      // Calculate proportional payment for this record
+      const recordProportion = record.remainingBalance / totalBalance;
+      let paymentForThisRecord = paymentAmount * recordProportion;
+      
+      // Ensure we don't pay more than the remaining balance for this record
+      paymentForThisRecord = Math.min(paymentForThisRecord, record.remainingBalance);
+      
+      // Ensure we don't exceed remaining payment
+      paymentForThisRecord = Math.min(paymentForThisRecord, remainingPayment);
+
+      if (paymentForThisRecord <= 0) continue;
+
+      // Update record with precise calculations
+      record.amountPaid = Number((record.amountPaid + paymentForThisRecord).toFixed(2));
+      record.remainingBalance = Number((record.remainingBalance - paymentForThisRecord).toFixed(2));
+      
+      // FIX: Only mark as "paid" if remaining balance is exactly 0, otherwise "partial"
+      record.paymentStatus = record.remainingBalance <= 0.01 ? "paid" : "partial";
+      
+      record.lastPaymentDate = new Date();
+      
+      // Add to payment history
+      record.paymentHistory.push({
+        amount: paymentForThisRecord,
+        paymentDate: new Date(),
+        paymentMethod,
+        receivedBy: userId,
+        notes
+      });
+
+      await record.save({ session });
+      paymentRecords.push({
+        product: record.name,
+        amount: paymentForThisRecord,
+        remainingBalance: record.remainingBalance,
+        paymentStatus: record.paymentStatus // Include status in response
+      });
+
+      remainingPayment = Number((remainingPayment - paymentForThisRecord).toFixed(2));
+    }
+
+    // Handle any remaining payment due to rounding errors
+    if (remainingPayment > 0.01) {
+      // Distribute the small remaining amount to the first record
+      const firstRecord = salesRecords[0];
+      if (firstRecord && firstRecord.remainingBalance > 0) {
+        const finalPayment = Math.min(remainingPayment, firstRecord.remainingBalance);
+        firstRecord.amountPaid = Number((firstRecord.amountPaid + finalPayment).toFixed(2));
+        firstRecord.remainingBalance = Number((firstRecord.remainingBalance - finalPayment).toFixed(2));
+        firstRecord.paymentStatus = firstRecord.remainingBalance <= 0.01 ? "paid" : "partial";
+        
+        firstRecord.paymentHistory.push({
+          amount: finalPayment,
+          paymentDate: new Date(),
+          paymentMethod,
+          receivedBy: userId,
+          notes: "Rounding adjustment"
+        });
+        
+        await firstRecord.save({ session });
+        remainingPayment = Number((remainingPayment - finalPayment).toFixed(2));
+      }
+    }
+
+    await session.commitTransaction();
+
+    // Get updated records to verify
+    const updatedRecords = await Sales.find({ transactionId }).session(session);
+    const newTotalBalance = updatedRecords.reduce((sum, record) => sum + record.remainingBalance, 0);
+    
+    // Calculate overall payment status for the transaction
+    const paidRecords = updatedRecords.filter(record => record.paymentStatus === "paid").length;
+    const totalRecords = updatedRecords.length;
+    const overallStatus = paidRecords === totalRecords ? "fully_paid" : "partially_paid";
+
+    res.status(200).json({
+      success: true,
+      message: "Credit payment processed successfully",
+      transactionId,
+      totalPaid: paymentAmount,
+      paymentRecords,
+      newTotalBalance: Number(newTotalBalance.toFixed(2)),
+      previousBalance: totalRemainingBalance,
+      paymentStatus: overallStatus,
+      details: `${paidRecords}/${totalRecords} items fully paid`
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+export const GetCreditSales = async (req, res) => {
+  try {
+    const { paymentStatus, customerPhone } = req.query;
+    
+    const query = { 
+      saleType: "credit",
+      status: "completed"
+    };
+
+    if (paymentStatus) {
+      query.paymentStatus = paymentStatus;
+    }
+
+    if (customerPhone) {
+      query.customerPhone = customerPhone;
+    }
+
+    const creditSales = await Sales.find(query)
+      .populate("product", "name brand category")
+      .populate("pharmacist", "name email")
+      .populate("creditApprovedBy", "name email")
+      .sort({ timestamp: -1 });
+
+    // Group by transactionId
+    const groupedSales = {};
+    creditSales.forEach(sale => {
+      if (!groupedSales[sale.transactionId]) {
+        groupedSales[sale.transactionId] = {
+          transactionId: sale.transactionId,
+          patientName: sale.patientName,
+          customerPhone: sale.customerPhone,
+          customerAddress: sale.customerAddress,
+          totalSaleAmount: 0,
+          totalAmountPaid: 0,
+          totalRemainingBalance: 0,
+          paymentStatus: sale.paymentStatus,
+          dueDate: sale.dueDate,
+          creditApprovedBy: sale.creditApprovedBy,
+          creditApprovedAt: sale.creditApprovedAt,
+          timestamp: sale.timestamp,
+          items: []
+        };
+      }
+
+      groupedSales[sale.transactionId].items.push({
+        product: sale.product,
+        quantity: sale.quantitySold,
+        saleAmount: sale.saleAmount,
+        amountPaid: sale.amountPaid,
+        remainingBalance: sale.remainingBalance
+      });
+
+      groupedSales[sale.transactionId].totalSaleAmount += sale.saleAmount;
+      groupedSales[sale.transactionId].totalAmountPaid += sale.amountPaid;
+      groupedSales[sale.transactionId].totalRemainingBalance += sale.remainingBalance;
+    });
+
+    res.status(200).json({
+      success: true,
+      count: Object.keys(groupedSales).length,
+      creditSales: Object.values(groupedSales)
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
 export const ConfirmSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -138,15 +526,15 @@ export const ConfirmSale = async (req, res) => {
       record.completedAt = new Date()
       await record.save({ session })
       const product = await Product.findById(record.product);
-  if (product.expiryDate <= new Date()) {
-    await Notification.create({
-      type: "Expired",
-      message: `Sold expired product: ${product.name}`,
-      product: product._id,
-      location: "dispensary",
-      read: false,
-    });
-  }
+      if (product.expiryDate <= new Date()) {
+        await Notification.create({
+          type: "Expired",
+          message: `Sold expired product: ${product.name}`,
+          product: product._id,
+          location: "dispensary",
+          read: false,
+        });
+      }
       await Dispensary.updateStatus(record.product, session);
     }
 
@@ -162,11 +550,7 @@ export const ConfirmSale = async (req, res) => {
     })
   } catch (error) {
     await session.abortTransaction()
-    // Mark as aborted on failure
-    await Sales.updateMany(
-      { transactionId: req.params.transactionId, status: "pending" },
-      { $set: { status: "aborted" } },
-    )
+    // REMOVED THE AUTOMATIC ABORTION - Only cashier can abort manually
     res.status(400).json({
       success: false,
       error: `Sale failed: ${error.message}`,
@@ -628,65 +1012,105 @@ export const UndoSale = async (req, res) => {
     const { transactionId, productId } = req.body;
     const userId = req.user._id;
 
-    // Find the sales record
-    const salesRecord = await Sales.findOne({
-      transactionId,
-      product: productId,
-      status: "completed"
-    }).session(session);
+    let salesRecords;
 
-    if (!salesRecord) {
-      throw new Error("Sales record not found");
+    // Determine if this is a credit sale or regular sale
+    if (productId) {
+      // Regular sale - single product
+      const salesRecord = await Sales.findOne({
+        transactionId,
+        product: productId,
+        status: "completed"
+      }).session(session);
+
+      if (!salesRecord) {
+        throw new Error("Sales record not found");
+      }
+      salesRecords = [salesRecord];
+    } else {
+      // Credit sale - multiple products under same transactionId
+      salesRecords = await Sales.find({
+        transactionId,
+        status: "completed",
+        saleType: "credit"
+      }).session(session);
+
+      if (salesRecords.length === 0) {
+        throw new Error("Credit sales records not found");
+      }
     }
 
-    // Get product details
-    const product = await Product.findById(productId).session(session);
-    if (!product) {
-      throw new Error("Product not found");
+    // Process all sales records
+    const transferIds = [];
+    
+    for (const salesRecord of salesRecords) {
+      const productId = salesRecord.product;
+
+      // Get product details
+      const product = await Product.findById(productId).session(session);
+      if (!product) {
+        throw new Error(`Product not found: ${productId}`);
+      }
+
+      // Update dispensary quantity
+      await Dispensary.findOneAndUpdate(
+        { product: productId },
+        { $inc: { quantity: salesRecord.quantitySold } },
+        { session }
+      );
+
+      // Update product total quantity
+      await Product.findByIdAndUpdate(
+        productId,
+        { $inc: { quantity: salesRecord.quantitySold } },
+        { session }
+      );
+
+      // For credit sales, also reset payment status and amounts
+      if (salesRecord.saleType === "credit") {
+        salesRecord.paymentStatus = "credit";
+        salesRecord.amountPaid = 0;
+        salesRecord.remainingBalance = salesRecord.saleAmount;
+        salesRecord.paymentHistory = [];
+        salesRecord.lastPaymentDate = null;
+      }
+
+      // Create transfer record for refund
+      const transfer = new Transfare({
+        product: productId,
+        user: userId,
+        type: salesRecord.saleType === "credit" ? "CREDIT_REFUND" : "RETURN_REFUND",
+        quantity: salesRecord.quantitySold,
+        quantityLeft: (await Dispensary.findOne({ product: productId }).session(session)).quantity,
+        totalQuantity: product.quantity + salesRecord.quantitySold,
+        issuedPrice: salesRecord.saleAmount / salesRecord.quantitySold,
+        unitPrice: product.unitPrice,
+        totalIssuedPrice: salesRecord.saleAmount,
+        totalUnitPrice: product.unitPrice * salesRecord.quantitySold,
+        date: new Date(),
+        notes: `Undo ${salesRecord.saleType === "credit" ? 'credit' : 'regular'} sale - Transaction: ${transactionId}`
+      });
+
+      await transfer.save({ session });
+      transferIds.push(transfer._id);
+
+      // Mark sales record as refunded
+      salesRecord.status = "refunded";
+      salesRecord.refundedAt = new Date();
+      salesRecord.refundedBy = userId;
+      await salesRecord.save({ session });
     }
-
-    // Update dispensary quantity
-    await Dispensary.findOneAndUpdate(
-      { product: productId },
-      { $inc: { quantity: salesRecord.quantitySold } },
-      { session }
-    );
-
-    // Update product total quantity
-    await Product.findByIdAndUpdate(
-      productId,
-      { $inc: { quantity: salesRecord.quantitySold } },
-      { session }
-    );
-
-    // Create transfer record for refund
-    const transfer = new Transfare({
-      product: productId,
-      user: userId,
-      type: "RETURN_REFUND",
-      quantity: salesRecord.quantitySold,
-      quantityLeft: (await Dispensary.findOne({ product: productId }).session(session)).quantity,
-      totalQuantity: product.quantity + salesRecord.quantitySold,
-      issuedPrice: salesRecord.saleAmount / salesRecord.quantitySold,
-      unitPrice: product.unitPrice,
-      totalIssuedPrice: salesRecord.saleAmount,
-      totalUnitPrice: product.unitPrice * salesRecord.quantitySold,
-      date: new Date()
-    });
-
-    await transfer.save({ session });
-
-    // Mark sales record as refunded instead of deleting it
-    salesRecord.status = "refunded";
-    salesRecord.refundedAt = new Date();
-    await salesRecord.save({ session });
 
     await session.commitTransaction();
     
     res.json({
       success: true,
-      message: "Transaction undone successfully",
-      transferId: transfer._id
+      message: salesRecords.length > 1 
+        ? "Credit transaction undone successfully" 
+        : "Transaction undone successfully",
+      transactionId,
+      refundedItems: salesRecords.length,
+      transferIds
     });
   } catch (error) {
     await session.abortTransaction();

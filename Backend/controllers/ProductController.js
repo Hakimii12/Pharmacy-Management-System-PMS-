@@ -767,7 +767,20 @@ export async function GetDispensaryProduct(req, res) {
     return res.status(500).json({ message: error.message })
   }
 }
-
+export async function GetDispensaryProductToSell(req, res) {
+  try {
+    const dispensaryProducts = await Dispensary.find({
+      quantity: { $gt: 0 },
+      isDeleted: { $ne: true },
+      isActive: true,
+    }).populate("product")
+    const products = dispensaryProducts.map((dispensary) => dispensary.product).filter(Boolean)
+    const productsWithInventory = await Promise.all(products.map((product) => populateProductWithInventory(product)))
+    return res.json({ products: productsWithInventory })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
 export async function GetCountedStore(req, res) {
   try {
     const results = await Store.aggregate([
