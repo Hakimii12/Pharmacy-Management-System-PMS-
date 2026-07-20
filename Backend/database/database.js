@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
-import dotenv from 'dotenv'
 import User from "../models/UserModel.js";
 import bcrypt from 'bcryptjs'
 async function Database() {
-  dotenv.config()
   const db_string = process.env.DATABASE_URL
+  console.log("DATABASE_URL:", process.env.DATABASE_URL);
   try {
     await mongoose.connect(db_string, { 
       serverSelectionTimeoutMS: 30000,

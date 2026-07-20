@@ -5,10 +5,14 @@ import Transfare from "../models/Transfer.js"
 import Sales from "../models/SalesModel.js"
 import Notification from "../models/NotificationModel.js"
 import {calculateInterdependentPrices} from "../helper/calculateInterdependentPrices.js"
-// Helper function to get inventory data
+
+/**
+ * SINGLE-PRODUCT inventory helper (used after create/update to return one product).
+ * Still does 2 queries but only for a single known product — acceptable.
+ */
 async function getInventoryData(productId) {
-  const store = await Store.findOne({ product: productId, isDeleted: { $ne: true } })
-  const dispensary = await Dispensary.findOne({ product: productId, isDeleted: { $ne: true } })
+  const store = await Store.findOne({ product: productId, isDeleted: { $ne: true } }).lean()
+  const dispensary = await Dispensary.findOne({ product: productId, isDeleted: { $ne: true } }).lean()
 
   return {
     store: store && store.isActive ? store.quantity : 0,
@@ -19,7 +23,6 @@ async function getInventoryData(productId) {
     dispensaryActive: dispensary ? dispensary.isActive : false,
     storeExists: !!store,
     dispensaryExists: !!dispensary,
-    // New fields for status and expiry per location
     storeStatus: store ? store.status : "Sold Out",
     dispensaryStatus: dispensary ? dispensary.status : "Sold Out",
     storeIsExpired: store ? store.isExpired : false,
@@ -27,15 +30,80 @@ async function getInventoryData(productId) {
   }
 }
 
-// Helper function to populate product with inventory
+/**
+ * Kept for single-product responses (create/update endpoints).
+ */
 async function populateProductWithInventory(product) {
   if (!product) return null
   const inventory = await getInventoryData(product._id)
-  return {
-    ...product.toObject(),
-    inventory,
-  }
+  const obj = product.toObject ? product.toObject() : product
+  return { ...obj, inventory }
 }
+
+/**
+ * BULK helper — replaces the N+1 pattern for list endpoints.
+ * Uses a single aggregation pipeline with $lookup to join Store and Dispensary
+ * data for ALL matching products in ONE database round-trip.
+ *
+ * @param {object} matchStage - MongoDB match filter for the Product collection
+ * @returns {Array} products with embedded inventory object
+ */
+async function getProductsWithInventory(matchStage) {
+  return Product.aggregate([
+    { $match: matchStage },
+    {
+      $lookup: {
+        from: "stores",
+        localField: "_id",
+        foreignField: "product",
+        as: "storeData",
+        pipeline: [{ $match: { isDeleted: { $ne: true } } }],
+      },
+    },
+    {
+      $lookup: {
+        from: "dispensaries",
+        localField: "_id",
+        foreignField: "product",
+        as: "dispensaryData",
+        pipeline: [{ $match: { isDeleted: { $ne: true } } }],
+      },
+    },
+    {
+      $addFields: {
+        _store: { $arrayElemAt: ["$storeData", 0] },
+        _dispensary: { $arrayElemAt: ["$dispensaryData", 0] },
+      },
+    },
+    {
+      $addFields: {
+        inventory: {
+          store: { $cond: [{ $and: ["$_store", "$_store.isActive"] }, "$_store.quantity", 0] },
+          dispensary: { $cond: [{ $and: ["$_dispensary", "$_dispensary.isActive"] }, "$_dispensary.quantity", 0] },
+          storeThreshold: { $ifNull: ["$_store.threshold", 10] },
+          dispensaryThreshold: { $ifNull: ["$_dispensary.threshold", 10] },
+          storeActive: { $ifNull: ["$_store.isActive", false] },
+          dispensaryActive: { $ifNull: ["$_dispensary.isActive", false] },
+          storeExists: { $cond: [{ $ifNull: ["$_store", false] }, true, false] },
+          dispensaryExists: { $cond: [{ $ifNull: ["$_dispensary", false] }, true, false] },
+          storeStatus: { $ifNull: ["$_store.status", "Sold Out"] },
+          dispensaryStatus: { $ifNull: ["$_dispensary.status", "Sold Out"] },
+          storeIsExpired: { $ifNull: ["$_store.isExpired", false] },
+          dispensaryIsExpired: { $ifNull: ["$_dispensary.isExpired", false] },
+        },
+      },
+    },
+    {
+      $project: {
+        storeData: 0,
+        dispensaryData: 0,
+        _store: 0,
+        _dispensary: 0,
+      },
+    },
+  ])
+}
+
  export async function CreateProductInDispensary(req, res) {
   try {
     const userId = req.user._id
@@ -708,8 +776,9 @@ export async function GetIssuedDispensary(req, res) {
   try {
     const history = await Transfare.find({ type: "ISSUE_TO_DISPENSARY" })
       .populate("user", "name email role")
-      .populate("product", "name brand batchNo expiryDate unitPrice sellingPrice category ")
+      .populate("product", "name brand batchNo expiryDate unitPrice sellingPrice category")
       .sort({ date: -1 })
+      .lean()
     return res.json({ history })
   } catch (error) {
     return res.status(500).json({ message: error.message })
@@ -722,6 +791,7 @@ export async function GetReturnToStore(req, res) {
       .populate("user", "name email role")
       .populate("product", "name brand batchNo expiryDate unitPrice sellingPrice category")
       .sort({ date: -1 })
+      .lean()
     return res.json({ history })
   } catch (error) {
     return res.status(500).json({ message: error.message })
@@ -730,11 +800,12 @@ export async function GetReturnToStore(req, res) {
 
 export async function GetAllProducts(req, res) {
   try {
-    const products = await Product.find({ visibility: "enable", isDeleted: { $ne: true } })
-    const productsWithInventory = await Promise.all(products.map((product) => populateProductWithInventory(product)))
-    // Filter out any null products (e.g., if product was hard deleted but inventory records still exist temporarily)
-    const validProducts = productsWithInventory.filter((p) => p !== null)
-    return res.json({ products: validProducts })
+    // Single aggregation query — replaces 1 + 2N separate DB queries
+    const products = await getProductsWithInventory({
+      visibility: "enable",
+      isDeleted: { $ne: true },
+    })
+    return res.json({ products })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -742,12 +813,14 @@ export async function GetAllProducts(req, res) {
 
 export async function GetStoreProduct(req, res) {
   try {
-    const storeProducts = await Store.find({ quantity: { $gte: 0 }, isDeleted: { $ne: true }, isActive: true }).populate(
-      "product",
-    )
-    const products = storeProducts.map((store) => store.product).filter(Boolean)
-    const productsWithInventory = await Promise.all(products.map((product) => populateProductWithInventory(product)))
-    return res.json({ products: productsWithInventory })
+    // Get product IDs active in store, then fetch with inventory in one query
+    const storeRecords = await Store.find(
+      { quantity: { $gte: 0 }, isDeleted: { $ne: true }, isActive: true },
+      { product: 1 }
+    ).lean()
+    const productIds = storeRecords.map((s) => s.product)
+    const products = await getProductsWithInventory({ _id: { $in: productIds } })
+    return res.json({ products })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -755,28 +828,27 @@ export async function GetStoreProduct(req, res) {
 
 export async function GetDispensaryProduct(req, res) {
   try {
-    const dispensaryProducts = await Dispensary.find({
-      quantity: { $gte: 0 },
-      isDeleted: { $ne: true },
-      isActive: true,
-    }).populate("product")
-    const products = dispensaryProducts.map((dispensary) => dispensary.product).filter(Boolean)
-    const productsWithInventory = await Promise.all(products.map((product) => populateProductWithInventory(product)))
-    return res.json({ products: productsWithInventory })
+    const dispensaryRecords = await Dispensary.find(
+      { quantity: { $gte: 0 }, isDeleted: { $ne: true }, isActive: true },
+      { product: 1 }
+    ).lean()
+    const productIds = dispensaryRecords.map((d) => d.product)
+    const products = await getProductsWithInventory({ _id: { $in: productIds } })
+    return res.json({ products })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
 }
+
 export async function GetDispensaryProductToSell(req, res) {
   try {
-    const dispensaryProducts = await Dispensary.find({
-      quantity: { $gt: 0 },
-      isDeleted: { $ne: true },
-      isActive: true,
-    }).populate("product")
-    const products = dispensaryProducts.map((dispensary) => dispensary.product).filter(Boolean)
-    const productsWithInventory = await Promise.all(products.map((product) => populateProductWithInventory(product)))
-    return res.json({ products: productsWithInventory })
+    const dispensaryRecords = await Dispensary.find(
+      { quantity: { $gt: 0 }, isDeleted: { $ne: true }, isActive: true },
+      { product: 1 }
+    ).lean()
+    const productIds = dispensaryRecords.map((d) => d.product)
+    const products = await getProductsWithInventory({ _id: { $in: productIds } })
+    return res.json({ products })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }

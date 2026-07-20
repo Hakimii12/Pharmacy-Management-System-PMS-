@@ -3,11 +3,10 @@ import Notification from "../models/NotificationModel.js";
 import Product from "../models/ProductModel.js";
 export async function GetNotification(req,res){
     try {
-
-         const notification = await Notification.find({});
-         if (!notification) {
-             return res.status(404).json({ message: 'notification not found' });
-         }
+         const notification = await Notification.find({})
+           .populate('product', 'name')
+           .sort({ createdAt: -1 })
+           .lean();
          res.json(notification);
     } catch (error) {
         res.status(500).json({ message:error.message})

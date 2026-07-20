@@ -49,32 +49,7 @@ const DispensarySchema = new mongoose.Schema({
   },
 })
 
-DispensarySchema.pre("save", async function (next) {
-  this.updatedAt = Date.now()
-  const product = await this.model("Product").findById(this.product)
 
-  if (!product || this.isDeleted || !this.isActive) {
-    this.status = "Sold Out" // If product is gone or dispensary record is inactive/deleted
-    this.isExpired = false
-    return next()
-  }
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  this.isExpired = product.expiryDate <= today
-
-  if (this.quantity === 0) {
-    this.status = "Sold Out"
-  } else if (this.isExpired) {
-    this.status = "Expired"
-  } else if (this.quantity <= this.threshold) {
-    this.status = "Low Stock"
-  } else {
-    this.status = "In Stock"
-  }
-  next()
-})
 
 DispensarySchema.post("save", async (doc) => {
   const productDoc = await mongoose.model("Product").findById(doc.product)

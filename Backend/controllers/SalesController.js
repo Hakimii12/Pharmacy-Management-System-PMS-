@@ -506,51 +506,79 @@ export const ConfirmSale = async (req, res) => {
       throw new Error("No pending transactions found")
     }
 
+    // Batch-fetch all relevant products ONCE before the loop (avoids N extra DB calls)
+    const productIds = [...new Set(salesRecords.map((r) => String(r.product)))]
+    const productDocs = await Product.find(
+      { _id: { $in: productIds } },
+      { name: 1, expiryDate: 1 }
+    )
+      .session(session)
+      .lean()
+    const productMap = new Map(productDocs.map((p) => [String(p._id), p]))
+
+    const now = new Date()
     let currentProfit = 0
+    const expiredNotifOps = []
+
     for (const record of salesRecords) {
-      // Update dispensary quantity. The pre/post save hooks on Dispensary model
-      // will handle its status and notifications.
-      const dispensary = await Dispensary.findOneAndUpdate(
+      // Update dispensary quantity
+      await Dispensary.findOneAndUpdate(
         { product: record.product },
         { $inc: { quantity: -record.quantitySold } },
         { new: true, session },
       )
 
-      // Update product total quantity (if product quantity represents total across locations)
+      // Update product total quantity
       await Product.findByIdAndUpdate(record.product, { $inc: { quantity: -record.quantitySold } }, { session })
 
       // Update sales record
       record.status = "completed"
       record.cashier = cashierId
       currentProfit += record.profit
-      record.completedAt = new Date()
+      record.completedAt = now
       await record.save({ session })
-      const product = await Product.findById(record.product);
-      if (product.expiryDate <= new Date()) {
-        await Notification.create({
-          type: "Expired",
-          message: `Sold expired product: ${product.name}`,
-          product: product._id,
-          location: "dispensary",
-          read: false,
-        });
+
+      // Use the pre-fetched product map — no extra DB call
+      const product = productMap.get(String(record.product))
+      if (product && product.expiryDate <= now) {
+        // Collect for bulk upsert (prevents duplicate notifications)
+        expiredNotifOps.push({
+          updateOne: {
+            filter: { product: product._id, type: "Expired", location: "dispensary", read: false },
+            update: {
+              $setOnInsert: {
+                type: "Expired",
+                message: `Sold expired product: ${product.name}`,
+                product: product._id,
+                location: "dispensary",
+                read: false,
+              },
+            },
+            upsert: true,
+          },
+        })
       }
-      await Dispensary.updateStatus(record.product, session);
+
+      await Dispensary.updateStatus(record.product, session)
+    }
+
+    // Write expired notifications in one bulk operation
+    if (expiredNotifOps.length > 0) {
+      await Notification.bulkWrite(expiredNotifOps, { ordered: false })
     }
 
     // Update profit summary
-    updateProfitSummary(currentProfit, new Date())
+    updateProfitSummary(currentProfit, now)
 
     await session.commitTransaction()
     res.json({
       success: true,
       transactionId,
-      completedAt: new Date(),
+      completedAt: now,
       itemsCount: salesRecords.length,
     })
   } catch (error) {
     await session.abortTransaction()
-    // REMOVED THE AUTOMATIC ABORTION - Only cashier can abort manually
     res.status(400).json({
       success: false,
       error: `Sale failed: ${error.message}`,
@@ -559,6 +587,7 @@ export const ConfirmSale = async (req, res) => {
     session.endSession()
   }
 }
+
 
 export const AbortSale = async (req, res) => {
   const session = await mongoose.startSession()
@@ -834,6 +863,7 @@ export const GetDailyBalanceHistory = async (req, res) => {
       .populate("cashier", "name email")
       .populate("closedBy", "name email")
       .sort({ date: -1 })
+      .lean()
 
     res.status(200).json({
       success: true,
@@ -865,7 +895,9 @@ export async function GetAllPendingStatus(req, res) {
     const PendingTransaction = await Sales.find({ status: "pending" })
       .populate("pharmacist", "name email role")
       .populate("product", "name brand batchNo sellingPrice category")
-    const pendingOrders = transformSalesRecords(PendingTransaction) // Assuming transformSalesRecords handles the new structure
+      .sort({ timestamp: -1 })
+      .lean()
+    const pendingOrders = transformSalesRecords(PendingTransaction)
     res.status(200).json(pendingOrders)
   } catch (error) {
     res.status(500).json({ massage: error.message })
@@ -878,12 +910,14 @@ export async function GetAbortAndComplatedSale(req, res) {
       $or: [
         { status: "completed" },
         { status: "aborted" },
-        { status: "refunded" } // Include refunded
+        { status: "refunded" },
       ],
     })
       .populate("pharmacist", "name email role")
       .populate("product", "name brand batchNo sellingPrice DosageForms category unitPrice")
       .populate("cashier", "name email role")
+      .sort({ timestamp: -1 })
+      .lean()
 
     // Group transactions by transactionId
     const groupedTransactions = {}
@@ -912,7 +946,7 @@ export async function GetAbortAndComplatedSale(req, res) {
         unitPrice: record.product.unitPrice,
         sellingPrice: record.product.sellingPrice,
         total: record.saleAmount,
-        refundedAt: record.refundedAt // Add refundedAt for frontend
+        refundedAt: record.refundedAt,
       })
       // Update transaction total
       groupedTransactions[tid].totalAmount += record.saleAmount
@@ -928,12 +962,13 @@ export async function GetAbortAndComplatedSale(req, res) {
 
 export const GetRecentSales = async (req, res) => {
   try {
-    const limit = 7 // Set limit to 7 recent sales
+    const limit = 7
 
     const recentSales = await Sales.find({ status: "completed" })
-      .sort({ completedAt: -1 }) // Sort by most recent first
+      .sort({ completedAt: -1 })
       .limit(limit)
       .select("name brand saleAmount profit completedAt -_id")
+      .lean()
     res.status(200).json({
       success: true,
       count: recentSales.length,

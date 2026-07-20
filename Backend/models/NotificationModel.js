@@ -21,5 +21,9 @@ const NotificationSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Compound index covering the most common query pattern:
+// { product, type, read, location } used in findOne/deleteMany across model hooks
+NotificationSchema.index({ product: 1, type: 1, read: 1, location: 1 });
+
 const Notification = mongoose.model("Notification", NotificationSchema);
 export default Notification;

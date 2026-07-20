@@ -1,6 +1,4 @@
 import mongoose from "mongoose";
-import User from "./UserModel.js";
-import Product from "./ProductModel.js";
 const TransfareSchema = new mongoose.Schema({
    product :{
          type:mongoose.Schema.Types.ObjectId,
@@ -36,5 +34,11 @@ const TransfareSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+// Index for filtering by product and type (used heavily in InventoryController)
+TransfareSchema.index({ product: 1, type: 1 });
+// Index for sorted history queries per product
+TransfareSchema.index({ product: 1, date: -1 });
+
 const Transfare= mongoose.model('Transfare', TransfareSchema)
 export default Transfare;

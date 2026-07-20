@@ -1,5 +1,8 @@
-import express from "express"
 import dotenv from "dotenv"
+// Load env vars FIRST — before any other module reads process.env
+dotenv.config()
+
+import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import Database from "./database/database.js"
@@ -22,10 +25,8 @@ app.use(
     credentials: true,
   }),
 )
-startExpirationChecker()
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
-dotenv.config()
 app.use("/api/product", DrugStore)
 app.use("/api/sales", SalesRoutes)
 app.use("/api/user", UserRoutes)
@@ -36,10 +37,11 @@ app.use("/api/inventory", InventoryRoutes)
 
 Database()
   .then(() => {
+    // Start the cron job ONCE, only after DB is ready
     startExpirationChecker()
     const PORT = process.env.PORT || 3000
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on port ${PORT}`)
+      console.log(`Server running on port http://localhost:${PORT}`)
     })
   })
   .catch((err) => {

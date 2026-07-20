@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import User from '../models/UserModel.js';
 import { GenerateToken } from '../utils/GenerateToken.js';
+import { invalidateUserCache } from '../middlewares/Authenticated.js';
 // Register a new user
 export async function RegisterUser(req, res) {
     try {
@@ -104,11 +105,11 @@ export async function LoginUser(req, res) {
 export async function GetUser(req,res){
   try {
        const id = req.params.id;
-       const user = await User.findById(id);
+       const user = await User.findById(id).select("-password").lean();
        if (!user) {
            return res.status(404).json({ message: 'User not found' });
        }
-       res.json({ id: user._id, name: user.name, email: user.email, role:user.role,password:user.password});
+       res.json({ id: user._id, name: user.name, email: user.email, role:user.role});
   } catch (error) {
       res.status(500).json({ message:error.message})
   }
@@ -127,14 +128,11 @@ export async function Logout(req, res) {
 }
 export async function GetAllUser(req,res){
   try {
-    const user = await User.find({});
-    if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-    }
-    res.json(user);
-} catch (error) {
-   res.status(500).json({ message:error.message})
-}
+    const users = await User.find({}).select("-password").lean();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message:error.message})
+  }
 }
 
 
@@ -171,7 +169,10 @@ export async function Approval(req, res) {
     }
   
     await user.save();
-  
+
+    // Immediately evict from auth cache so status change takes effect on the next request
+    invalidateUserCache(user._id);
+
     if (userStatus === "approve") {
       return res.status(200).json({
         message: "User approved successfully!",
