@@ -4,8 +4,10 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import Api from "../../data/API.json"
 import { fetchCategories,getCategories ,GetDosageForm,fetchDosageForm } from '../../data/products';
-const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDeleting}) => {
+const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDeleting, existingProducts = []}) => {
   const ApiLink=Api.link
+  const [formMode, setFormMode] = useState('new');
+  const [selectedExistingProduct, setSelectedExistingProduct] = useState('');
   const [productCategories, setProductCategories] = useState([]);
   const [sellingPrice, setSellingPrice] = useState(product?.sellingPrice || '');
   const [useSellingPrice, setUseSellingPrice] = useState(false);
@@ -49,6 +51,39 @@ const ProductForm = ({ product, onClose, onSuccess ,fetchProducts,onDelete,isDel
       };
       loadCategories();
     }, []);
+
+  useEffect(() => {
+    if (formMode === 'existing' && selectedExistingProduct) {
+      const existing = existingProducts.find(p => p._id === selectedExistingProduct);
+      if (existing) {
+        setName(existing.name || '');
+        setBrand(existing.brand || '');
+        setUnitPrice(existing.unitPrice || '');
+        setSellingPrice(existing.sellingPrice || '');
+        setMarkup(existing.markup || '');
+        setCategory(existing.category || '');
+        setDosageForm(existing.DosageForms || '');
+        setProductType(existing.type || '');
+        setStoreThreshold(
+          existing.inventory?.storeThreshold !== undefined && existing.inventory?.storeThreshold !== null
+            ? String(existing.inventory.storeThreshold)
+            : '10'
+        );
+        setDispensaryThreshold(
+          existing.inventory?.dispensaryThreshold !== undefined && existing.inventory?.dispensaryThreshold !== null
+            ? String(existing.inventory.dispensaryThreshold)
+            : '10'
+        );
+        // Clear batch-specific fields
+        setQuantity('');
+        setExpiryDate('');
+        setBatchNumber('');
+        setDistributorName('');
+        setDistributorContact('');
+      }
+    }
+  }, [selectedExistingProduct, formMode, existingProducts]);
+
   useEffect(() => {
     // Reset form when switching between create and edit
     if (product) {
@@ -227,6 +262,44 @@ const calculatedSellingPrice = unitPrice
         </div>
         <div className="overflow-y-auto flex-1">
           <form onSubmit={handleSubmit} className="p-6">
+            {!product && (
+              <div className="mb-6 flex space-x-4 border-b">
+                <button
+                  type="button"
+                  className={`pb-2 px-1 ${formMode === 'new' ? 'border-b-2 border-blue-500 text-blue-600 font-medium' : 'text-gray-500'}`}
+                  onClick={() => setFormMode('new')}
+                >
+                  New Product
+                </button>
+                <button
+                  type="button"
+                  className={`pb-2 px-1 ${formMode === 'existing' ? 'border-b-2 border-blue-500 text-blue-600 font-medium' : 'text-gray-500'}`}
+                  onClick={() => setFormMode('existing')}
+                >
+                  Add Batch to Existing Product
+                </button>
+              </div>
+            )}
+            
+            {formMode === 'existing' && !product && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Existing Product *
+                </label>
+                <select
+                  value={selectedExistingProduct}
+                  onChange={(e) => setSelectedExistingProduct(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                  required={formMode === 'existing'}
+                >
+                  <option value="">-- Select Product --</option>
+                  {Array.from(new Set(existingProducts.map(p => p.name))).map(name => {
+                    const prod = existingProducts.find(p => p.name === name);
+                    return <option key={prod._id} value={prod._id}>{prod.name} {prod.brand && prod.brand !== 'no_brand' ? `(${prod.brand})` : ''}</option>;
+                  })}
+                </select>
+              </div>
+            )}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Category *
@@ -236,8 +309,9 @@ const calculatedSellingPrice = unitPrice
                 onChange={(e) => setCategory(e.target.value)}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.category ? 'border-red-500' : 'border-gray-300'
-                }`}
+                } ${formMode === 'existing' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 required
+                disabled={formMode === 'existing'}
               >
                 <option value="">Select a category</option>
                 {productCategories.map(cat => (
@@ -259,8 +333,9 @@ const calculatedSellingPrice = unitPrice
                     onChange={(e) => setName(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    } ${formMode === 'existing' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     placeholder="Enter product name"
+                    disabled={formMode === 'existing'}
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
                 </div>
@@ -277,8 +352,9 @@ const calculatedSellingPrice = unitPrice
                         onChange={(e) => setBrand(e.target.value)}
                         className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                           errors.brand ? 'border-red-500' : 'border-gray-300'
-                        }`}
+                        } ${formMode === 'existing' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                         placeholder="Enter brand name"
+                        disabled={formMode === 'existing'}
                       />
                       {errors.brand && <p className="mt-1 text-sm text-red-500">{errors.brand}</p>}
                     </div>
@@ -389,14 +465,15 @@ const calculatedSellingPrice = unitPrice
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Dosage Form *
                     </label>
-                    <select
-                      value={dosageForm}
-                      onChange={(e) => setDosageForm(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.dosageForm ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      required
-                    >
+                      <select
+                        value={dosageForm}
+                        onChange={(e) => setDosageForm(e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          errors.dosageForm ? 'border-red-500' : 'border-gray-300'
+                        } ${formMode === 'existing' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                        required
+                        disabled={formMode === 'existing'}
+                      >
                       <option value="">Select dosage form</option>
                       {dosageFormsOptions.map(form => (
                         <option key={form.value} value={form.value}>
@@ -458,9 +535,9 @@ const calculatedSellingPrice = unitPrice
                       type="text"
                       value={productType}
                       onChange={(e) => setProductType(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300 ${formMode === 'existing' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                       placeholder="Enter product type"
-                    
+                      disabled={formMode === 'existing'}
                     />
                   </div>
                 )}
@@ -474,9 +551,10 @@ const calculatedSellingPrice = unitPrice
                     min="0"
                     value={storeThreshold}
                     onChange={(e) => setStoreThreshold(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300 ${formMode === 'existing' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     placeholder="Enter store threshold"
                     required
+                    disabled={formMode === 'existing'}
                   />
                 </div>
 
@@ -489,9 +567,10 @@ const calculatedSellingPrice = unitPrice
                     min="0"
                     value={dispensaryThreshold}
                     onChange={(e) => setDispensaryThreshold(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300 ${formMode === 'existing' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     placeholder="Enter dispensary threshold"
                     required
+                    disabled={formMode === 'existing'}
                   />
                 </div>
               </div>

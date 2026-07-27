@@ -182,7 +182,7 @@ useEffect(()=>{
       </div>
       
       {showForm && (
-        <ProductForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts}/>
+        <ProductForm product={selectedProduct} onClose={handleCloseForm} fetchProducts={fetchProducts} existingProducts={fetched}/>
       )}
       {totalPages > 1 && (
   <div className="px-6 py-4">
