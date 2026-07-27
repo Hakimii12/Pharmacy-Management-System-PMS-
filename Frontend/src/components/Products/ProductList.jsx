@@ -61,19 +61,49 @@ useEffect(()=>{
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.type && product.type.toLowerCase().includes(searchTerm.toLowerCase())) || // Search by type
-      (product.unit && product.unit.toLowerCase().includes(searchTerm.toLowerCase()));   // Search by unit
+      (product.type && product.type.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (product.unit && product.unit.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
     const matchesStatus = selectedStatus === 'All' || product.inventory.storeStatus === selectedStatus;
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
-  const paginatedProducts = filteredProducts.slice(
+
+  // Group products by name — each group becomes one row
+  const groupedProducts = Object.values(
+    filteredProducts.reduce((acc, product) => {
+      const key = product.name.toLowerCase();
+      if (!acc[key]) {
+        acc[key] = {
+          _groupKey: key,
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          DosageForms: product.DosageForms,
+          type: product.type,
+          sellingPrice: product.sellingPrice,
+          unitPrice: product.unitPrice,
+          markup: product.markup,
+          totalQuantity: 0,
+          totalStore: 0,
+          totalDispensary: 0,
+          batches: [],
+        };
+      }
+      acc[key].totalQuantity += product.quantity || 0;
+      acc[key].totalStore += product.inventory?.store || 0;
+      acc[key].totalDispensary += product.inventory?.dispensary || 0;
+      acc[key].batches.push(product);
+      return acc;
+    }, {})
+  );
+
+  const paginatedProducts = groupedProducts.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(groupedProducts.length / ITEMS_PER_PAGE);
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, selectedStatus]);
@@ -149,11 +179,11 @@ useEffect(()=>{
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Drug Name
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantity
+                  Total Qty
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Price
@@ -161,20 +191,20 @@ useEffect(()=>{
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" colSpan={2}>
+                  Batches
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {paginatedProducts.map(product => (
-                <ProductItem key={product._id} product={product} onEdit={handleEdit} fetchProducts={fetchProducts}/>
+              {paginatedProducts.map(group => (
+                <ProductItem key={group._groupKey} group={group} onEdit={handleEdit} fetchProducts={fetchProducts}/>
   ))}
             </tbody>
             
           </table>
         </div>}
-        {filteredProducts.length === 0 && (
+        {groupedProducts.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500">No products found matching your criteria</p>
           </div>
