@@ -12,9 +12,20 @@ const TransfareSchema = new mongoose.Schema({
    },
    type:{
     type:String,
-    enum: ['ISSUE_TO_DISPENSARY', 'RETURN_TO_STORE',"UPDATED_IN_STORE","UPDATED_IN_DISPENSARY","RETURN_REFUND"],
+    enum: [
+      'ISSUE_TO_DISPENSARY',
+      'RETURN_TO_STORE',
+      'UPDATED_IN_STORE',
+      'UPDATED_IN_DISPENSARY',
+      'RETURN_REFUND',
+      'CREDIT_REFUND',
+      'INVENTORY_ADJUSTMENT',
+      'PURCHASE_RECEIPT',
+    ],
     required:true
    },
+   adjustmentReason: String,
+   notes: String,
    UpdateType:{
     type:String,
     enum: ['QUANTITY_ADDED', 'QUANTITY_DEDUCTED']
@@ -39,6 +50,8 @@ const TransfareSchema = new mongoose.Schema({
 TransfareSchema.index({ product: 1, type: 1 });
 // Index for sorted history queries per product
 TransfareSchema.index({ product: 1, date: -1 });
+// Transfer history screens filter by type and sort newest first across all products
+TransfareSchema.index({ type: 1, date: -1 });
 
 const Transfare= mongoose.model('Transfare', TransfareSchema)
 export default Transfare;

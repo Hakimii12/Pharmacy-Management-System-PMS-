@@ -1,10 +1,39 @@
 import Product from "../models/ProductModel.js";
 import Category from "../models/categorymodel.js";
 import DosageForm from "../models/dosageformsmodel.js";
+import { getPagination, paginated } from "../utils/pagination.js";
+
+/**
+ * These two collections back form dropdowns, so they get a larger cap than the
+ * 25/100 default — but they are still bounded.
+ */
+const REFERENCE_LIST_PAGINATION = { defaultLimit: 100, maxLimit: 200 };
+
+/**
+ * Reads a reference list along with how many live products use each entry, so the
+ * UI can disable the delete action without a request per row.
+ */
+async function listReferenceData(req, res, { Model, productField }) {
+  const { page, limit, skip } = getPagination(req.query, REFERENCE_LIST_PAGINATION);
+
+  const [entries, total] = await Promise.all([
+    Model.find().sort({ name: 1 }).skip(skip).limit(limit).lean(),
+    Model.countDocuments(),
+  ]);
+
+  const usage = await Product.aggregate([
+    { $match: { [productField]: { $in: entries.map((e) => e.name) }, isDeleted: false, visibility: { $ne: "deleted" } } },
+    { $group: { _id: `$${productField}`, count: { $sum: 1 } } },
+  ]);
+  const usageByName = new Map(usage.map((u) => [u._id, u.count]));
+
+  const data = entries.map((entry) => ({ ...entry, productCount: usageByName.get(entry.name) || 0 }));
+  return res.json(paginated(data, { page, limit, total }));
+}
+
 export async function GetAllDosageForms(req, res) {
   try {
-    const forms = await DosageForm.find().sort({ name: 1 });
-    res.json(forms);
+    return await listReferenceData(req, res, { Model: DosageForm, productField: "DosageForms" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -45,15 +74,15 @@ export async function DeleteDosageForm(req, res) {
     }
 
     // Check products by NAME (not ID)
-    const product = await Product.findOne({ 
+    const productCount = await Product.countDocuments({
       DosageForms: dosageForm.name,
       isDeleted: false,
       visibility: { $ne: "deleted" }
     });
-    console.log(product)
-    if (product) {
+    if (productCount > 0) {
       return res.status(400).json({ 
-        message: "Cannot delete - dosage form is in use by products" 
+        message: "Cannot delete - dosage form is in use by products",
+        productCount,
       });
     }
 
@@ -69,8 +98,7 @@ export async function DeleteDosageForm(req, res) {
 // Get all categories
 export async function GetAllCategories(req, res) {
   try {
-    const categories = await Category.find().sort({ name: 1 });
-    res.json(categories);
+    return await listReferenceData(req, res, { Model: Category, productField: "category" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -111,15 +139,16 @@ export async function DeleteCategory(req, res) {
     }
 
     // Check products by NAME (not ID)
-    const product = await Product.findOne({ 
+    const productCount = await Product.countDocuments({
       category: category.name,
       isDeleted: false,
       visibility: { $ne: "deleted" }
     });
 
-    if (product) {
+    if (productCount > 0) {
       return res.status(400).json({ 
-        message: "Cannot delete - category is in use by products" 
+        message: "Cannot delete - category is in use by products",
+        productCount,
       });
     }
 

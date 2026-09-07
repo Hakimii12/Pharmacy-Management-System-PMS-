@@ -14,6 +14,7 @@ import NotificationRoutes from "./routes/NotificationRoutes.js"
 import ProfitRoutes from "./routes/ProfitRoutes.js"
 import DosageFormsRoutes from "./routes/dosageformsandcategoryroutes.js"
 import InventoryRoutes from "./routes/InventoryRoutes.js"
+import PurchaseRoutes from "./routes/PurchaseRoutes.js"
 
 const app = express()
 app.use(express.json())
@@ -34,6 +35,7 @@ app.use("/api/notify", NotificationRoutes)
 app.use("/api/profit", ProfitRoutes)
 app.use("/api/form", DosageFormsRoutes)
 app.use("/api/inventory", InventoryRoutes)
+app.use("/api/purchase", PurchaseRoutes)
 
 Database()
   .then(() => {

@@ -1,5 +1,4 @@
 import mongoose from "mongoose"
-import Notification from "./NotificationModel.js"
 
 const ProductSchema = new mongoose.Schema({
   addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -34,81 +33,25 @@ ProductSchema.pre("save", function (next) {
   next()
 })
 
-// Post-save hook for product-level notifications (e.g., Near Expiry)
-// Replace the existing post-save hook with this improved logic:
-ProductSchema.post("save", async (doc) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // First handle expiration notifications (highest priority)
-  if (doc.expiryDate <= today) {
-    // Create expired notifications for both locations
-    await Notification.create([
-      {
-        type: "Expired",
-        message: `Product ${doc.name} has expired!`,
-        product: doc._id,
-        location: "store",
-        read: false,
-      },
-      {
-        type: "Expired",
-        message: `Product ${doc.name} has expired!`,
-        product: doc._id,
-        location: "dispensary",
-        read: false,
-      }
-    ]);
-    
-    // Remove any near-expiry notifications
-    await Notification.deleteMany({
-      product: doc._id,
-      type: "NearExpiry",
-      location: "both",
-      read: false,
-    });
-    return;
-  }
-
-  // Then handle near-expiry (within 3 months)
-  const threeMonthsFromNow = new Date(today);
-  threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
-
-  if (doc.expiryDate > today && doc.expiryDate <= threeMonthsFromNow) {
-    const daysLeft = Math.ceil((doc.expiryDate - today) / (1000 * 60 * 60 * 24));
-    
-    const existingNearExpiry = await Notification.findOne({
-      product: doc._id,
-      type: "NearExpiry",
-      location: "both",
-      read: false,
-    });
-    
-    if (!existingNearExpiry) {
-      await Notification.create({
-        type: "NearExpiry",
-        message: `Product ${doc.name} expires in ${daysLeft} days!`,
-        product: doc._id,
-        location: "both",
-        read: false,
-      });
-    }
-  } else {
-    // Remove near-expiry notifications if not applicable
-    await Notification.deleteMany({
-      product: doc._id,
-      type: "NearExpiry",
-      location: "both",
-      read: false,
-    });
-  }
-});
+// Expiry/near-expiry notifications are NOT generated here. A post-save hook fires
+// once per document, so a bulk import of N products issued ~4N sequential
+// notification queries. Controllers now call
+// `services/notificationService.js#syncExpiryNotifications` with the whole batch,
+// which collapses to a single bulkWrite. `bulkWrite`/`updateMany` also bypass save
+// middleware entirely, so nothing would run here on the bulk paths anyway.
 
 // Ensure batchNo is unique only for non-deleted products
 ProductSchema.index(
   { batchNo: 1 },
   { unique: true, partialFilterExpression: { isDeleted: false } }
 );
+
+// List endpoints always filter on visibility + isDeleted and sort by createdAt.
+ProductSchema.index({ isDeleted: 1, visibility: 1, createdAt: -1 });
+// Expiry sweeps (cron, near-expiry report, notification sync).
+ProductSchema.index({ expiryDate: 1, isDeleted: 1 });
+// Category facet on the inventory screens.
+ProductSchema.index({ category: 1, isDeleted: 1 });
 
 const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema)
 export default Product

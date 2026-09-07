@@ -7,17 +7,18 @@ import {
   CreateCategory,
   DeleteCategory
 } from "../controllers/dosageformsandcategory.js";
+import Authenticated from "../middlewares/Authenticated.js";
+import allowedUsers, { MANAGERS } from "../middlewares/Authorization.js";
 
 const router = express.Router();
 
-// Dosage Forms Routes
-router.get("/dosage-forms", GetAllDosageForms);
-router.post("/dosage-forms", CreateDosageForm);
-router.delete("/dosage-forms/:id", DeleteDosageForm);
+// Reads populate form dropdowns for every role; writes are catalog administration.
+router.get("/dosage-forms", Authenticated(), GetAllDosageForms);
+router.post("/dosage-forms", Authenticated(), allowedUsers(...MANAGERS), CreateDosageForm);
+router.delete("/dosage-forms/:id", Authenticated(), allowedUsers(...MANAGERS), DeleteDosageForm);
 
-// Categories Routes
-router.get("/categories", GetAllCategories);
-router.post("/categories", CreateCategory);
-router.delete("/categories/:id", DeleteCategory);
+router.get("/categories", Authenticated(), GetAllCategories);
+router.post("/categories", Authenticated(), allowedUsers(...MANAGERS), CreateCategory);
+router.delete("/categories/:id", Authenticated(), allowedUsers(...MANAGERS), DeleteCategory);
 
 export default router;

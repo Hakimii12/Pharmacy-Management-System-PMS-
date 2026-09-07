@@ -5,9 +5,206 @@ import Sales from "../models/SalesModel.js"
 import DailyBalance from "../models/DailyBalance.js"
 import { updateProfitSummary } from "../utils/profitUtils.js" // Assuming this utility exists
 import Notification from "../models/NotificationModel.js"
-import transformSalesRecords from "../utils/transformSalesRecords.js" // Assuming this utility exists
 import User from "../models/UserModel.js"
 import Transfare from "../models/Transfer.js"
+import { getPagination, paginated, facetPage, readFacet, searchRegex, dateRange } from "../utils/pagination.js"
+
+/*
+ * Sales are stored one row per line-item, but every screen consumes them grouped
+ * by transaction. That grouping used to happen in JS after loading the entire
+ * collection; it now happens in MongoDB so we can paginate transactions (not rows)
+ * and only ever ship one page over the wire.
+ */
+
+/** $group stage that collapses line-item rows into a single transaction document. */
+const GROUP_BY_TRANSACTION = {
+  $group: {
+    _id: "$transactionId",
+    patientName: { $first: "$patientName" },
+    customerPhone: { $first: "$customerPhone" },
+    customerAddress: { $first: "$customerAddress" },
+    saleType: { $first: "$saleType" },
+    status: { $first: "$status" },
+    timestamp: { $first: "$timestamp" },
+    completedAt: { $first: "$completedAt" },
+    abortedAt: { $first: "$abortedAt" },
+    refundedAt: { $first: "$refundedAt" },
+    dueDate: { $first: "$dueDate" },
+    creditApprovedBy: { $first: "$creditApprovedBy" },
+    creditApprovedAt: { $first: "$creditApprovedAt" },
+    lastPaymentDate: { $first: "$lastPaymentDate" },
+    pharmacist: { $first: "$pharmacist" },
+    cashier: { $first: "$cashier" },
+    totalAmount: { $sum: "$saleAmount" },
+    totalProfit: { $sum: "$profit" },
+    amountPaid: { $sum: "$amountPaid" },
+    remainingBalance: { $sum: "$remainingBalance" },
+    itemCount: { $sum: 1 },
+    items: {
+      $push: {
+        saleId: "$_id",
+        product: "$product",
+        name: "$name",
+        brand: "$brand",
+        dosageForm: "$dosageForm",
+        quantity: "$quantitySold",
+        sellingPrice: "$sellingPrice",
+        saleAmount: "$saleAmount",
+        amountPaid: "$amountPaid",
+        remainingBalance: "$remainingBalance",
+        status: "$status",
+        refundedAt: "$refundedAt",
+      },
+    },
+  },
+}
+
+/**
+ * Transaction-level payment state derived from the summed line items, rather than
+ * `$first` off an arbitrary row — individual rows can disagree after a partial
+ * payment is distributed across them.
+ */
+const DERIVE_PAYMENT_STATE = {
+  $addFields: {
+    paymentStatus: {
+      $cond: [
+        { $eq: ["$saleType", "credit"] },
+        {
+          $switch: {
+            branches: [
+              { case: { $lte: ["$remainingBalance", 0.01] }, then: "paid" },
+              { case: { $gt: ["$amountPaid", 0] }, then: "partial" },
+            ],
+            default: "credit",
+          },
+        },
+        { $cond: [{ $eq: ["$status", "completed"] }, "paid", "pending"] },
+      ],
+    },
+    isOverdue: {
+      $and: [
+        { $gt: ["$remainingBalance", 0.01] },
+        { $ne: ["$dueDate", null] },
+        { $lt: ["$dueDate", new Date()] },
+      ],
+    },
+  },
+}
+
+/**
+ * Joins product and user detail onto a page of grouped transactions. These stages
+ * run *after* $skip/$limit so the lookups only touch the current page.
+ */
+const ENRICH_TRANSACTION_PAGE = [
+  {
+    $lookup: {
+      from: "products",
+      localField: "items.product",
+      foreignField: "_id",
+      as: "productDocs",
+      pipeline: [
+        { $project: { name: 1, brand: 1, category: 1, DosageForms: 1, batchNo: 1, unitPrice: 1, sellingPrice: 1 } },
+      ],
+    },
+  },
+  {
+    $lookup: {
+      from: "users",
+      localField: "pharmacist",
+      foreignField: "_id",
+      as: "pharmacistDoc",
+      pipeline: [{ $project: { name: 1, email: 1, role: 1 } }],
+    },
+  },
+  {
+    $lookup: {
+      from: "users",
+      localField: "cashier",
+      foreignField: "_id",
+      as: "cashierDoc",
+      pipeline: [{ $project: { name: 1, email: 1, role: 1 } }],
+    },
+  },
+  {
+    $lookup: {
+      from: "users",
+      localField: "creditApprovedBy",
+      foreignField: "_id",
+      as: "creditApprovedByDoc",
+      pipeline: [{ $project: { name: 1, email: 1 } }],
+    },
+  },
+  {
+    $addFields: {
+      pharmacist: { $arrayElemAt: ["$pharmacistDoc", 0] },
+      cashier: { $arrayElemAt: ["$cashierDoc", 0] },
+      creditApprovedBy: { $arrayElemAt: ["$creditApprovedByDoc", 0] },
+      items: {
+        $map: {
+          input: "$items",
+          as: "item",
+          in: {
+            $mergeObjects: [
+              "$$item",
+              {
+                $let: {
+                  vars: {
+                    prod: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$productDocs",
+                            as: "candidate",
+                            cond: { $eq: ["$$candidate._id", "$$item.product"] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  in: {
+                    productId: "$$item.product",
+                    name: { $ifNull: ["$$item.name", "$$prod.name"] },
+                    brand: { $ifNull: ["$$item.brand", "$$prod.brand"] },
+                    category: "$$prod.category",
+                    dosageForm: { $ifNull: ["$$item.dosageForm", "$$prod.DosageForms"] },
+                    batchNo: "$$prod.batchNo",
+                    unitPrice: "$$prod.unitPrice",
+                    sellingPrice: { $ifNull: ["$$item.sellingPrice", "$$prod.sellingPrice"] },
+                    total: "$$item.saleAmount",
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
+  { $addFields: { id: "$_id", transactionId: "$_id" } },
+  { $project: { _id: 0, productDocs: 0, pharmacistDoc: 0, cashierDoc: 0, creditApprovedByDoc: 0 } },
+]
+
+/**
+ * Runs the grouped-transaction pipeline and returns one page plus the total count.
+ *
+ * @param {object} opts.match          $match applied to line items (index-friendly)
+ * @param {object} opts.postGroupMatch $match applied after grouping (derived fields)
+ */
+async function findTransactions({ match, postGroupMatch, page, limit, skip, sort = { timestamp: -1 } }) {
+  const pipeline = [{ $match: match }, { $sort: sort }, GROUP_BY_TRANSACTION, DERIVE_PAYMENT_STATE]
+
+  if (postGroupMatch && Object.keys(postGroupMatch).length > 0) {
+    pipeline.push({ $match: postGroupMatch })
+  }
+
+  pipeline.push(
+    ...facetPage([{ $sort: sort }, { $skip: skip }, { $limit: limit }, ...ENRICH_TRANSACTION_PAGE]),
+  )
+
+  const { data, total } = readFacet(await Sales.aggregate(pipeline))
+  return paginated(data, { page, limit, total })
+}
 export const PrepareAndSaveSale = async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -195,6 +392,9 @@ export const CreateCreditSale = async (req, res) => {
       const saleRecord = new Sales({
         transactionId,
         product: item.productId,
+        name: item.name,
+        brand: item.brand,
+        dosageForm: item.dosageForm,
         patientName,
         customerPhone,
         customerAddress,
@@ -240,18 +440,6 @@ export const CreateCreditSale = async (req, res) => {
 
       await saleRecord.save({ session });
       salesRecords.push(saleRecord);
-
-      // Check for expired product
-      const product = await Product.findById(item.productId);
-      if (product.expiryDate <= new Date()) {
-        await Notification.create({
-          type: "Expired",
-          message: `Sold expired product: ${product.name}`,
-          product: product._id,
-          location: "dispensary",
-          read: false,
-        });
-      }
 
       await Dispensary.updateStatus(item.productId, session);
     }
@@ -389,14 +577,23 @@ export const ProcessCreditPayment = async (req, res) => {
 
     await session.commitTransaction();
 
-    // Get updated records to verify
-    const updatedRecords = await Sales.find({ transactionId }).session(session);
-    const newTotalBalance = updatedRecords.reduce((sum, record) => sum + record.remainingBalance, 0);
-    
-    // Calculate overall payment status for the transaction
-    const paidRecords = updatedRecords.filter(record => record.paymentStatus === "paid").length;
-    const totalRecords = updatedRecords.length;
-    const overallStatus = paidRecords === totalRecords ? "fully_paid" : "partially_paid";
+    // Re-read outside the (now committed) session and total in MongoDB.
+    const [rollup] = await Sales.aggregate([
+      { $match: { transactionId } },
+      {
+        $group: {
+          _id: null,
+          newTotalBalance: { $sum: "$remainingBalance" },
+          totalRecords: { $sum: 1 },
+          paidRecords: { $sum: { $cond: [{ $eq: ["$paymentStatus", "paid"] }, 1, 0] } },
+        },
+      },
+    ]);
+
+    const newTotalBalance = rollup?.newTotalBalance || 0;
+    const paidRecords = rollup?.paidRecords || 0;
+    const totalRecords = rollup?.totalRecords || 0;
+    const overallStatus = totalRecords > 0 && paidRecords === totalRecords ? "fully_paid" : "partially_paid";
 
     res.status(200).json({
       success: true,
@@ -422,67 +619,23 @@ export const ProcessCreditPayment = async (req, res) => {
 };
 export const GetCreditSales = async (req, res) => {
   try {
-    const { paymentStatus, customerPhone } = req.query;
-    
-    const query = { 
-      saleType: "credit",
-      status: "completed"
-    };
+    const { page, limit, skip } = getPagination(req.query)
+    const { paymentStatus, customerPhone, search, overdue, startDate, endDate } = req.query
 
-    if (paymentStatus) {
-      query.paymentStatus = paymentStatus;
-    }
+    const match = { saleType: "credit", status: "completed" }
+    if (customerPhone) match.customerPhone = customerPhone
+    if (search) match.patientName = searchRegex(search)
+    const range = dateRange(startDate, endDate)
+    if (range) match.timestamp = range
 
-    if (customerPhone) {
-      query.customerPhone = customerPhone;
-    }
+    // paymentStatus and overdue are derived from the summed transaction, so they
+    // can only be matched after $group.
+    const postGroupMatch = {}
+    if (paymentStatus) postGroupMatch.paymentStatus = paymentStatus
+    if (overdue === "true") postGroupMatch.isOverdue = true
 
-    const creditSales = await Sales.find(query)
-      .populate("product", "name brand category")
-      .populate("pharmacist", "name email")
-      .populate("creditApprovedBy", "name email")
-      .sort({ timestamp: -1 });
-
-    // Group by transactionId
-    const groupedSales = {};
-    creditSales.forEach(sale => {
-      if (!groupedSales[sale.transactionId]) {
-        groupedSales[sale.transactionId] = {
-          transactionId: sale.transactionId,
-          patientName: sale.patientName,
-          customerPhone: sale.customerPhone,
-          customerAddress: sale.customerAddress,
-          totalSaleAmount: 0,
-          totalAmountPaid: 0,
-          totalRemainingBalance: 0,
-          paymentStatus: sale.paymentStatus,
-          dueDate: sale.dueDate,
-          creditApprovedBy: sale.creditApprovedBy,
-          creditApprovedAt: sale.creditApprovedAt,
-          timestamp: sale.timestamp,
-          items: []
-        };
-      }
-
-      groupedSales[sale.transactionId].items.push({
-        product: sale.product,
-        quantity: sale.quantitySold,
-        saleAmount: sale.saleAmount,
-        amountPaid: sale.amountPaid,
-        remainingBalance: sale.remainingBalance
-      });
-
-      groupedSales[sale.transactionId].totalSaleAmount += sale.saleAmount;
-      groupedSales[sale.transactionId].totalAmountPaid += sale.amountPaid;
-      groupedSales[sale.transactionId].totalRemainingBalance += sale.remainingBalance;
-    });
-
-    res.status(200).json({
-      success: true,
-      count: Object.keys(groupedSales).length,
-      creditSales: Object.values(groupedSales)
-    });
-
+    const result = await findTransactions({ match, postGroupMatch, page, limit, skip })
+    return res.status(200).json(result)
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -667,15 +820,20 @@ export const CloseDailyBalance = async (req, res) => {
       throw new Error("Daily balance already closed for this date")
     }
 
-    // Get all completed transactions for the specified date
-    const transactions = await Sales.find({
-      status: "completed",
-      cashier: cashierId,
-      completedAt: { $gte: targetDate, $lt: nextDay },
-    }).session(session)
+    // Sum and collect ids in MongoDB rather than pulling every sale document back.
+    const [totals] = await Sales.aggregate([
+      {
+        $match: {
+          status: "completed",
+          cashier: new mongoose.Types.ObjectId(cashierId),
+          completedAt: { $gte: targetDate, $lt: nextDay },
+        },
+      },
+      { $group: { _id: null, expectedAmount: { $sum: "$saleAmount" }, ids: { $push: "$_id" } } },
+    ]).session(session)
 
-    // Calculate expected amount
-    const expectedAmount = transactions.reduce((sum, transaction) => sum + transaction.saleAmount, 0)
+    const expectedAmount = totals?.expectedAmount || 0
+    const transactionIds = totals?.ids || []
     const difference = countedAmount - expectedAmount
 
     // Create daily balance record
@@ -685,7 +843,7 @@ export const CloseDailyBalance = async (req, res) => {
       countedAmount: Number.parseFloat(countedAmount),
       difference,
       status: difference === 0 ? "verified" : "discrepancy",
-      transactions: transactions.map((t) => t._id),
+      transactions: transactionIds,
       cashier: cashierId,
       closedBy: req.user._id, // Admin who closed the balance
       closedAt: new Date(),
@@ -699,7 +857,7 @@ export const CloseDailyBalance = async (req, res) => {
     res.status(200).json({
       success: true,
       dailyBalance,
-      transactionCount: transactions.length,
+      transactionCount: transactionIds.length,
       expectedAmount,
       countedAmount: Number.parseFloat(countedAmount),
       difference,
@@ -720,42 +878,55 @@ export const GetDailyTransactions = async (req, res) => {
   try {
     const { cashierId } = req.params
     const { date } = req.query
+    const { page, limit, skip } = getPagination(req.query)
+
     // Parse the date or use today
     const targetDate = date ? new Date(date) : new Date()
     targetDate.setHours(0, 0, 0, 0)
     const nextDay = new Date(targetDate)
     nextDay.setDate(nextDay.getDate() + 1)
 
-    // Get all completed transactions for the specified date
-    const transactions = await Sales.find({
+    const query = {
       status: "completed",
       cashier: cashierId,
       completedAt: { $gte: targetDate, $lt: nextDay },
-    })
-      .populate("product", "name brand sellingPrice")
-      .populate("pharmacist", "name")
+    }
 
-    // Calculate totals
-    const expectedAmount = transactions.reduce((sum, transaction) => sum + transaction.saleAmount, 0)
-    const transactionCount = transactions.length
+    // The day's total must cover every transaction, not just the current page,
+    // so it is computed by aggregation alongside the paged read.
+    const [transactions, total, [totals]] = await Promise.all([
+      Sales.find(query)
+        .sort({ completedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("transactionId name brand quantitySold saleAmount profit completedAt pharmacist")
+        .populate("pharmacist", "name")
+        .lean(),
+      Sales.countDocuments(query),
+      Sales.aggregate([
+        { $match: { ...query, cashier: new mongoose.Types.ObjectId(cashierId) } },
+        { $group: { _id: null, expectedAmount: { $sum: "$saleAmount" } } },
+      ]),
+    ])
 
     res.status(200).json({
-      success: true,
+      ...paginated(
+        transactions.map((t) => ({
+          id: t._id,
+          transactionId: t.transactionId,
+          productName: t.name,
+          brand: t.brand,
+          quantity: t.quantitySold,
+          saleAmount: t.saleAmount,
+          profit: t.profit,
+          completedAt: t.completedAt,
+          pharmacist: t.pharmacist?.name,
+        })),
+        { page, limit, total },
+      ),
       cashierId,
       date: targetDate,
-      expectedAmount,
-      transactionCount,
-      transactions: transactions.map((t) => ({
-        id: t._id,
-        transactionId: t.transactionId,
-        productName: t.name,
-        brand: t.brand,
-        quantity: t.quantitySold,
-        saleAmount: t.saleAmount,
-        profit: t.profit,
-        completedAt: t.completedAt,
-        pharmacist: t.pharmacist?.name,
-      })),
+      expectedAmount: totals?.expectedAmount || 0,
     })
   } catch (error) {
     res.status(500).json({
@@ -767,15 +938,15 @@ export const GetDailyTransactions = async (req, res) => {
 
 export const GetAllCashiers = async (req, res) => {
   try {
-    const cashiers = await User.find({
-      role: "cashier",
-      isDeleted: { $ne: true },
-    }).select("name email role status createdAt")
-    res.status(200).json({
-      success: true,
-      count: cashiers.length,
-      cashiers,
-    })
+    const { page, limit, skip } = getPagination(req.query)
+    const query = { role: "cashier", isDeleted: { $ne: true } }
+
+    const [cashiers, total] = await Promise.all([
+      User.find(query).select("name email role status createdAt").sort({ name: 1 }).skip(skip).limit(limit).lean(),
+      User.countDocuments(query),
+    ])
+
+    res.status(200).json(paginated(cashiers, { page, limit, total }))
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -847,41 +1018,41 @@ export const SuspendCashier = async (req, res) => {
 
 export const GetDailyBalanceHistory = async (req, res) => {
   try {
-    const { startDate, endDate, cashierId } = req.query
-    // Build query conditions
+    const { startDate, endDate, cashierId, status } = req.query
+    const { page, limit, skip } = getPagination(req.query)
+
     const query = {}
-    if (startDate || endDate) {
-      query.date = {}
-      if (startDate) query.date.$gte = new Date(startDate)
-      if (endDate) query.date.$lte = new Date(endDate)
-    }
-    if (cashierId) {
-      query.cashier = cashierId
-    }
+    const range = dateRange(startDate, endDate)
+    if (range) query.date = range
+    if (cashierId) query.cashier = cashierId
+    if (status) query.status = status
 
-    const balances = await DailyBalance.find(query)
-      .populate("cashier", "name email")
-      .populate("closedBy", "name email")
-      .sort({ date: -1 })
-      .lean()
+    const [balances, total] = await Promise.all([
+      DailyBalance.find(query)
+        .populate("cashier", "name email")
+        .populate("closedBy", "name email")
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      DailyBalance.countDocuments(query),
+    ])
 
-    res.status(200).json({
-      success: true,
-      count: balances.length,
-      balances: balances.map((balance) => ({
-        id: balance._id,
-        date: balance.date,
-        cashier: balance.cashier,
-        expectedAmount: balance.expectedAmount,
-        countedAmount: balance.countedAmount,
-        difference: balance.difference,
-        status: balance.status,
-        transactionCount: balance.transactions.length,
-        discrepancyNote: balance.discrepancyNote,
-        closedBy: balance.closedBy,
-        closedAt: balance.closedAt,
-      })),
-    })
+    const data = balances.map((balance) => ({
+      id: balance._id,
+      date: balance.date,
+      cashier: balance.cashier,
+      expectedAmount: balance.expectedAmount,
+      countedAmount: balance.countedAmount,
+      difference: balance.difference,
+      status: balance.status,
+      transactionCount: balance.transactions.length,
+      discrepancyNote: balance.discrepancyNote,
+      closedBy: balance.closedBy,
+      closedAt: balance.closedAt,
+    }))
+
+    res.status(200).json(paginated(data, { page, limit, total }))
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -892,68 +1063,45 @@ export const GetDailyBalanceHistory = async (req, res) => {
 
 export async function GetAllPendingStatus(req, res) {
   try {
-    const PendingTransaction = await Sales.find({ status: "pending" })
-      .populate("pharmacist", "name email role")
-      .populate("product", "name brand batchNo sellingPrice category")
-      .sort({ timestamp: -1 })
-      .lean()
-    const pendingOrders = transformSalesRecords(PendingTransaction)
-    res.status(200).json(pendingOrders)
+    const { page, limit, skip } = getPagination(req.query)
+    const { search } = req.query
+
+    const match = { status: "pending" }
+    if (search) match.patientName = searchRegex(search)
+
+    const result = await findTransactions({ match, page, limit, skip })
+    res.status(200).json(result)
   } catch (error) {
-    res.status(500).json({ massage: error.message })
+    res.status(500).json({ message: error.message })
   }
 }
 
 export async function GetAbortAndComplatedSale(req, res) {
   try {
-    const TransactionHistory = await Sales.find({
-      $or: [
-        { status: "completed" },
-        { status: "aborted" },
-        { status: "refunded" },
-      ],
-    })
-      .populate("pharmacist", "name email role")
-      .populate("product", "name brand batchNo sellingPrice DosageForms category unitPrice")
-      .populate("cashier", "name email role")
-      .sort({ timestamp: -1 })
-      .lean()
+    const { page, limit, skip } = getPagination(req.query)
+    const { status, saleType, paymentStatus, customerPhone, search, pharmacist, cashier, startDate, endDate } =
+      req.query
 
-    // Group transactions by transactionId
-    const groupedTransactions = {}
-    TransactionHistory.forEach((record) => {
-      const tid = record.transactionId
-      if (!groupedTransactions[tid]) {
-        groupedTransactions[tid] = {
-          id: tid,
-          patientName: record.patientName,
-          items: [],
-          totalAmount: 0,
-          timestamp: record.timestamp,
-          pharmacist: record.pharmacist.name,
-          cashier: record.cashier?.name || null,
-          status: record.status,
-        }
-      }
-      // Add item details
-      groupedTransactions[tid].items.push({
-        productId: record.product._id,
-        name: record.product.name,
-        brand: record.product.brand,
-        category: record.product.category,
-        dosageForm: record.product.DosageForms,
-        quantity: record.quantitySold,
-        unitPrice: record.product.unitPrice,
-        sellingPrice: record.product.sellingPrice,
-        total: record.saleAmount,
-        refundedAt: record.refundedAt,
-      })
-      // Update transaction total
-      groupedTransactions[tid].totalAmount += record.saleAmount
-    })
+    // Filtering used to happen entirely in the browser over the full history.
+    // It now runs server-side so pagination is meaningful.
+    const match = {
+      status: status ? status : { $in: ["completed", "aborted", "refunded"] },
+    }
+    if (saleType) match.saleType = saleType
+    if (customerPhone) match.customerPhone = searchRegex(customerPhone)
+    if (search) match.patientName = searchRegex(search)
+    if (pharmacist && mongoose.Types.ObjectId.isValid(pharmacist)) {
+      match.pharmacist = new mongoose.Types.ObjectId(pharmacist)
+    }
+    if (cashier && mongoose.Types.ObjectId.isValid(cashier)) {
+      match.cashier = new mongoose.Types.ObjectId(cashier)
+    }
+    const range = dateRange(startDate, endDate)
+    if (range) match.timestamp = range
 
-    // Convert to array
-    const result = Object.values(groupedTransactions)
+    const postGroupMatch = paymentStatus ? { paymentStatus } : null
+
+    const result = await findTransactions({ match, postGroupMatch, page, limit, skip })
     res.status(200).json(result)
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -962,7 +1110,7 @@ export async function GetAbortAndComplatedSale(req, res) {
 
 export const GetRecentSales = async (req, res) => {
   try {
-    const limit = 7
+    const { limit } = getPagination(req.query, { defaultLimit: 7, maxLimit: 50 })
 
     const recentSales = await Sales.find({ status: "completed" })
       .sort({ completedAt: -1 })
@@ -1004,33 +1152,34 @@ export const GetTotalSales = async (req, res) => {
       if (endDate) matchConditions.completedAt.$lte = new Date(endDate)
     }
 
-    // Aggregation pipeline to calculate total sales
-    const result = await Sales.aggregate([
+    // Rolled up per transaction first: `Sales` holds one document per line item,
+    // so counting documents here would report a five-item basket as five sales.
+    const [result] = await Sales.aggregate([
       { $match: matchConditions },
+      {
+        $group: {
+          _id: "$transactionId",
+          saleAmount: { $sum: "$saleAmount" },
+          profit: { $sum: "$profit" },
+          itemCount: { $sum: 1 },
+        },
+      },
       {
         $group: {
           _id: null,
           totalSales: { $sum: "$saleAmount" },
           totalProfit: { $sum: "$profit" },
           transactionCount: { $sum: 1 },
+          itemCount: { $sum: "$itemCount" },
         },
       },
     ])
 
-    // Handle case with no sales data
-    if (result.length === 0) {
-      return res.status(200).json({
-        totalSales: 0,
-        totalProfit: 0,
-        transactionCount: 0,
-      })
-    }
-
-    // Return aggregated results
     res.status(200).json({
-      totalSales: result[0].totalSales,
-      totalProfit: result[0].totalProfit,
-      transactionCount: result[0].transactionCount,
+      totalSales: result?.totalSales || 0,
+      totalProfit: result?.totalProfit || 0,
+      transactionCount: result?.transactionCount || 0,
+      itemCount: result?.itemCount || 0,
     })
   } catch (error) {
     res.status(500).json({

@@ -1,15 +1,42 @@
 import Dispensary from "../models/DispensaryModel.js";
+import Store from "../models/StoreModel.js";
 import Notification from "../models/NotificationModel.js";
 import Product from "../models/ProductModel.js";
+import { getPagination, paginated } from "../utils/pagination.js";
+
 export async function GetNotification(req,res){
     try {
-         const notification = await Notification.find({})
-           .populate('product', 'name')
-           .sort({ createdAt: -1 })
-           .lean();
-         res.json(notification);
+         const { page, limit, skip } = getPagination(req.query);
+         const { type, read } = req.query;
+
+         const query = {};
+         if (type) query.type = type;
+         if (read === "true" || read === "false") query.read = read === "true";
+
+         const [notifications, total, unreadCount] = await Promise.all([
+           Notification.find(query)
+             .populate('product', 'name brand batchNo')
+             .sort({ createdAt: -1 })
+             .skip(skip)
+             .limit(limit)
+             .lean(),
+           Notification.countDocuments(query),
+           Notification.countDocuments({ read: false }),
+         ]);
+
+         res.json({ ...paginated(notifications, { page, limit, total }), unreadCount });
     } catch (error) {
         res.status(500).json({ message:error.message})
+    }
+}
+
+/** Unread count only — cheap enough to poll for the nav badge. */
+export async function GetUnreadCount(req, res) {
+    try {
+        const unreadCount = await Notification.countDocuments({ read: false });
+        res.json({ unreadCount });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 }
 export async function DeleteNotification(req,res){
@@ -40,36 +67,95 @@ export async function MarkAsReadAll(req,res){
 }
 export const GetLowStockProducts = async (req, res) => {
     try {
-      const lowStockProducts = await Dispensary.find({
-        isDeleted: { $ne: true },
-        isActive: true,
-        $expr: { $lt: ["$quantity", "$threshold"] } // Quantity < threshold
-      })
-      .populate({
-        path: 'product',
-        select: 'name brand expiryDate -_id',
-        match: { isDeleted: { $ne: true } }
-      })
-      .select('quantity threshold product -_id')
-      .lean();
-  
-      // Filter out products that might have been deleted but still referenced
-      const filteredResults = lowStockProducts.filter(item => item.product !== null);
-  
-      // Transform to the required format
-      const result = filteredResults.map(item => ({
-        name: item.product.name,
-        brand: item.product.brand,
-        expireDate: item.product.expiryDate,
-        quantity: item.quantity,
-        threshold: item.threshold
-      }));
-  
-      res.status(200).json({
-        success: true,
-        count: result.length,
-        lowStockProducts: result
-      });
+      const { page, limit, skip } = getPagination(req.query);
+      const location = req.query.location === "store" ? "store" : "dispensary";
+      const LocationModel = location === "store" ? Store : Dispensary;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Group sibling batches first, then decide low stock from the combined usable qty.
+      const [result] = await LocationModel.aggregate([
+        {
+          $match: {
+            isDeleted: { $ne: true },
+            isActive: true,
+            quantity: { $gt: 0 },
+          },
+        },
+        {
+          $lookup: {
+            from: "products",
+            localField: "product",
+            foreignField: "_id",
+            as: "product",
+            pipeline: [
+              { $match: { isDeleted: { $ne: true } } },
+              {
+                $project: {
+                  name: 1,
+                  brand: 1,
+                  category: 1,
+                  DosageForms: 1,
+                  expiryDate: 1,
+                },
+              },
+            ],
+          },
+        },
+        { $unwind: "$product" },
+        {
+          $addFields: {
+            _identity: {
+              name: { $toLower: { $trim: { input: { $ifNull: ["$product.name", ""] } } } },
+              brand: { $toLower: { $trim: { input: { $ifNull: ["$product.brand", "no_brand"] } } } },
+              category: { $toLower: { $trim: { input: { $ifNull: ["$product.category", ""] } } } },
+              DosageForms: { $toLower: { $trim: { input: { $ifNull: ["$product.DosageForms", ""] } } } },
+            },
+            usableQty: {
+              $cond: [{ $lte: ["$product.expiryDate", today] }, 0, "$quantity"],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$_identity",
+            productId: { $first: "$product._id" },
+            name: { $first: "$product.name" },
+            brand: { $first: "$product.brand" },
+            expireDate: { $min: "$product.expiryDate" },
+            quantity: { $sum: "$usableQty" },
+            threshold: { $max: "$threshold" },
+          },
+        },
+        {
+          $match: {
+            quantity: { $gt: 0 },
+            $expr: { $lte: ["$quantity", "$threshold"] },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            productId: 1,
+            name: 1,
+            brand: 1,
+            expireDate: 1,
+            quantity: 1,
+            threshold: 1,
+            location: location,
+          },
+        },
+        {
+          $facet: {
+            data: [{ $sort: { quantity: 1 } }, { $skip: skip }, { $limit: limit }],
+            meta: [{ $count: "total" }],
+          },
+        },
+      ]);
+
+      res.status(200).json(
+        paginated(result?.data || [], { page, limit, total: result?.meta?.[0]?.total || 0 }),
+      );
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -81,6 +167,7 @@ export const GetNearExpiryProducts = async (req, res) => {
     try {
       const { days = 30 } = req.query; // Default 30 days threshold
       const thresholdDays = Number(days);
+      const { page, limit, skip } = getPagination(req.query);
       
       if (isNaN(thresholdDays) || thresholdDays <= 0) {
         return res.status(400).json({
@@ -93,7 +180,7 @@ export const GetNearExpiryProducts = async (req, res) => {
       const thresholdDate = new Date();
       thresholdDate.setDate(today.getDate() + thresholdDays);
   
-      const nearExpiryProducts = await Product.aggregate([
+      const [result] = await Product.aggregate([
         {
           $match: {
             isDeleted: { $ne: true },
@@ -133,6 +220,7 @@ export const GetNearExpiryProducts = async (req, res) => {
         {
           $project: {
             _id: 0,
+            productId: "$_id",
             name: 1,
             brand: 1,
             expiryDate: 1,
@@ -144,15 +232,17 @@ export const GetNearExpiryProducts = async (req, res) => {
           }
         },
         {
-          $sort: { daysLeft: 1 } // Sort by soonest to expire first
-        }
+          $facet: {
+            // Soonest to expire first
+            data: [{ $sort: { daysLeft: 1 } }, { $skip: skip }, { $limit: limit }],
+            meta: [{ $count: "total" }],
+          },
+        },
       ]);
   
       res.status(200).json({
-        success: true,
-        count: nearExpiryProducts.length,
+        ...paginated(result?.data || [], { page, limit, total: result?.meta?.[0]?.total || 0 }),
         thresholdDays,
-        nearExpiryProducts
       });
     } catch (error) {
       res.status(500).json({

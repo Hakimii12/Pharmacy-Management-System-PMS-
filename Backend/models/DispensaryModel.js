@@ -1,5 +1,6 @@
 import mongoose from "mongoose"
 import Notification from "./NotificationModel.js"
+import { sumLocationStockForIdentity } from "../utils/productIdentity.js"
 
 const DispensarySchema = new mongoose.Schema({
   product: {
@@ -13,8 +14,8 @@ const DispensarySchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
-  initialDispensaryQty:{
-    type:Number
+  initialDispensaryQty: {
+    type: Number,
   },
   threshold: {
     type: Number,
@@ -36,7 +37,6 @@ const DispensarySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
-  // New fields for status and expiry specific to dispensary
   status: { type: String, enum: ["In Stock", "Low Stock", "Sold Out", "Expired"], default: "In Stock" },
   isExpired: { type: Boolean, default: false },
   createdAt: {
@@ -49,96 +49,112 @@ const DispensarySchema = new mongoose.Schema({
   },
 })
 
-
-
 DispensarySchema.post("save", async (doc) => {
-  const productDoc = await mongoose.model("Product").findById(doc.product)
-  if (!productDoc) return // Product might have been hard deleted
+  try {
+    const productDoc = await mongoose.model("Product").findById(doc.product)
+    if (!productDoc) return
 
-  let type, message
-  if (doc.quantity === 0) {
-    type = "OutOfStock"
-    message = `Product ${productDoc.name} is out of stock in dispensary.`
-  } else if (doc.quantity <= doc.threshold && !doc.isExpired) {
-    type = "LowStock"
-    message = `Product ${productDoc.name} is low in dispensary. Current: ${doc.quantity}, Threshold: ${doc.threshold}.`
-  } else if (doc.isExpired) {
-    type = "Expired"
-    message = `Product ${productDoc.name} is Expired in dispensary.`
-  } else {
-    // If status is In Stock, ensure no old notifications exist for this location
+    if (doc.isExpired && doc.quantity > 0 && !doc.isDeleted && doc.isActive) {
+      const existingExpired = await Notification.findOne({
+        product: doc.product,
+        location: "dispensary",
+        type: "Expired",
+        read: false,
+      })
+      if (!existingExpired) {
+        await Notification.create({
+          type: "Expired",
+          message: `Product ${productDoc.name} (batch ${productDoc.batchNo || "—"}) is expired in dispensary.`,
+          product: doc.product,
+          location: "dispensary",
+          read: false,
+        })
+      }
+    } else {
+      await Notification.deleteMany({
+        product: doc.product,
+        location: "dispensary",
+        type: "Expired",
+        read: false,
+      })
+    }
+
+    const stock = await sumLocationStockForIdentity(productDoc, "dispensary")
+    if (stock.siblingIds.length === 0) return
+
     await Notification.deleteMany({
-      product: doc.product,
+      product: { $in: stock.siblingIds },
       location: "dispensary",
-      type: { $in: ["OutOfStock", "LowStock", "Expired"] },
+      type: { $in: ["LowStock", "OutOfStock"] },
       read: false,
     })
+
+    if (stock.usable <= 0) {
+      if (stock.total <= 0) {
+        await Notification.create({
+          type: "OutOfStock",
+          message: `Product ${productDoc.name} is out of stock in dispensary.`,
+          product: doc.product,
+          location: "dispensary",
+          read: false,
+        })
+      }
+      return
+    }
+
+    if (stock.usable <= stock.threshold) {
+      await Notification.create({
+        type: "LowStock",
+        message: `Product ${productDoc.name} is low in dispensary. Current: ${stock.usable}, Threshold: ${stock.threshold}.`,
+        product: doc.product,
+        location: "dispensary",
+        read: false,
+      })
+    }
+  } catch (error) {
+    console.error("Dispensary notification hook failed:", error)
+  }
+})
+
+DispensarySchema.statics.updateStatus = async function (productId, session = null) {
+  const options = session ? { session } : {}
+  const dispensary = await this.findOne({ product: productId }, null, options)
+  if (!dispensary) return
+
+  await dispensary.updateStatusFields()
+  await dispensary.save(options)
+}
+
+DispensarySchema.methods.updateStatusFields = async function () {
+  const product = await mongoose.model("Product").findById(this.product)
+  if (!product || this.isDeleted || !this.isActive) {
+    this.status = "Sold Out"
+    this.isExpired = false
     return
   }
 
-  const existing = await Notification.findOne({
-    product: doc.product,
-    location: "dispensary",
-    type,
-    read: false,
-  })
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-  if (!existing) {
-    await Notification.create({
-      type,
-      message,
-      product: doc.product,
-      location: "dispensary",
-      read: false,
-    })
-  }
-})
-// Add this static method to the DispensarySchema
-DispensarySchema.statics.updateStatus = async function (productId, session = null) {
-  const options = session ? { session } : {};
-  const dispensary = await this.findOne({ product: productId }, null, options);
-  if (!dispensary) return;
+  this.isExpired = product.expiryDate <= today
 
-  // We call the method to update the status fields
-  await dispensary.updateStatusFields();
-
-  // Save the document with the same session if provided
-  await dispensary.save(options);
-};
-
-// Add this instance method to the DispensarySchema
-DispensarySchema.methods.updateStatusFields = async function () {
-  const product = await mongoose.model("Product").findById(this.product);
-  if (!product || this.isDeleted || !this.isActive) {
-    this.status = "Sold Out";
-    this.isExpired = false;
-    return;
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  this.isExpired = product.expiryDate <= today;
-  
-  // FIX: Use <= instead of < for proper threshold comparison
   if (this.quantity === 0) {
-    this.status = "Sold Out";
+    this.status = "Sold Out"
   } else if (this.isExpired) {
-    this.status = "Expired";
-  } else if (this.quantity <= this.threshold) { // Fixed comparison here
-    this.status = "Low Stock";
+    this.status = "Expired"
+  } else if (this.quantity <= this.threshold) {
+    this.status = "Low Stock"
   } else {
-    this.status = "In Stock";
+    this.status = "In Stock"
   }
-};
+}
 
-// Update the pre-save hook to use the new method
 DispensarySchema.pre("save", async function (next) {
-  this.updatedAt = Date.now();
-  await this.updateStatusFields();
-  next();
-});
-// Query middleware to exclude deleted dispensary records by default
+  this.updatedAt = Date.now()
+  await this.updateStatusFields()
+  next()
+})
+
 DispensarySchema.pre(/^find/, function () {
   if (!this.getQuery().isDeleted) {
     this.find({ isDeleted: { $ne: true } })

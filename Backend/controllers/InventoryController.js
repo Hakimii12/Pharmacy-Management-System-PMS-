@@ -1,9 +1,11 @@
 // inventoryController.js
+import mongoose from "mongoose";
 import Product from "../models/ProductModel.js";
 import Store from "../models/StoreModel.js";
 import Dispensary from "../models/DispensaryModel.js";
 import Transfare from "../models/Transfer.js";
 import Sales from "../models/SalesModel.js";
+import { getPagination, paginated, searchRegex } from "../utils/pagination.js";
 
 // Get current inventory status for a specific product
 export async function GetProductInventory(req, res) {
@@ -88,30 +90,39 @@ export async function CalculateDispensaryInventory(req, res) {
       if (endDate)   { dateFilter.date.$lte = new Date(endDate);   salesDateFilter.timestamp.$lte = new Date(endDate); }
     }
 
-    // Fetch current dispensary record + all movements IN PARALLEL
-    const [dispensary, transfers, salesDocs] = await Promise.all([
+    // Movement totals are summed by MongoDB — the ledger for a busy product over a
+    // wide date range can be thousands of rows and none of them are needed here.
+    const productObjectId = new mongoose.Types.ObjectId(productId);
+    const [dispensary, transferTotals, salesTotals] = await Promise.all([
       Dispensary.findOne({ product: productId, isDeleted: { $ne: true } },
         { quantity: 1, initialDispensaryQty: 1 }).lean(),
-      // Single query for all transfer types — split in JS
-      Transfare.find({
-        product: productId,
-        type: { $in: ["ISSUE_TO_DISPENSARY", "RETURN_TO_STORE", "UPDATED_IN_DISPENSARY"] },
-        ...dateFilter
-      }, { type: 1, quantity: 1, UpdateType: 1 }).lean(),
-      // Single query for both sale statuses
-      Sales.find({
-        product: productId,
-        status: { $in: ["completed", "refunded"] },
-        ...salesDateFilter
-      }, { status: 1, quantitySold: 1 }).lean(),
+      Transfare.aggregate([
+        {
+          $match: {
+            product: productObjectId,
+            type: { $in: ["ISSUE_TO_DISPENSARY", "RETURN_TO_STORE", "UPDATED_IN_DISPENSARY"] },
+            ...dateFilter,
+          },
+        },
+        { $group: { _id: { type: "$type", updateType: "$UpdateType" }, quantity: { $sum: "$quantity" } } },
+      ]),
+      Sales.aggregate([
+        {
+          $match: {
+            product: productObjectId,
+            status: { $in: ["completed", "refunded"] },
+            ...salesDateFilter,
+          },
+        },
+        { $group: { _id: "$status", quantity: { $sum: "$quantitySold" } } },
+      ]),
     ]);
 
-    // Split transfers by type in JS
-    const issues  = transfers.filter((t) => t.type === "ISSUE_TO_DISPENSARY");
-    const returns = transfers.filter((t) => t.type === "RETURN_TO_STORE");
-    const updates = transfers.filter((t) => t.type === "UPDATED_IN_DISPENSARY");
-    const sales   = salesDocs.filter((s) => s.status === "completed");
-    const refunds = salesDocs.filter((s) => s.status === "refunded");
+    const transferSum = (type, updateType = null) =>
+      transferTotals
+        .filter((t) => t._id.type === type && (updateType === null || t._id.updateType === updateType))
+        .reduce((sum, t) => sum + t.quantity, 0);
+    const salesSum = (status) => salesTotals.find((s) => s._id === status)?.quantity || 0;
 
     // Determine initial quantity
     const productCreatedAt = product.createdAt;
@@ -123,13 +134,13 @@ export async function CalculateDispensaryInventory(req, res) {
       initialDispensaryQty = 0;
     }
 
-    const totalIssuedInPeriod          = issues.reduce((sum, i) => sum + i.quantity, 0);
-    const totalReturnedInPeriod        = returns.reduce((sum, r) => sum + (r.quantity || 0), 0);
-    const totalSoldInPeriod            = sales.reduce((sum, s) => sum + s.quantitySold, 0);
-    const totalQuantityAddedInPeriod   = updates.filter((u) => u.UpdateType === "QUANTITY_ADDED").reduce((sum, u) => sum + u.quantity, 0);
-    const totalQuantityDeductedInPeriod = updates.filter((u) => u.UpdateType === "QUANTITY_DEDUCTED").reduce((sum, u) => sum + u.quantity, 0);
-    const totalNetUpdatesInPeriod      = totalQuantityAddedInPeriod - totalQuantityDeductedInPeriod;
-    const totalRefundedInPeriod        = refunds.reduce((sum, r) => sum + (r.quantitySold || 0), 0);
+    const totalIssuedInPeriod           = transferSum("ISSUE_TO_DISPENSARY");
+    const totalReturnedInPeriod         = transferSum("RETURN_TO_STORE");
+    const totalSoldInPeriod             = salesSum("completed");
+    const totalQuantityAddedInPeriod    = transferSum("UPDATED_IN_DISPENSARY", "QUANTITY_ADDED");
+    const totalQuantityDeductedInPeriod = transferSum("UPDATED_IN_DISPENSARY", "QUANTITY_DEDUCTED");
+    const totalNetUpdatesInPeriod       = totalQuantityAddedInPeriod - totalQuantityDeductedInPeriod;
+    const totalRefundedInPeriod         = salesSum("refunded");
 
     const expectedDispensaryQty =
       (initialDispensaryQty || 0)
@@ -175,8 +186,7 @@ export async function CalculateDispensaryInventory(req, res) {
 export async function GetInventoryHistory(req, res) {
   try {
     const productId = req.params.id;
-    const { limit = 50 } = req.query;
-    const limitNum = parseInt(limit);
+    const { limit: limitNum } = getPagination(req.query, { defaultLimit: 50 });
 
     const product = await Product.findById(productId, { _id: 1, name: 1, batchNo: 1 }).lean();
     if (!product) {
@@ -310,56 +320,84 @@ export async function ReconcileInventory(req, res) {
   }
 }
 
-// Add this function to InventoryController.js
+/**
+ * Dispensary valuation report.
+ *
+ * The page of rows and the shelf-wide totals are produced by one aggregation.
+ * Totals are computed over the whole filtered set (via $facet), not just the page,
+ * so paginating doesn't silently change the reported valuation.
+ */
 export async function GetDispensarySummary(req, res) {
   try {
-    // Get all active dispensary products with their current quantities
-    const dispensaryProducts = await Dispensary.find({
-      isDeleted: { $ne: true },
-      isActive: true
-    }).populate({
-      path: 'product',
-      match: { isDeleted: { $ne: true } },
-      select: 'name brand expiryDate type DosageForms unitPrice sellingPrice'
+    const { page, limit, skip } = getPagination(req.query);
+    const { search, status } = req.query;
+
+    const pipeline = [
+      { $match: { isDeleted: { $ne: true }, isActive: true } },
+      {
+        $lookup: {
+          from: "products",
+          localField: "product",
+          foreignField: "_id",
+          as: "product",
+          pipeline: [
+            { $match: { isDeleted: { $ne: true } } },
+            { $project: { name: 1, brand: 1, expiryDate: 1, type: 1, DosageForms: 1, unitPrice: 1, sellingPrice: 1 } },
+          ],
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $project: {
+          _id: 0,
+          productId: "$product._id",
+          name: "$product.name",
+          brand: "$product.brand",
+          status: "$status",
+          expiryDate: "$product.expiryDate",
+          type: "$product.type",
+          dosageForm: "$product.DosageForms",
+          quantity: "$quantity",
+          unitPrice: "$product.unitPrice",
+          sellingPrice: "$product.sellingPrice",
+          productUnitPrice: { $multiply: ["$product.unitPrice", "$quantity"] },
+          productSellingPrice: { $multiply: ["$product.sellingPrice", "$quantity"] },
+        },
+      },
+    ];
+
+    if (search) {
+      const rx = searchRegex(search);
+      pipeline.push({ $match: { $or: [{ name: rx }, { brand: rx }, { type: rx }] } });
+    }
+    if (status) pipeline.push({ $match: { status } });
+
+    pipeline.push({
+      $facet: {
+        data: [{ $sort: { name: 1 } }, { $skip: skip }, { $limit: limit }],
+        meta: [{ $count: "total" }],
+        totals: [
+          {
+            $group: {
+              _id: null,
+              totalUnitPrice: { $sum: "$productUnitPrice" },
+              totalSellingPrice: { $sum: "$productSellingPrice" },
+            },
+          },
+        ],
+      },
     });
 
-    // Filter out products that might have been deleted but still referenced
-    const validProducts = dispensaryProducts.filter(item => item.product !== null);
-
-    // Calculate totals based on current quantities in dispensary
-    let totalUnitPrice = 0;
-    let totalSellingPrice = 0;
-
-    const productsSummary = validProducts.map(item => {
-      const productUnitPrice = item.product.unitPrice * item.quantity;
-      const productSellingPrice = item.product.sellingPrice * item.quantity;
-      
-      // Add to totals
-      totalUnitPrice += productUnitPrice;
-      totalSellingPrice += productSellingPrice;
-
-      return {
-        productId: item.product._id,
-        name: item.product.name,
-        brand: item.product.brand,
-        status: item.status,
-        expiryDate: item.product.expiryDate,
-        type: item.product.type,
-        dosageForm: item.product.DosageForms,
-        quantity: item.quantity,
-        unitPrice: item.product.unitPrice,
-        sellingPrice: item.product.sellingPrice,
-        productUnitPrice: productUnitPrice,
-        productSellingPrice: productSellingPrice
-      };
-    });
+    const [result] = await Dispensary.aggregate(pipeline);
+    const totals = result?.totals?.[0] || { totalUnitPrice: 0, totalSellingPrice: 0 };
 
     res.json({
-      products: productsSummary,
+      ...paginated(result?.data || [], { page, limit, total: result?.meta?.[0]?.total || 0 }),
       totals: {
-        totalUnitPrice: totalUnitPrice,
-        totalSellingPrice: totalSellingPrice
-      }
+        totalUnitPrice: totals.totalUnitPrice,
+        totalSellingPrice: totals.totalSellingPrice,
+        potentialProfit: totals.totalSellingPrice - totals.totalUnitPrice,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

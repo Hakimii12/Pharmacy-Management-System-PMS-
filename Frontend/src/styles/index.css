@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    /* The counter is a touch target first and a document second. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Numerals must line up in columns — prices, quantities, batch numbers. */
+  .tabular,
+  input[type="number"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-rx-amber ring-offset-2 ring-offset-paper;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-mist-deep;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+}
+
+@layer components {
+  /*
+   * The label motif: a punched perforation strip along the top edge of a card,
+   * the way a dispensing label tears off its backing sheet.
+   */
+  .label-perforation {
+    @apply bg-perforation bg-perforation bg-repeat-x;
+    background-position: top left;
+  }
+
+  /* Small caps eyebrow used above every card title and table section. */
+  .eyebrow {
+    @apply font-mono text-micro uppercase tracking-widest text-ink-muted;
+  }
+}
+
+@media print {
+  /* Receipts print from the same DOM; everything chrome-like drops away. */
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+}

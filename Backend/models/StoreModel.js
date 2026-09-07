@@ -1,5 +1,6 @@
 import mongoose from "mongoose"
 import Notification from "./NotificationModel.js"
+import { sumLocationStockForIdentity } from "../utils/productIdentity.js"
 
 const StoreSchema = new mongoose.Schema({
   product: {
@@ -13,8 +14,8 @@ const StoreSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
-  initialStoreQty:{
-    type:Number
+  initialStoreQty: {
+    type: Number,
   },
   threshold: {
     type: Number,
@@ -36,7 +37,6 @@ const StoreSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
-  // New fields for status and expiry specific to store
   status: { type: String, enum: ["In Stock", "Low Stock", "Sold Out", "Expired"], default: "In Stock" },
   isExpired: { type: Boolean, default: false },
   createdAt: {
@@ -49,94 +49,114 @@ const StoreSchema = new mongoose.Schema({
   },
 })
 
-
-
 StoreSchema.post("save", async (doc) => {
-  const productDoc = await mongoose.model("Product").findById(doc.product)
-  if (!productDoc) return // Product might have been hard deleted
+  try {
+    const productDoc = await mongoose.model("Product").findById(doc.product)
+    if (!productDoc) return
 
-  let type, message
-  if (doc.quantity === 0) {
-    type = "OutOfStock"
-    message = `Product ${productDoc.name} is out of stock in store.`
-  } else if (doc.quantity <= doc.threshold && !doc.isExpired) {
-    type = "LowStock"
-    message = `Product ${productDoc.name} is low in store. Current: ${doc.quantity}, Threshold: ${doc.threshold}.`
-  } else if (doc.isExpired) {
-    type = "Expired"
-    message = `Product ${productDoc.name} is Expired in store.`
-  } else {
-    // If status is In Stock, ensure no old notifications exist for this location
+    // Expiry stays batch-specific — only that lot is expired.
+    if (doc.isExpired && doc.quantity > 0 && !doc.isDeleted && doc.isActive) {
+      const existingExpired = await Notification.findOne({
+        product: doc.product,
+        location: "store",
+        type: "Expired",
+        read: false,
+      })
+      if (!existingExpired) {
+        await Notification.create({
+          type: "Expired",
+          message: `Product ${productDoc.name} (batch ${productDoc.batchNo || "—"}) is expired in store.`,
+          product: doc.product,
+          location: "store",
+          read: false,
+        })
+      }
+    } else {
+      await Notification.deleteMany({
+        product: doc.product,
+        location: "store",
+        type: "Expired",
+        read: false,
+      })
+    }
+
+    // Low / out-of-stock alerts use the combined total across sibling batches.
+    const stock = await sumLocationStockForIdentity(productDoc, "store")
+    if (stock.siblingIds.length === 0) return
+
     await Notification.deleteMany({
-      product: doc.product,
+      product: { $in: stock.siblingIds },
       location: "store",
-      type: { $in: ["OutOfStock", "LowStock", "Expired"] },
+      type: { $in: ["LowStock", "OutOfStock"] },
       read: false,
     })
+
+    if (stock.usable <= 0) {
+      if (stock.total <= 0) {
+        await Notification.create({
+          type: "OutOfStock",
+          message: `Product ${productDoc.name} is out of stock in store.`,
+          product: doc.product,
+          location: "store",
+          read: false,
+        })
+      }
+      return
+    }
+
+    if (stock.usable <= stock.threshold) {
+      await Notification.create({
+        type: "LowStock",
+        message: `Product ${productDoc.name} is low in store. Current: ${stock.usable}, Threshold: ${stock.threshold}.`,
+        product: doc.product,
+        location: "store",
+        read: false,
+      })
+    }
+  } catch (error) {
+    console.error("Store notification hook failed:", error)
+  }
+})
+
+StoreSchema.statics.updateStatus = async function (productId, session = null) {
+  const options = session ? { session } : {}
+  const store = await this.findOne({ product: productId }, null, options)
+  if (!store) return
+
+  await store.updateStatusFields()
+  await store.save(options)
+}
+
+StoreSchema.methods.updateStatusFields = async function () {
+  const product = await mongoose.model("Product").findById(this.product)
+  if (!product || this.isDeleted || !this.isActive) {
+    this.status = "Sold Out"
+    this.isExpired = false
     return
   }
 
-  const existing = await Notification.findOne({
-    product: doc.product,
-    location: "store",
-    type,
-    read: false,
-  })
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-  if (!existing) {
-    await Notification.create({
-      type,
-      message,
-      product: doc.product,
-      location: "store",
-      read: false,
-    })
-  }
-})
-// Add this static method to the StoreSchema
-StoreSchema.statics.updateStatus = async function (productId, session = null) {
-  const options = session ? { session } : {};
-  const store = await this.findOne({ product: productId }, null, options);
-  if (!store) return;
+  this.isExpired = product.expiryDate <= today
 
-  await store.updateStatusFields();
-  await store.save(options);
-};
-
-// Add this instance method to the StoreSchema
-StoreSchema.methods.updateStatusFields = async function () {
-  const product = await mongoose.model("Product").findById(this.product);
-  if (!product || this.isDeleted || !this.isActive) {
-    this.status = "Sold Out";
-    this.isExpired = false;
-    return;
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  // Always calculate expiration first
-  this.isExpired = product.expiryDate <= today;
-  
-  // Prioritize expired status above all else
   if (this.isExpired) {
-    this.status = "Expired";
+    this.status = "Expired"
   } else if (this.quantity === 0) {
-    this.status = "Sold Out";
+    this.status = "Sold Out"
   } else if (this.quantity <= this.threshold) {
-    this.status = "Low Stock";
+    this.status = "Low Stock"
   } else {
-    this.status = "In Stock";
+    this.status = "In Stock"
   }
-};
+}
 
-// Update the pre-save hook to use the new method
 StoreSchema.pre("save", async function (next) {
-  this.updatedAt = Date.now();
-  await this.updateStatusFields();
-  next();
-});
-// Query middleware to exclude deleted store records by default
+  this.updatedAt = Date.now()
+  await this.updateStatusFields()
+  next()
+})
+
 StoreSchema.pre(/^find/, function () {
   if (!this.getQuery().isDeleted) {
     this.find({ isDeleted: { $ne: true } })
