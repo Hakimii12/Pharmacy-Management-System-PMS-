@@ -29,7 +29,9 @@ export function invalidateUserCache(userId) {
 function Authenticated() {
   return async (req, res, next) => {
     try {
-      const token = req.cookies.jwt;
+      const authHeader = req.headers?.authorization;
+      const bearerToken = authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      const token = req.cookies?.jwt || bearerToken;
       if (!token) throw new Error("Authentication required");
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);

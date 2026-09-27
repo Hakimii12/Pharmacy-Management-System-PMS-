@@ -43,10 +43,25 @@ export const sequelize = new Sequelize(
 );
 
 export default async function Database() {
-  try {
-    await sequelize.authenticate();
-    console.log("Successfully connected to MySQL database via Sequelize");
+  const maxRetries = 10;
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      await sequelize.authenticate();
+      console.log("Successfully connected to MySQL database via Sequelize");
+      break;
+    } catch (error) {
+      retries++;
+      console.warn(`Database connection attempt ${retries}/${maxRetries} failed: ${error.message}. Retrying in 3s...`);
+      if (retries >= maxRetries) {
+        console.error("Database connection failed after maximum retries:", error);
+        throw error;
+      }
+      await new Promise((res) => setTimeout(res, 3000));
+    }
+  }
 
+  try {
     // Import models and associations
     const { default: initModels, User } = await import("../models/index.js");
     initModels();
@@ -69,7 +84,7 @@ export default async function Database() {
       console.log("Initial superAdmin created");
     }
   } catch (error) {
-    console.error("Database connection error:", error);
+    console.error("Database setup error:", error);
     throw error;
   }
 }

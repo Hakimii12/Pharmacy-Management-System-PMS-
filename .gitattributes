@@ -1,2 +1,17 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+node_modules/
+.env
+.env.*
+!.env.example
+
+Frontend/node_modules/
+Frontend/dist/
+
+Backend/node_modules/
+
+*.log
+
+.DS_Store
+
+docker-compose.override.yml
