@@ -1,5 +1,6 @@
 import { baseApi, providesList } from "./baseApi"
-import { cacheProducts } from "@/offline/db"
+import { cacheProducts, db } from "@/offline/db"
+import { enqueue, newMutationId } from "@/offline/syncQueue"
 import type {
   LocationCounts,
   Paginated,
@@ -179,7 +180,102 @@ export const productApi = baseApi.injectEndpoints({
     }),
 
     createProduct: builder.mutation<{ message: string; Product: Product }, ProductInput>({
-      query: (body) => ({ url: "/product/CreateProducts", method: "POST", body }),
+      async queryFn(body, _api, _extra, fetchWithBQ) {
+        if (!navigator.onLine) {
+          const id = newMutationId()
+          await enqueue({
+            id,
+            kind: "sale",
+            url: "/api/product/CreateProducts",
+            method: "POST",
+            body,
+            label: `New product: ${body.name}`,
+          })
+          const newProd: Product = {
+            _id: id,
+            name: body.name,
+            brand: body.brand,
+            type: body.type,
+            category: body.category,
+            DosageForms: body.DosageForms,
+            batchNo: body.batchNo,
+            expiryDate: body.expiryDate,
+            quantity: body.quantity,
+            unitPrice: body.unitPrice,
+            sellingPrice: body.sellingPrice || body.unitPrice,
+            markup: body.markup || 0,
+            totalPrice: body.quantity * body.unitPrice,
+            totalSellingPrice: body.quantity * (body.sellingPrice || body.unitPrice),
+            visibility: "enable",
+            inventory: {
+              store: body.quantity,
+              dispensary: 0,
+              storeThreshold: body.storeThreshold || 10,
+              dispensaryThreshold: body.dispensaryThreshold || 10,
+              storeActive: true,
+              dispensaryActive: true,
+              storeExists: true,
+              dispensaryExists: true,
+              storeStatus: body.quantity <= (body.storeThreshold || 10) ? "Low Stock" : "In Stock",
+              dispensaryStatus: "Sold Out",
+              storeIsExpired: false,
+              dispensaryIsExpired: false,
+            },
+          }
+          await db.products.put(newProd)
+          return { data: { message: "Product created offline (queued)", Product: newProd } }
+        }
+
+        const result = await fetchWithBQ({ url: "/product/CreateProducts", method: "POST", body })
+        if (result.error) {
+          if (result.error.status === "FETCH_ERROR" || result.error.status === "TIMEOUT_ERROR") {
+            const id = newMutationId()
+            await enqueue({
+              id,
+              kind: "sale",
+              url: "/api/product/CreateProducts",
+              method: "POST",
+              body,
+              label: `New product: ${body.name}`,
+            })
+            const newProd: Product = {
+              _id: id,
+              name: body.name,
+              brand: body.brand,
+              type: body.type,
+              category: body.category,
+              DosageForms: body.DosageForms,
+              batchNo: body.batchNo,
+              expiryDate: body.expiryDate,
+              quantity: body.quantity,
+              unitPrice: body.unitPrice,
+              sellingPrice: body.sellingPrice || body.unitPrice,
+              markup: body.markup || 0,
+              totalPrice: body.quantity * body.unitPrice,
+              totalSellingPrice: body.quantity * (body.sellingPrice || body.unitPrice),
+              visibility: "enable",
+              inventory: {
+                store: body.quantity,
+                dispensary: 0,
+                storeThreshold: body.storeThreshold || 10,
+                dispensaryThreshold: body.dispensaryThreshold || 10,
+                storeActive: true,
+                dispensaryActive: true,
+                storeExists: true,
+                dispensaryExists: true,
+                storeStatus: body.quantity <= (body.storeThreshold || 10) ? "Low Stock" : "In Stock",
+                dispensaryStatus: "Sold Out",
+                storeIsExpired: false,
+                dispensaryIsExpired: false,
+              },
+            }
+            await db.products.put(newProd)
+            return { data: { message: "Product created offline (queued)", Product: newProd } }
+          }
+          return { error: result.error }
+        }
+        return { data: result.data as { message: string; Product: Product } }
+      },
       invalidatesTags: [{ type: "Product", id: "LIST" }, "Report", "Notification"],
     }),
 
@@ -225,7 +321,60 @@ export const productApi = baseApi.injectEndpoints({
     }),
 
     issueToDispensary: builder.mutation<{ message: string }, { productId: string; quantity: number }>({
-      query: (body) => ({ url: "/product/issueToDispensary", method: "POST", body }),
+      async queryFn({ productId, quantity }, _api, _extra, fetchWithBQ) {
+        const body = { productId, quantity }
+
+        if (!navigator.onLine) {
+          const id = newMutationId()
+          await enqueue({
+            id,
+            kind: "sale",
+            url: "/api/product/issueToDispensary",
+            method: "POST",
+            body,
+            label: `Issue ${quantity} units to dispensary`,
+          })
+          const product = await db.products.get(productId)
+          if (product) {
+            await db.products.update(productId, {
+              inventory: {
+                ...product.inventory,
+                store: Math.max(0, product.inventory.store - quantity),
+                dispensary: product.inventory.dispensary + quantity,
+              },
+            })
+          }
+          return { data: { message: "Issued to dispensary (queued offline)" } }
+        }
+
+        const result = await fetchWithBQ({ url: "/product/issueToDispensary", method: "POST", body })
+        if (result.error) {
+          if (result.error.status === "FETCH_ERROR" || result.error.status === "TIMEOUT_ERROR") {
+            const id = newMutationId()
+            await enqueue({
+              id,
+              kind: "sale",
+              url: "/api/product/issueToDispensary",
+              method: "POST",
+              body,
+              label: `Issue ${quantity} units to dispensary`,
+            })
+            const product = await db.products.get(productId)
+            if (product) {
+              await db.products.update(productId, {
+                inventory: {
+                  ...product.inventory,
+                  store: Math.max(0, product.inventory.store - quantity),
+                  dispensary: product.inventory.dispensary + quantity,
+                },
+              })
+            }
+            return { data: { message: "Issued to dispensary (queued offline)" } }
+          }
+          return { error: result.error }
+        }
+        return { data: result.data as { message: string } }
+      },
       invalidatesTags: (_result, _error, { productId }) => [
         { type: "Product", id: productId },
         { type: "Product", id: "LIST" },
@@ -236,7 +385,60 @@ export const productApi = baseApi.injectEndpoints({
     }),
 
     returnToStore: builder.mutation<{ message: string }, { productId: string; quantity: number }>({
-      query: (body) => ({ url: "/product/returnToStore", method: "POST", body }),
+      async queryFn({ productId, quantity }, _api, _extra, fetchWithBQ) {
+        const body = { productId, quantity }
+
+        if (!navigator.onLine) {
+          const id = newMutationId()
+          await enqueue({
+            id,
+            kind: "sale",
+            url: "/api/product/returnToStore",
+            method: "POST",
+            body,
+            label: `Return ${quantity} units to store`,
+          })
+          const product = await db.products.get(productId)
+          if (product) {
+            await db.products.update(productId, {
+              inventory: {
+                ...product.inventory,
+                dispensary: Math.max(0, product.inventory.dispensary - quantity),
+                store: product.inventory.store + quantity,
+              },
+            })
+          }
+          return { data: { message: "Returned to store (queued offline)" } }
+        }
+
+        const result = await fetchWithBQ({ url: "/product/returnToStore", method: "POST", body })
+        if (result.error) {
+          if (result.error.status === "FETCH_ERROR" || result.error.status === "TIMEOUT_ERROR") {
+            const id = newMutationId()
+            await enqueue({
+              id,
+              kind: "sale",
+              url: "/api/product/returnToStore",
+              method: "POST",
+              body,
+              label: `Return ${quantity} units to store`,
+            })
+            const product = await db.products.get(productId)
+            if (product) {
+              await db.products.update(productId, {
+                inventory: {
+                  ...product.inventory,
+                  dispensary: Math.max(0, product.inventory.dispensary - quantity),
+                  store: product.inventory.store + quantity,
+                },
+              })
+            }
+            return { data: { message: "Returned to store (queued offline)" } }
+          }
+          return { error: result.error }
+        }
+        return { data: result.data as { message: string } }
+      },
       invalidatesTags: (_result, _error, { productId }) => [
         { type: "Product", id: productId },
         { type: "Product", id: "LIST" },

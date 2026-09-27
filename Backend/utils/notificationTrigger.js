@@ -1,75 +1,81 @@
-import Store from "../models/StoreModel.js"
-import Dispensary from "../models/DispensaryModel.js"
-import Product from "../models/ProductModel.js"
-import Notification from "../models/NotificationModel.js"
+import { Op } from "sequelize";
+import Store from "../models/StoreModel.js";
+import Dispensary from "../models/DispensaryModel.js";
+import Product from "../models/ProductModel.js";
+import Notification from "../models/NotificationModel.js";
+import { sumLocationStockForIdentity } from "./productIdentity.js";
 
-// Function to trigger notifications when inventory changes
 export const triggerInventoryNotifications = async (productId) => {
   try {
-    const product = await Product.findById(productId)
-    const store = await Store.findOne({ product: productId })
-    const dispensary = await Dispensary.findOne({ product: productId })
+    const product = await Product.findByPk(productId);
+    if (!product) return;
 
-    if (!product) return
+    const storeStock = await sumLocationStockForIdentity(product, "store");
+    const dispStock = await sumLocationStockForIdentity(product, "dispensary");
 
-    // Check if product is completely sold out (both locations)
-    const storeQty = store ? store.quantity : 0
-    const dispensaryQty = dispensary ? dispensary.quantity : 0
-    const totalQty = storeQty + dispensaryQty
+    const totalUsable = storeStock.usable + dispStock.usable;
+    const totalAll = storeStock.total + dispStock.total;
 
-    if (totalQty === 0) {
-      // Create notification for complete sellout
+    if (totalUsable <= 0 && totalAll <= 0) {
       const existingComplete = await Notification.findOne({
-        product: productId,
-        location: "both",
-        type: "OutOfStock",
-        read: false,
-      })
+        where: {
+          productId: { [Op.in]: storeStock.siblingIds },
+          location: "both",
+          type: "OutOfStock",
+          read: false,
+        },
+      });
 
       if (!existingComplete) {
         await Notification.create({
           type: "OutOfStock",
           message: `Product ${product.name} is completely sold out in both store and dispensary.`,
-          product: productId,
+          productId,
           location: "both",
           read: false,
-        })
+        });
       }
     } else {
-      // Remove complete sellout notification if stock is available
-      await Notification.deleteMany({
-        product: productId,
-        location: "both",
-        type: "OutOfStock",
-        read: false,
-      })
+      await Notification.destroy({
+        where: {
+          productId: { [Op.in]: storeStock.siblingIds },
+          location: "both",
+          type: "OutOfStock",
+          read: false,
+        },
+      });
     }
 
-    // Trigger individual location notifications by saving the documents
+    const store = await Store.findOne({ where: { productId } });
+    const dispensary = await Dispensary.findOne({ where: { productId } });
     if (store) {
-      await store.save()
+      await store.save();
     }
     if (dispensary) {
-      await dispensary.save()
+      await dispensary.save();
     }
   } catch (error) {
-    console.error("Error triggering inventory notifications:", error)
+    console.error("Error triggering inventory notifications:", error);
   }
-}
+};
 
-// Function to clean up old notifications
 export const cleanupNotifications = async (productId, location, currentStatus) => {
   try {
-    if (currentStatus === "In Stock") {
-      // Remove low stock and out of stock notifications for this location
-      await Notification.deleteMany({
-        product: productId,
-        location: location,
-        type: { $in: ["LowStock", "OutOfStock"] },
-        read: false,
-      })
+    const product = await Product.findByPk(productId);
+    if (!product) return;
+
+    const stock = await sumLocationStockForIdentity(product, location);
+    if (currentStatus === "In Stock" || stock.usable > stock.threshold) {
+      await Notification.destroy({
+        where: {
+          productId: { [Op.in]: stock.siblingIds },
+          location,
+          type: { [Op.in]: ["LowStock", "OutOfStock"] },
+          read: false,
+        },
+      });
     }
   } catch (error) {
-    console.error("Error cleaning up notifications:", error)
+    console.error("Error cleaning up notifications:", error);
   }
-}
+};

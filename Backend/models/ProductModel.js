@@ -1,57 +1,118 @@
-import mongoose from "mongoose"
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../database/database.js";
 
-const ProductSchema = new mongoose.Schema({
-  addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  name: { type: String, required: true, index: true },
-  type: { type: String },
-  brand: { type: String },
-  unitPrice: { type: Number, required: true },
-  quantity: { type: Number, required: true }, // This is the total quantity across all locations
-  visibility: { type: String, enum: ["enable", "disable", "deleted"], default: "enable" },
-  totalPrice: { type: Number, required: true },
-  batchNo: { type: String, required: true },
-  expiryDate: { type: Date, required: true },
-  markup: { type: Number, required: true },
-  sellingPrice: { type: Number, required: true },
-  totalSellingPrice: { type: Number, required: true },
-  DosageForms: { type: String },
-  category: { type: String },
-  distributor: {
-    name: { type: String },
-    contact: { type: Number },
+class Product extends Model {
+  toJSON() {
+    const values = { ...this.get() };
+    values._id = values.id;
+    return values;
+  }
+}
+
+Product.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    addedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    type: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    brand: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    unitPrice: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    quantity: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    visibility: {
+      type: DataTypes.ENUM("enable", "disable", "deleted"),
+      defaultValue: "enable",
+    },
+    totalPrice: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    batchNo: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    expiryDate: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    markup: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    sellingPrice: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    totalSellingPrice: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    DosageForms: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    category: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    distributor: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: { name: "", contact: "" },
+    },
+    isDeleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    deletedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    deletedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   },
-  isDeleted: { type: Boolean, default: false },
-  deletedAt: { type: Date },
-  deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-})
-
-// Update updatedAt on save
-ProductSchema.pre("save", function (next) {
-  this.updatedAt = Date.now()
-  next()
-})
-
-// Expiry/near-expiry notifications are NOT generated here. A post-save hook fires
-// once per document, so a bulk import of N products issued ~4N sequential
-// notification queries. Controllers now call
-// `services/notificationService.js#syncExpiryNotifications` with the whole batch,
-// which collapses to a single bulkWrite. `bulkWrite`/`updateMany` also bypass save
-// middleware entirely, so nothing would run here on the bulk paths anyway.
-
-// Ensure batchNo is unique only for non-deleted products
-ProductSchema.index(
-  { batchNo: 1 },
-  { unique: true, partialFilterExpression: { isDeleted: false } }
+  {
+    sequelize,
+    modelName: "Product",
+    tableName: "products",
+    timestamps: true,
+    indexes: [
+      { fields: ["name"] },
+      { fields: ["batchNo"] },
+      { fields: ["isDeleted", "visibility", "createdAt"] },
+      { fields: ["expiryDate", "isDeleted"] },
+      { fields: ["category", "isDeleted"] },
+    ],
+  }
 );
 
-// List endpoints always filter on visibility + isDeleted and sort by createdAt.
-ProductSchema.index({ isDeleted: 1, visibility: 1, createdAt: -1 });
-// Expiry sweeps (cron, near-expiry report, notification sync).
-ProductSchema.index({ expiryDate: 1, isDeleted: 1 });
-// Category facet on the inventory screens.
-ProductSchema.index({ category: 1, isDeleted: 1 });
-
-const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema)
-export default Product
+export default Product;

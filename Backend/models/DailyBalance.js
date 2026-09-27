@@ -1,64 +1,80 @@
-import mongoose from "mongoose"
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../database/database.js";
 
-const dailyBalanceSchema = new mongoose.Schema(
+class DailyBalance extends Model {
+  toJSON() {
+    const values = { ...this.get() };
+    values._id = values.id;
+    return values;
+  }
+}
+
+DailyBalance.init(
   {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     date: {
-      type: Date,
-      required: true,
-      index: true,
+      type: DataTypes.DATE,
+      allowNull: false,
     },
     cashier: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
     },
     expectedAmount: {
-      type: Number,
-      required: true,
-      min: 0,
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
     },
     countedAmount: {
-      type: Number,
-      required: true,
-      min: 0,
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+      defaultValue: 0,
     },
     difference: {
-      type: Number,
-      default: function () {
-        return this.countedAmount - this.expectedAmount
-      },
+      type: DataTypes.DOUBLE,
+      defaultValue: 0,
     },
     status: {
-      type: String,
-      enum: ["verified", "discrepancy"],
-      required: true,
+      type: DataTypes.ENUM("verified", "discrepancy"),
+      allowNull: false,
     },
-    transactions: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Sales",
-      },
-    ],
+    transactions: {
+      type: DataTypes.JSON,
+      defaultValue: [],
+    },
     discrepancyNote: {
-      type: String,
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     closedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
     },
     closedAt: {
-      type: Date,
-      default: Date.now,
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
     },
   },
   {
+    sequelize,
+    modelName: "DailyBalance",
+    tableName: "daily_balances",
     timestamps: true,
-  },
-)
+    indexes: [
+      { fields: ["cashier", "date"] },
+    ],
+    hooks: {
+      beforeSave: (instance) => {
+        if (instance.countedAmount !== undefined && instance.expectedAmount !== undefined) {
+          instance.difference = instance.countedAmount - instance.expectedAmount;
+        }
+      },
+    },
+  }
+);
 
-// Compound index to ensure one balance per cashier per day
-dailyBalanceSchema.index({ cashier: 1, date: 1 }, { unique: true })
-
-export default mongoose.model("DailyBalance", dailyBalanceSchema)
+export default DailyBalance;

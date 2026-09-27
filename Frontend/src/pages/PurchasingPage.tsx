@@ -890,7 +890,7 @@ function SupplierDialog({
 
   useEffect(() => {
     if (!open) return
-    if (isNew || !target || target === "new") {
+    if (isNew || !target) {
       setForm(emptySupplier())
     } else {
       setForm({
@@ -908,7 +908,7 @@ function SupplierDialog({
       if (isNew) {
         const result = await createSupplier(form).unwrap()
         toast("success", result.message)
-      } else if (target && target !== "new") {
+      } else if (target) {
         const result = await updateSupplier({ id: target._id, body: form }).unwrap()
         toast("success", result.message)
       }

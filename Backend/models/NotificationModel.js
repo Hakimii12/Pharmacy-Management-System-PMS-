@@ -1,29 +1,62 @@
-import mongoose from "mongoose";
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../database/database.js";
 
-const NotificationSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ["Expired", "OutOfStock", "NearExpiry", "LowStock"],
-    required: true
-  },
-  message: { type: String, required: true },
-  product: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "Product", 
-    required: true 
-  },
-  read: { type: Boolean, default: false },
-  location: { 
-    type: String, 
-    enum: ["store", "dispensary", "both"], // Added "both" for NearExpiry
-    required: true 
-  },
-  createdAt: { type: Date, default: Date.now }
-});
+class Notification extends Model {
+  toJSON() {
+    const values = { ...this.get() };
+    values._id = values.id;
+    values.product = values.productId;
+    return values;
+  }
+}
 
-// Compound index covering the most common query pattern:
-// { product, type, read, location } used in findOne/deleteMany across model hooks
-NotificationSchema.index({ product: 1, type: 1, read: 1, location: 1 });
+Notification.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    type: {
+      type: DataTypes.ENUM("Expired", "OutOfStock", "NearExpiry", "LowStock"),
+      allowNull: false,
+    },
+    message: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    productId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "productId",
+    },
+    product: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return this.productId;
+      },
+      set(val) {
+        this.setDataValue("productId", val);
+      },
+    },
+    read: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    location: {
+      type: DataTypes.ENUM("store", "dispensary", "both"),
+      allowNull: false,
+    },
+  },
+  {
+    sequelize,
+    modelName: "Notification",
+    tableName: "notifications",
+    timestamps: true,
+    indexes: [
+      { fields: ["productId", "type", "read", "location"] },
+    ],
+  }
+);
 
-const Notification = mongoose.model("Notification", NotificationSchema);
 export default Notification;

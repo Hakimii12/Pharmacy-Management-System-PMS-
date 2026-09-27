@@ -1,13 +1,33 @@
-import mongoose from "mongoose";
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../database/database.js";
 
-const DosageFormSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true, 
-    unique: true 
+class DosageForm extends Model {
+  toJSON() {
+    const values = { ...this.get() };
+    values._id = values.id;
+    return values;
+  }
+}
+
+DosageForm.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
   },
-  createdAt: { type: Date, default: Date.now }
-});
+  {
+    sequelize,
+    modelName: "DosageForm",
+    tableName: "dosage_forms",
+    timestamps: true,
+  }
+);
 
-const DosageForm = mongoose.model("DosageForm", DosageFormSchema);
 export default DosageForm;

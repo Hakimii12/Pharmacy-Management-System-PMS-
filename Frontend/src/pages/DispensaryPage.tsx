@@ -21,7 +21,7 @@ export default function DispensaryPage() {
   const { data: counts, isLoading } = useGetDispensaryCountsQuery()
   const { data: summary } = useGetDispensarySummaryQuery({ limit: 1 })
   const [openedGroup, setOpenedGroup] = useState<ProductGroup | null>(null)
-  const [returning, setReturning] = useState<Product | null>(null)
+  const [transferring, setTransferring] = useState<{ product: Product; direction: "issue" | "return" } | null>(null)
 
   const { data: refreshed } = useGetGroupedDispensaryProductsQuery(
     { page: 1, limit: 50, search: openedGroup?.name },
@@ -31,7 +31,7 @@ export default function DispensaryPage() {
   const selectedGroup = useMemo(() => {
     if (!openedGroup) return null
     if (!refreshed) return openedGroup
-    return refreshed.data.find((group) => group.id === openedGroup.id) ?? null
+    return refreshed.data.find((group) => group.id === openedGroup.id) ?? openedGroup
   }, [openedGroup, refreshed])
 
   return (
@@ -83,10 +83,14 @@ export default function DispensaryPage() {
         location="dispensary"
         canManage={isManager}
         onClose={() => setOpenedGroup(null)}
-        onTransfer={(batch) => setReturning(batch)}
+        onTransfer={(batch, dir) => setTransferring({ product: batch, direction: dir })}
       />
 
-      <TransferDialog direction="return" product={returning} onClose={() => setReturning(null)} />
+      <TransferDialog
+        direction={transferring?.direction ?? "return"}
+        product={transferring?.product ?? null}
+        onClose={() => setTransferring(null)}
+      />
     </>
   )
 }

@@ -1,49 +1,50 @@
-import Store from "../models/StoreModel.js"
-import Dispensary from "../models/DispensaryModel.js"
-import Product from "../models/ProductModel.js"
+import Store from "../models/StoreModel.js";
+import Dispensary from "../models/DispensaryModel.js";
+import Product from "../models/ProductModel.js";
 
-// Helper function to update inventory status
 export const updateInventoryStatus = async (productId) => {
   try {
-    const store = await Store.findOne({ product: productId })
-    const dispensary = await Dispensary.findOne({ product: productId })
+    const store = await Store.findOne({ where: { productId } });
+    const dispensary = await Dispensary.findOne({ where: { productId } });
 
-    // Update store status if exists
     if (store) {
-      await store.save() // This will trigger the pre-save hook to update status
+      await store.save();
     }
 
-    // Update dispensary status if exists
     if (dispensary) {
-      await dispensary.save() // This will trigger the pre-save hook to update status
+      await dispensary.save();
     }
 
-    // Update product status
-    const product = await Product.findById(productId)
+    const product = await Product.findByPk(productId);
     if (product) {
-      await product.save() // This will trigger the pre-save hook to update overall status
+      await product.save();
     }
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error("Error updating inventory status:", error)
-    return { success: false, error: error.message }
+    console.error("Error updating inventory status:", error);
+    return { success: false, error: error.message };
   }
-}
+};
 
-// Helper function to get complete inventory status
 export const getInventoryStatus = async (productId) => {
   try {
-    const product = await Product.findById(productId)
-    const store = await Store.findOne({ product: productId })
-    const dispensary = await Dispensary.findOne({ product: productId })
+    const product = await Product.findByPk(productId);
+    if (!product) return null;
+
+    const store = await Store.findOne({ where: { productId } });
+    const dispensary = await Dispensary.findOne({ where: { productId } });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isExpired = new Date(product.expiryDate) <= today;
 
     return {
       product: {
         name: product.name,
         brand: product.brand,
-        overallStatus: product.status,
-        isExpired: product.isExpired,
+        overallStatus: product.visibility,
+        isExpired,
         expiryDate: product.expiryDate,
       },
       store: {
@@ -57,9 +58,9 @@ export const getInventoryStatus = async (productId) => {
         status: dispensary ? dispensary.status : "Sold Out",
       },
       totalQuantity: (store ? store.quantity : 0) + (dispensary ? dispensary.quantity : 0),
-    }
+    };
   } catch (error) {
-    console.error("Error getting inventory status:", error)
-    return null
+    console.error("Error getting inventory status:", error);
+    return null;
   }
-}
+};

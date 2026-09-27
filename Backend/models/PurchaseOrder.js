@@ -1,52 +1,85 @@
-import mongoose from "mongoose"
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../database/database.js";
 
-const PurchaseLineSchema = new mongoose.Schema(
+class PurchaseOrder extends Model {
+  toJSON() {
+    const values = { ...this.get() };
+    values._id = values.id;
+    values.supplier = values.supplierId;
+    return values;
+  }
+}
+
+PurchaseOrder.init(
   {
-    name: { type: String, required: true, trim: true },
-    brand: { type: String, trim: true, default: "no_brand" },
-    category: { type: String, trim: true, default: "" },
-    DosageForms: { type: String, trim: true, default: "" },
-    quantityOrdered: { type: Number, required: true, min: 1 },
-    quantityReceived: { type: Number, default: 0, min: 0 },
-    unitCost: { type: Number, required: true, min: 0 },
-    markup: { type: Number, default: 20, min: 0 },
-    batchNo: { type: String, trim: true },
-    expiryDate: { type: Date },
-    /** Product batch created when this line was received. */
-    receivedProduct: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-    notes: { type: String, trim: true },
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    orderNumber: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    supplierId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "supplierId",
+    },
+    supplier: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return this.supplierId;
+      },
+      set(val) {
+        this.setDataValue("supplierId", val);
+      },
+    },
+    status: {
+      type: DataTypes.ENUM("draft", "ordered", "partial", "received", "cancelled"),
+      defaultValue: "draft",
+    },
+    lines: {
+      type: DataTypes.JSON,
+      defaultValue: [],
+    },
+    notes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    expectedDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    orderedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    receivedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    createdBy: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    receivedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   },
-  { _id: true },
-)
+  {
+    sequelize,
+    modelName: "PurchaseOrder",
+    tableName: "purchase_orders",
+    timestamps: true,
+    indexes: [
+      { fields: ["orderNumber"] },
+      { fields: ["status", "createdAt"] },
+      { fields: ["supplierId", "createdAt"] },
+    ],
+  }
+);
 
-const PurchaseOrderSchema = new mongoose.Schema({
-  orderNumber: { type: String, required: true, unique: true, index: true },
-  supplier: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier", required: true },
-  status: {
-    type: String,
-    enum: ["draft", "ordered", "partial", "received", "cancelled"],
-    default: "draft",
-    index: true,
-  },
-  lines: { type: [PurchaseLineSchema], default: [] },
-  notes: { type: String, trim: true },
-  expectedDate: { type: Date },
-  orderedAt: { type: Date },
-  receivedAt: { type: Date },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-})
-
-PurchaseOrderSchema.pre("save", function (next) {
-  this.updatedAt = Date.now()
-  next()
-})
-
-PurchaseOrderSchema.index({ status: 1, createdAt: -1 })
-PurchaseOrderSchema.index({ supplier: 1, createdAt: -1 })
-
-const PurchaseOrder =
-  mongoose.models.PurchaseOrder || mongoose.model("PurchaseOrder", PurchaseOrderSchema)
-export default PurchaseOrder
+export default PurchaseOrder;

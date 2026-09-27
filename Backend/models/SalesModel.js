@@ -1,76 +1,174 @@
-import mongoose, { Schema } from "mongoose";
-const salesSchema = new mongoose.Schema({
-  transactionId: { type: String, required: true, index: true },
-  patientName: { type: String,},
-  product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-  // Denormalised at sale time so history survives the product being deleted.
-  name: { type: String },
-  brand: { type: String },
-  dosageForm: { type: String },
-  quantitySold: { type: Number, required: true },
-  profit: { type: Number, required: true },
-  saleAmount: { type: Number, required: true },
-  sellingPrice: { type: Number },
-  totalUnitPrice: { type: Number },
-  status: { 
-    type: String, 
-    enum: ["pending", "completed", "aborted", "credit", "partial", "refunded"],
-    index: true
-  },
-  paymentStatus: {
-    type: String,
-    enum: ["pending", "paid", "partial", "credit", "overdue"],
-    default: "pending"
-  },
-  amountPaid: { type: Number, default: 0 },
-  remainingBalance: { type: Number, default: 0 },
-  dueDate: { type: Date },
-  // New fields for customer information
-  customerPhone: { type: String },
-  customerAddress: { type: String },
-  saleType: {
-    type: String,
-    enum: ["cash", "credit"],
-    default: "cash"
-  },
-  // Credit sale specific fields
-  creditApprovedBy: { type: Schema.Types.ObjectId, ref: "User" },
-  creditApprovedAt: { type: Date },
-  lastPaymentDate: { type: Date },
-  paymentHistory: [{
-    amount: { type: Number, required: true },
-    paymentDate: { type: Date, default: Date.now },
-    paymentMethod: { type: String, enum: ["cash", "bank_transfer", "mobile_money"] },
-    receivedBy: { type: Schema.Types.ObjectId, ref: "User" },
-    notes: { type: String }
-  }],
-  pharmacist: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  cashier: { type: Schema.Types.ObjectId, ref: "User" },
-  completedAt: { type: Date },
-  abortedAt: { type: Date },
-  refundedAt: { type: Date },
-  refundedBy: { type: Schema.Types.ObjectId, ref: "User" },
-  timestamp: { type: Date, default: Date.now }
-});
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../database/database.js";
 
-// Index for credit management
-salesSchema.index({ dueDate: 1, paymentStatus: 1 });
-salesSchema.index({ customerPhone: 1 });
-salesSchema.index({ saleType: 1, timestamp: 1 });
+class Sales extends Model {
+  toJSON() {
+    const values = { ...this.get() };
+    values._id = values.id;
+    values.product = values.productId;
+    values.pharmacist = values.pharmacistUser || values.pharmacistId;
+    values.cashier = values.cashierUser || values.cashierId;
+    return values;
+  }
+}
 
-// Compound indexes matching how the controllers actually query.
-// Transaction history and the pending-order queue filter on status then sort by timestamp.
-salesSchema.index({ status: 1, timestamp: -1 });
-// Recent sales and the dashboard sort completed sales by completion time.
-salesSchema.index({ status: 1, completedAt: -1 });
-// Confirm/abort/undo all look a transaction up by id and status.
-salesSchema.index({ transactionId: 1, status: 1 });
-// Daily balance close + daily transaction list, per cashier per day.
-salesSchema.index({ cashier: 1, status: 1, completedAt: -1 });
-// Credit ledger: credit sales filtered by payment state, newest first.
-salesSchema.index({ saleType: 1, status: 1, paymentStatus: 1, timestamp: -1 });
-// Per-product inventory history.
-salesSchema.index({ product: 1, status: 1, completedAt: -1 });
+Sales.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    transactionId: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    patientName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    productId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "productId",
+    },
+    product: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return this.productId;
+      },
+      set(val) {
+        this.setDataValue("productId", val);
+      },
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    brand: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    dosageForm: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    quantitySold: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+    },
+    profit: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+    },
+    saleAmount: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+    },
+    sellingPrice: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    totalUnitPrice: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.ENUM("pending", "completed", "aborted", "credit", "partial", "refunded"),
+      allowNull: true,
+    },
+    paymentStatus: {
+      type: DataTypes.ENUM("pending", "paid", "partial", "credit", "overdue"),
+      defaultValue: "pending",
+    },
+    amountPaid: {
+      type: DataTypes.DOUBLE,
+      defaultValue: 0,
+    },
+    remainingBalance: {
+      type: DataTypes.DOUBLE,
+      defaultValue: 0,
+    },
+    dueDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    customerPhone: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    customerAddress: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    saleType: {
+      type: DataTypes.ENUM("cash", "credit"),
+      defaultValue: "cash",
+    },
+    creditApprovedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    creditApprovedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    lastPaymentDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    paymentHistory: {
+      type: DataTypes.JSON,
+      defaultValue: [],
+    },
+    pharmacistId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "pharmacist",
+    },
+    cashierId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "cashier",
+    },
+    completedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    abortedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    refundedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    refundedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    timestamp: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+  },
+  {
+    sequelize,
+    modelName: "Sales",
+    tableName: "sales",
+    timestamps: true,
+    indexes: [
+      { fields: ["transactionId"] },
+      { fields: ["status", "timestamp"] },
+      { fields: ["status", "completedAt"] },
+      { fields: ["transactionId", "status"] },
+      { fields: ["cashier", "status", "completedAt"] },
+      { fields: ["saleType", "status", "paymentStatus", "timestamp"] },
+      { fields: ["productId", "status", "completedAt"] },
+      { fields: ["dueDate", "paymentStatus"] },
+      { fields: ["customerPhone"] },
+    ],
+  }
+);
 
-const Sales = mongoose.model("Sales", salesSchema);
 export default Sales;

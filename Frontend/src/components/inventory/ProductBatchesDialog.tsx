@@ -30,7 +30,7 @@ export function ProductBatchesDialog({
   onAddBatch?: (source: Product) => void
   onEdit?: (batch: Product) => void
   onDelete?: (batch: Product) => void
-  onTransfer?: (batch: Product) => void
+  onTransfer?: (batch: Product, direction: "issue" | "return") => void
 }) {
   if (!group) return null
 
@@ -62,13 +62,13 @@ export function ProductBatchesDialog({
         key: "store",
         header: "Store",
         numeric: true,
-        render: (row) => formatQuantity(row.inventory.store),
+        render: (row) => formatQuantity(row.inventory?.store ?? (row as any).stQty ?? 0),
       },
       {
         key: "dispensary",
         header: "Dispensary",
         numeric: true,
-        render: (row) => formatQuantity(row.inventory.dispensary),
+        render: (row) => formatQuantity(row.inventory?.dispensary ?? (row as any).dispQty ?? 0),
       },
     )
   } else {
@@ -77,7 +77,11 @@ export function ProductBatchesDialog({
       header: "On hand",
       numeric: true,
       render: (row) =>
-        formatQuantity(location === "store" ? row.inventory.store : row.inventory.dispensary),
+        formatQuantity(
+          location === "store"
+            ? (row.inventory?.store ?? (row as any).stQty ?? row.quantity ?? 0)
+            : (row.inventory?.dispensary ?? (row as any).dispQty ?? row.quantity ?? 0),
+        ),
     })
   }
 
@@ -96,10 +100,10 @@ export function ProductBatchesDialog({
         <StockBadge
           status={
             location === "store"
-              ? row.inventory.storeStatus
+              ? (row.inventory?.storeStatus ?? "In Stock")
               : location === "dispensary"
-                ? row.inventory.dispensaryStatus
-                : worstOf(row.inventory.storeStatus, row.inventory.dispensaryStatus)
+                ? (row.inventory?.dispensaryStatus ?? "In Stock")
+                : worstOf(row.inventory?.storeStatus ?? "In Stock", row.inventory?.dispensaryStatus ?? "In Stock")
           }
         />
       ),
@@ -110,26 +114,26 @@ export function ProductBatchesDialog({
     columns.push({
       key: "actions",
       header: "",
-      width: location === "both" ? "88px" : "120px",
+      width: location === "both" ? "180px" : "120px",
       render: (row) => (
         <div className="flex justify-end gap-1" onClick={(event) => event.stopPropagation()}>
-          {onTransfer && location === "store" && (
+          {onTransfer && (location === "store" || location === "both") && (
             <Button
               size="sm"
               variant="ghost"
-              disabled={row.inventory.store < 1}
-              onClick={() => onTransfer(row)}
+              disabled={(row.inventory?.store ?? (row as any).stQty ?? row.quantity ?? 0) < 1}
+              onClick={() => onTransfer(row, "issue")}
             >
               Issue
               <ArrowRight className="h-3.5 w-3.5" aria-hidden />
             </Button>
           )}
-          {onTransfer && location === "dispensary" && (
+          {onTransfer && (location === "dispensary" || location === "both") && (
             <Button
               size="sm"
               variant="ghost"
-              disabled={row.inventory.dispensary < 1}
-              onClick={() => onTransfer(row)}
+              disabled={(row.inventory?.dispensary ?? (row as any).dispQty ?? row.quantity ?? 0) < 1}
+              onClick={() => onTransfer(row, "return")}
             >
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
               Return

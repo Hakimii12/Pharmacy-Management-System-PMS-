@@ -12,6 +12,7 @@ import { ProductFormDialog } from "@/components/inventory/ProductFormDialog"
 import { AddBatchDialog } from "@/components/inventory/AddBatchDialog"
 import { ProductGroupListView } from "@/components/inventory/ProductGroupListView"
 import { ProductBatchesDialog } from "@/components/inventory/ProductBatchesDialog"
+import { TransferDialog } from "@/components/inventory/TransferDialog"
 import type { Product, ProductGroup } from "@/types"
 
 export default function InventoryPage() {
@@ -24,6 +25,7 @@ export default function InventoryPage() {
   const [addingBatch, setAddingBatch] = useState<Product | null>(null)
   const [deleting, setDeleting] = useState<Product | null>(null)
   const [openedGroup, setOpenedGroup] = useState<ProductGroup | null>(null)
+  const [transferring, setTransferring] = useState<{ product: Product; direction: "issue" | "return" } | null>(null)
 
   // Refresh the open detail panel from the server after mutations invalidate the list.
   const { data: refreshed } = useGetGroupedProductsQuery(
@@ -38,7 +40,7 @@ export default function InventoryPage() {
   const selectedGroup = useMemo(() => {
     if (!openedGroup) return null
     if (!refreshed) return openedGroup
-    return refreshed.data.find((group) => group.id === openedGroup.id) ?? null
+    return refreshed.data.find((group) => group.id === openedGroup.id) ?? openedGroup
   }, [openedGroup, refreshed])
 
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation()
@@ -92,6 +94,13 @@ export default function InventoryPage() {
         onAddBatch={(source) => setAddingBatch(source)}
         onEdit={(batch) => setEditing(batch)}
         onDelete={(batch) => setDeleting(batch)}
+        onTransfer={(batch, dir) => setTransferring({ product: batch, direction: dir })}
+      />
+
+      <TransferDialog
+        direction={transferring?.direction ?? "issue"}
+        product={transferring?.product ?? null}
+        onClose={() => setTransferring(null)}
       />
 
       <ProductFormDialog

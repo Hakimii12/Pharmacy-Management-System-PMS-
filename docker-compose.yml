@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: pharmacy_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123
+      MYSQL_DATABASE: pharmacy_db
+      MYSQL_USER: pharmacy_user
+      MYSQL_PASSWORD: pharmacypassword123
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - pharmacy_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pharmacy_app
+    restart: always
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: pharmacy_db
+      DB_USERNAME: pharmacy_user
+      DB_PASSWORD: pharmacypassword123
+      DB_SSL: "false"
+      JWT_SECRET: "9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e"
+      JWT_EXPIRES_IN: "7d"
+      CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY:-}"
+      CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET:-}"
+      CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME:-}"
+      CLOUDINARY_FOLDER: "${CLOUDINARY_FOLDER:-collage}"
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    networks:
+      - pharmacy_network
+
+volumes:
+  mysql_data:
+
+networks:
+  pharmacy_network:
+    driver: bridge

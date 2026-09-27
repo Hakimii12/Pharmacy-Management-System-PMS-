@@ -1,23 +1,59 @@
-import mongoose from "mongoose"
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../database/database.js";
 
-const SupplierSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true, index: true },
-  contact: { type: String, trim: true },
-  email: { type: String, trim: true },
-  address: { type: String, trim: true },
-  notes: { type: String, trim: true },
-  isDeleted: { type: Boolean, default: false },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-})
+class Supplier extends Model {
+  toJSON() {
+    const values = { ...this.get() };
+    values._id = values.id;
+    return values;
+  }
+}
 
-SupplierSchema.pre("save", function (next) {
-  this.updatedAt = Date.now()
-  next()
-})
+Supplier.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    contact: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    address: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    notes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    isDeleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    createdBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+  },
+  {
+    sequelize,
+    modelName: "Supplier",
+    tableName: "suppliers",
+    timestamps: true,
+    indexes: [
+      { fields: ["name", "isDeleted"] },
+    ],
+  }
+);
 
-SupplierSchema.index({ name: 1, isDeleted: 1 })
-
-const Supplier = mongoose.models.Supplier || mongoose.model("Supplier", SupplierSchema)
-export default Supplier
+export default Supplier;

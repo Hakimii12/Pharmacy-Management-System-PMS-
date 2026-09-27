@@ -68,8 +68,8 @@ export function ProductGroupListView({
             header: "Store",
             numeric: true,
             render: (row) => (
-              <span className={row.inventory.store === 0 ? "text-ink-muted" : undefined}>
-                {formatQuantity(row.inventory.store)}
+              <span className={(row.inventory?.store ?? 0) === 0 ? "text-ink-muted" : undefined}>
+                {formatQuantity(row.inventory?.store ?? 0)}
               </span>
             ),
           },
@@ -78,8 +78,8 @@ export function ProductGroupListView({
             header: "Dispensary",
             numeric: true,
             render: (row) => (
-              <span className={row.inventory.dispensary === 0 ? "text-ink-muted" : undefined}>
-                {formatQuantity(row.inventory.dispensary)}
+              <span className={(row.inventory?.dispensary ?? 0) === 0 ? "text-ink-muted" : undefined}>
+                {formatQuantity(row.inventory?.dispensary ?? 0)}
               </span>
             ),
           },
@@ -98,7 +98,7 @@ export function ProductGroupListView({
             render: (row) => (
               <span className="font-medium">
                 {formatQuantity(
-                  location === "store" ? row.inventory.store : row.inventory.dispensary,
+                  location === "store" ? (row.inventory?.store ?? 0) : (row.inventory?.dispensary ?? 0),
                 )}
               </span>
             ),
@@ -151,9 +151,9 @@ export function ProductGroupListView({
         <StockBadge
           status={
             location === "store"
-              ? row.inventory.storeStatus
+              ? (row.inventory?.storeStatus ?? "In Stock")
               : location === "dispensary"
-                ? row.inventory.dispensaryStatus
+                ? (row.inventory?.dispensaryStatus ?? "In Stock")
                 : worstStatus(row)
           }
         />

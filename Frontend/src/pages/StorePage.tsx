@@ -19,7 +19,7 @@ export default function StorePage() {
   const isManager = can(...MANAGER_ROLES)
   const { data: counts, isLoading } = useGetStoreCountsQuery()
   const [openedGroup, setOpenedGroup] = useState<ProductGroup | null>(null)
-  const [issuing, setIssuing] = useState<Product | null>(null)
+  const [transferring, setTransferring] = useState<{ product: Product; direction: "issue" | "return" } | null>(null)
 
   const { data: refreshed } = useGetGroupedStoreProductsQuery(
     { page: 1, limit: 50, search: openedGroup?.name },
@@ -29,7 +29,7 @@ export default function StorePage() {
   const selectedGroup = useMemo(() => {
     if (!openedGroup) return null
     if (!refreshed) return openedGroup
-    return refreshed.data.find((group) => group.id === openedGroup.id) ?? null
+    return refreshed.data.find((group) => group.id === openedGroup.id) ?? openedGroup
   }, [openedGroup, refreshed])
 
   return (
@@ -77,10 +77,14 @@ export default function StorePage() {
         location="store"
         canManage={isManager}
         onClose={() => setOpenedGroup(null)}
-        onTransfer={(batch) => setIssuing(batch)}
+        onTransfer={(batch, dir) => setTransferring({ product: batch, direction: dir })}
       />
 
-      <TransferDialog direction="issue" product={issuing} onClose={() => setIssuing(null)} />
+      <TransferDialog
+        direction={transferring?.direction ?? "issue"}
+        product={transferring?.product ?? null}
+        onClose={() => setTransferring(null)}
+      />
     </>
   )
 }
