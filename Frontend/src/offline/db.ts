@@ -15,7 +15,16 @@ export type SyncStatus = "pending" | "syncing" | "failed"
 export interface QueuedMutation {
   /** Client-generated UUID. Also used as the optimistic transaction id. */
   id: string
-  kind: "sale" | "credit-sale" | "confirm-sale" | "abort-sale" | "credit-payment"
+  kind:
+    | "sale"
+    | "credit-sale"
+    | "confirm-sale"
+    | "abort-sale"
+    | "credit-payment"
+    | "create-product"
+    | "update-product"
+    | "delete-product"
+    | "inventory-transfer"
   url: string
   method: "POST" | "PUT" | "DELETE"
   body: unknown

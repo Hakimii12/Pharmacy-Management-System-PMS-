@@ -1,4 +1,6 @@
 import { db, type QueuedMutation } from "./db"
+import { getApiBaseUrl, baseApi } from "@/api/baseApi"
+import { store } from "@/app/store"
 
 const MAX_ATTEMPTS = 5
 const SYNC_TAG = "pharmacy-sync-queue"
@@ -75,6 +77,20 @@ export async function requestBackgroundSync() {
   }
 }
 
+function resolveMutationUrl(rawUrl: string): string {
+  if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+    return rawUrl;
+  }
+  const apiBase = getApiBaseUrl().replace(/\/+$/, "");
+  if (rawUrl.startsWith("/api/")) {
+    return `${apiBase}${rawUrl.slice(4)}`;
+  }
+  if (rawUrl.startsWith("/")) {
+    return `${apiBase}${rawUrl}`;
+  }
+  return `${apiBase}/${rawUrl}`;
+}
+
 let flushing = false
 
 export async function flushQueue(): Promise<{ synced: number; failed: number }> {
@@ -94,18 +110,44 @@ export async function flushQueue(): Promise<{ synced: number; failed: number }> 
       notify()
 
       try {
-        const response = await fetch(mutation.url, {
+        const targetUrl = resolveMutationUrl(mutation.url)
+        const state = store.getState()
+        const token = state.auth?.token || state.auth?.user?.token
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        }
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`
+        }
+
+        const response = await fetch(targetUrl, {
           method: mutation.method,
-          headers: { "Content-Type": "application/json" },
+          headers,
           credentials: "include",
           body: JSON.stringify(mutation.body),
         })
 
-        if (response.ok) {
+        const contentType = response.headers.get("content-type") || ""
+        const isJsonOrNoContent = contentType.includes("application/json") || response.status === 204
+
+        if (response.ok && isJsonOrNoContent) {
           await db.syncQueue.delete(mutation.id)
           await clearStockDeltas(mutation.id)
           await db.transactions.delete(mutation.id)
+          // If this mutation created a local temporary product, remove the temp placeholder
+          // as the real record has now synced to MySQL.
+          await db.products.delete(mutation.id)
           synced += 1
+        } else if (response.ok && !isJsonOrNoContent) {
+          // 200 OK from static CDN (HTML or empty body) without backend execution
+          await db.syncQueue.update(mutation.id, {
+            status: "pending",
+            attempts: mutation.attempts + 1,
+            lastError: "Invalid server response (CDN returned HTML instead of API JSON)",
+          })
+          failed += 1
+          break
         } else if (response.status >= 400 && response.status < 500) {
           // The server rejected it on its merits — retrying will not help.
           const message = await safeErrorMessage(response)
@@ -140,6 +182,21 @@ export async function flushQueue(): Promise<{ synced: number; failed: number }> 
   } finally {
     flushing = false
     notify()
+    if (synced > 0) {
+      store.dispatch(
+        baseApi.util.invalidateTags([
+          "Product",
+          "Sale",
+          "PendingSale",
+          "Credit",
+          "Notification",
+          "Report",
+          "Transfer",
+          "Category",
+          "DosageForm",
+        ])
+      )
+    }
   }
 
   return { synced, failed }
