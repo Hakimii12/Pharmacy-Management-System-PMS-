@@ -2,13 +2,23 @@ import { createApi, fetchBaseQuery, type BaseQueryFn } from "@reduxjs/toolkit/qu
 import type { FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query"
 import { db, paginateLocal, readCachedProducts } from "@/offline/db"
 
+export function getApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return "/api";
+  if (import.meta.env.DEV && envUrl.includes("localhost:5000")) {
+    return "/api";
+  }
+  const trimmed = envUrl.replace(/\/+$/, "");
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
 /**
- * In dev, requests go to `/api/...` and Vite proxies them, keeping the session
- * cookie same-origin. In production the app is served from the same origin as
- * the API, so the relative path is correct there too.
+ * In dev, requests go to `/api/...` and Vite proxies them.
+ * When frontend is hosted separately from backend (e.g. Render Static Site),
+ * VITE_API_URL points to the backend Web Service.
  */
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: "/api",
+  baseUrl: getApiBaseUrl(),
   credentials: "include",
   prepareHeaders: (headers, { getState }) => {
     const state = getState() as { auth?: { token?: string | null; user?: { token?: string } } };
