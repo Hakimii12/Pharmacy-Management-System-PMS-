@@ -16,7 +16,7 @@
   "main": "main.js",
   "scripts": {
     "start": "node Backend/main.js",
-    "build:frontend": "npm --prefix Frontend install && npm --prefix Frontend run build",
+    "build:frontend": "cd Frontend && npm install && npm run build",
     "build": "npm run build:frontend",
     "dev": "nodemon Backend/main.js"
   },

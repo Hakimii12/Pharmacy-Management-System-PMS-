@@ -10,6 +10,14 @@ import { db, paginateLocal, readCachedProducts } from "@/offline/db"
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: "/api",
   credentials: "include",
+  prepareHeaders: (headers, { getState }) => {
+    const state = getState() as { auth?: { token?: string | null; user?: { token?: string } } };
+    const token = state?.auth?.token || state?.auth?.user?.token;
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    return headers;
+  },
 })
 
 /** Marks a result as having come from the local cache rather than the network. */

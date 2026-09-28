@@ -9,9 +9,9 @@ export const GenerateToken = (userId, role, res) => {
     { expiresIn: "3000h" }
   );
 
-  const isSecure = process.env.COOKIE_SECURE === "true";
+  const isSecure = process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true";
   res.cookie("jwt", token, {
-    httpOnly: false,
+    httpOnly: true,
     maxAge: 3000 * 60 * 60 * 1000,
     sameSite: isSecure ? "none" : "lax",
     secure: isSecure,

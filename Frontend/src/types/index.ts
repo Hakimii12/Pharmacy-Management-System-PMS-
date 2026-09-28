@@ -30,6 +30,7 @@ export interface AuthUser {
   name: string
   email: string
   role: Role
+  token?: string
 }
 
 export type StockStatus = "In Stock" | "Low Stock" | "Sold Out" | "Expired"

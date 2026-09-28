@@ -3,14 +3,14 @@ import type { AuthUser, Role } from "@/types"
 
 export interface AuthState {
   user: AuthUser | null
+  token: string | null
 }
 
 /**
- * The session itself is an httpOnly-ish JWT cookie owned by the server. This
- * slice only mirrors *who* is signed in so the shell can render the right nav
- * without a round-trip; it is persisted by redux-persist.
+ * Redux stores the user identity and JWT token so the app can authorize requests
+ * via Bearer header as well as cookies. It is persisted by redux-persist.
  */
-const initialState: AuthState = { user: null }
+const initialState: AuthState = { user: null, token: null }
 
 const authSlice = createSlice({
   name: "auth",
@@ -18,9 +18,11 @@ const authSlice = createSlice({
   reducers: {
     setUser(state, action: PayloadAction<AuthUser | null>) {
       state.user = action.payload
+      state.token = action.payload?.token ?? state.token ?? null
     },
     clearUser(state) {
       state.user = null
+      state.token = null
     },
   },
 })

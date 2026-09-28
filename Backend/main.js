@@ -25,6 +25,7 @@ import InventoryRoutes from "./routes/InventoryRoutes.js";
 import PurchaseRoutes from "./routes/PurchaseRoutes.js";
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(express.json());
 
 const allowedOrigins = [

@@ -100,8 +100,8 @@ export async function LoginUser(req, res) {
       return res.status(400).json("Account pending approval");
     }
 
-    GenerateToken(user.id, user.role, res);
-    res.json({ id: user.id, _id: user.id, name: user.name, email: user.email, role: user.role });
+    const token = GenerateToken(user.id, user.role, res);
+    res.json({ id: user.id, _id: user.id, name: user.name, email: user.email, role: user.role, token });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
