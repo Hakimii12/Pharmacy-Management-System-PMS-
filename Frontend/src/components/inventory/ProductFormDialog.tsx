@@ -51,12 +51,6 @@ const EMPTY: FormState = {
   distributorContact: "",
 }
 
-/**
- * Create/edit form for a single batch.
- *
- * New batches can land in either location; the backend has separate endpoints for
- * "arrived in the back store" and "went straight to the dispensary shelf".
- */
 export function ProductFormDialog({
   open,
   product,

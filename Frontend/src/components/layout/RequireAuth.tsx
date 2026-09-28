@@ -6,13 +6,6 @@ import { useAuth } from "@/hooks/useAuth"
 import { LabelCard } from "@/components/ui/LabelCard"
 import type { Role } from "@/types"
 
-/**
- * Route guard.
- *
- * This is a usability measure, not a security boundary — the server enforces the
- * same role matrix on every endpoint. Hiding a route the API would reject just
- * avoids showing an operator a screen that can only fail.
- */
 export function RequireAuth({ roles, children }: { roles?: Role[]; children: ReactNode }) {
   const { user, can } = useAuth()
   const location = useLocation()

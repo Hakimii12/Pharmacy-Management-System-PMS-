@@ -12,8 +12,6 @@ import RegisterPage from "@/pages/RegisterPage"
 import DashboardPage from "@/pages/DashboardPage"
 import PosPage from "@/pages/PosPage"
 
-// Everything past the two hot paths (login, POS) is split out — the counter
-// terminal should not pay to parse the admin screens on first load.
 const CheckoutPage = lazy(() => import("@/pages/CheckoutPage"))
 const InventoryPage = lazy(() => import("@/pages/InventoryPage"))
 const StorePage = lazy(() => import("@/pages/StorePage"))

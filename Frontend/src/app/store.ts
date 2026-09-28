@@ -17,13 +17,6 @@ import authReducer from "@/features/auth/authSlice"
 import salesReducer from "@/features/sales/salesSlice"
 import uiReducer from "@/features/ui/uiSlice"
 
-/**
- * Explicit localStorage adapter.
- *
- * Vite's ESM interop often resolves `redux-persist/lib/storage` to a module
- * namespace instead of the engine itself, so `storage.getItem` is undefined at
- * runtime. Building the adapter here keeps the contract unambiguous.
- */
 const storage: WebStorage = {
   getItem(key) {
     return Promise.resolve(localStorage.getItem(key))
@@ -45,13 +38,6 @@ const rootReducer = combineReducers({
   ui: uiReducer,
 })
 
-/**
- * Only local UI state is persisted to localStorage.
- *
- * Server state deliberately stays out of redux-persist — RTK Query's cache is not
- * a durable store, and the offline mirror in IndexedDB (Dexie) is a much better
- * fit for data that has to survive a reload while disconnected.
- */
 const persistedReducer = persistReducer(
   {
     key: "pharmacy",

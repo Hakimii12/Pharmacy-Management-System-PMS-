@@ -53,12 +53,6 @@ export interface TransactionListQuery {
   overdue?: string
 }
 
-/**
- * Builds the transaction record the UI shows while a queued sale waits to sync.
- *
- * It is deliberately shaped like a server transaction so history screens need no
- * special case beyond the `pendingSync` badge.
- */
 function optimisticTransaction(
   id: string,
   lines: CartLine[],
@@ -127,11 +121,6 @@ async function queueSale(
 
 export const salesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    /**
-     * Step one of the cash flow: a pharmacist prepares the basket, a cashier
-     * confirms it. Offline this is queued and replayed; the cashier cannot see it
-     * until it syncs, which is inherent to the two-person handoff.
-     */
     prepareSale: builder.mutation<SaleResponse, PrepareSaleRequest>({
       async queryFn({ items, patientName, lines = [] }, _api, _extra, fetchWithBQ) {
         const body = { items, patientName }
@@ -143,8 +132,6 @@ export const salesApi = baseApi.injectEndpoints({
         const result = await fetchWithBQ({ url: "/sales/prepareAndSaveSale", method: "POST", body })
 
         if (result.error) {
-          // A transport failure means the request never landed; queue it rather
-          // than making the counter re-key the basket.
           if (result.error.status === "FETCH_ERROR" || result.error.status === "TIMEOUT_ERROR") {
             return queueSale("/sales/prepareAndSaveSale", body, lines, { saleType: "cash" }, `Sale for ${patientName || "walk-in"}`)
           }

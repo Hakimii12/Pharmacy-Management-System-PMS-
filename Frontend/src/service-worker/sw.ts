@@ -13,8 +13,6 @@ const SYNC_TAG = "pharmacy-sync-queue"
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// The app is a SPA: every navigation resolves to the precached shell, which is
-// what lets a cold start work with no network at all.
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL("index.html"), {
     denylist: [/^\/api\//],
@@ -37,13 +35,6 @@ registerRoute(
   }),
 )
 
-/**
- * Reference-data GETs are cached network-first.
- *
- * The authoritative offline mirror is IndexedDB (Dexie), written by RTK Query —
- * this cache is a second line of defence for a reload that happens before the
- * app code has run.
- */
 registerRoute(
   ({ url, request }) =>
     request.method === "GET" &&
@@ -66,14 +57,6 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting()
 })
 
-/**
- * Background Sync.
- *
- * The queue lives in IndexedDB and is owned by the page, so rather than
- * duplicating replay logic here the worker just wakes any open client and lets
- * it flush. With no client open the sync is re-registered by the page on its
- * next load, and the `online` listener covers browsers without Background Sync.
- */
 self.addEventListener("sync", (event) => {
   const syncEvent = event as ExtendableEvent & { tag?: string }
   if (syncEvent.tag !== SYNC_TAG) return

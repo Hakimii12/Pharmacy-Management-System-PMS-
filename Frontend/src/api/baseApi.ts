@@ -12,11 +12,6 @@ export function getApiBaseUrl(): string {
   return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 }
 
-/**
- * In dev, requests go to `/api/...` and Vite proxies them.
- * When frontend is hosted separately from backend (e.g. Render Static Site),
- * VITE_API_URL points to the backend Web Service.
- */
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: getApiBaseUrl(),
   credentials: "include",
@@ -49,13 +44,6 @@ function paramsOf(args: string | FetchArgs): Record<string, unknown> {
   return (args.params as Record<string, unknown>) || {}
 }
 
-/**
- * Serves a GET from IndexedDB when the network is unavailable.
- *
- * Only read paths that the counter genuinely needs offline are mapped. Anything
- * unmapped falls through and surfaces a normal error, which is better than
- * pretending an empty list is real data.
- */
 async function readCachedGroupedProducts(
   params: Record<string, unknown>,
   locationFilter?: "store" | "dispensary" | "sellable",
@@ -363,14 +351,6 @@ async function readFromCache(
   return null
 }
 
-/**
- * Base query with offline read fallback.
- *
- * Reads are attempted over the network first; on a transport failure (or when
- * `navigator.onLine` is already false) we serve the Dexie mirror. Writes are not
- * handled here — each mutation decides for itself whether to queue, because only
- * the endpoint knows how to build a meaningful optimistic record.
- */
 const offlineAwareBaseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, OfflineMeta> = async (
   args,
   api,
@@ -414,18 +394,11 @@ export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: offlineAwareBaseQuery,
   tagTypes: TAG_TYPES,
-  // Keep a page of data around long enough to make back-navigation instant
-  // without holding a stale catalogue forever.
   keepUnusedDataFor: 120,
   refetchOnReconnect: true,
   endpoints: () => ({}),
 })
 
-/**
- * `providesTags` helper: one tag per row plus a LIST sentinel.
- *
- * Mutations can then invalidate a single row without discarding every cached page.
- */
 export function providesList<T extends { _id?: string; id?: string }>(
   result: { data: T[] } | undefined,
   type: TagType,

@@ -1,14 +1,5 @@
 import { db, type QueuedMutation } from "./db"
 
-/**
- * Offline mutation queue.
- *
- * Writes made with no connection are persisted here with a client-generated UUID
- * and replayed when connectivity returns. The service worker's Background Sync
- * registration triggers a replay in the background; the `online` event listener
- * below is the fallback for browsers without Background Sync (notably Safari).
- */
-
 const MAX_ATTEMPTS = 5
 const SYNC_TAG = "pharmacy-sync-queue"
 
@@ -86,13 +77,6 @@ export async function requestBackgroundSync() {
 
 let flushing = false
 
-/**
- * Replays every queued mutation oldest-first.
- *
- * Ordering matters: a cashier's confirmation of an offline sale must not be sent
- * before the sale that created it, so this is deliberately sequential and stops
- * at the first hard failure rather than racing ahead.
- */
 export async function flushQueue(): Promise<{ synced: number; failed: number }> {
   if (flushing || !navigator.onLine) return { synced: 0, failed: 0 }
   flushing = true

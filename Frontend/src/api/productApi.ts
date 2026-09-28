@@ -36,12 +36,6 @@ export interface ProductInput {
   dispensaryThreshold?: number
 }
 
-/**
- * Mirrors every successful product page into IndexedDB.
- *
- * This is what makes the catalogue readable offline: there is no separate "sync"
- * step, the app simply remembers everything it has already displayed.
- */
 async function mirrorProducts(queryFulfilled: Promise<{ data: Paginated<Product> }>) {
   try {
     const { data } = await queryFulfilled
@@ -59,10 +53,6 @@ export const productApi = baseApi.injectEndpoints({
       onQueryStarted: (_arg, { queryFulfilled }) => mirrorProducts(queryFulfilled),
     }),
 
-    /**
-     * Catalogue view: one row per product identity, with nested batches.
-     * Same products (name + brand + category + dosage form) are never listed twice.
-     */
     getGroupedProducts: builder.query<Paginated<ProductGroup>, ProductListQuery>({
       query: (params) => ({ url: "/product/groupedProducts", params }),
       providesTags: (result) => [
