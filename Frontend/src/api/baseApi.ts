@@ -4,12 +4,30 @@ import { db, paginateLocal, readCachedProducts } from "@/offline/db"
 
 export function getApiBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_URL;
-  if (!envUrl) return "/api";
-  if (import.meta.env.DEV && envUrl.includes("localhost:5000")) {
+
+  // In browser on a remote hostname (production deployment):
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    // If a valid remote backend URL is provided, use it:
+    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+      const trimmed = envUrl.replace(/\/+$/, "");
+      return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+    }
+    // Otherwise fallback to same-origin /api (proxied to backend by Render _redirects)
     return "/api";
   }
-  const trimmed = envUrl.replace(/\/+$/, "");
-  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+
+  // Local development: use relative /api which Vite dev server proxies to http://localhost:5000
+  if (import.meta.env.DEV) {
+    return "/api";
+  }
+
+  // Production fallback:
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    const trimmed = envUrl.replace(/\/+$/, "");
+    return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+  }
+
+  return "/api";
 }
 
 const rawBaseQuery = fetchBaseQuery({

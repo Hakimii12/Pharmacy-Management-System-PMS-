@@ -57,7 +57,11 @@ export default function LoginPage() {
       // The backend returns a bare string for "pending approval", so the shared
       // extractor is not enough on its own.
       const raw = (error as { data?: unknown }).data
-      setFormError(typeof raw === "string" ? raw : errorMessage(error, "Could not sign in"))
+      if (typeof raw === "string" && !raw.trim().startsWith("<")) {
+        setFormError(raw)
+      } else {
+        setFormError(errorMessage(error, "Could not sign in. Please check your credentials."))
+      }
     }
   }
 

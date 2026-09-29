@@ -16,6 +16,14 @@ export function registerServiceWorker() {
     // Never reload under the operator mid-sale; surface a banner instead.
     immediate: true,
     onNeedRefresh() {
+      // If no operator is currently signed in (e.g. at the login screen),
+      // reload automatically so they immediately get the latest client build & API endpoints!
+      const user = store.getState().auth.user
+      if (!user) {
+        void applyUpdate?.(true)
+        return
+      }
+      // If signed in mid-session, show banner so we never interrupt an in-progress transaction
       store.dispatch(setUpdateAvailable(true))
     },
     onOfflineReady() {

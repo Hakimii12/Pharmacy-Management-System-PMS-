@@ -122,10 +122,11 @@ export async function GetUser(req, res) {
 
 export async function Logout(req, res) {
   try {
+    const isSecure = process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true";
     res.clearCookie("jwt", {
-      httpOnly: false,
-      sameSite: "None",
-      secure: true,
+      httpOnly: true,
+      sameSite: isSecure ? "none" : "lax",
+      secure: isSecure,
       path: "/",
     });
     return res.status(200).json({ message: "Successfully logged out" });

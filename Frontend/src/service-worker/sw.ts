@@ -13,6 +13,10 @@ const SYNC_TAG = "pharmacy-sync-queue"
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
+self.addEventListener("install", () => {
+  void self.skipWaiting()
+})
+
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL("index.html"), {
     denylist: [/^\/api\//],

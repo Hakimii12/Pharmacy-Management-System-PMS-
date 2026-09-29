@@ -3,13 +3,10 @@ import { Bell, CloudOff, LogOut, Menu, RefreshCw } from "lucide-react"
 
 import { useAppDispatch } from "@/app/hooks"
 import { toggleSidebar } from "@/features/ui/uiSlice"
-import { clearUser } from "@/features/auth/authSlice"
-import { useLogoutMutation } from "@/api/authApi"
 import { useGetUnreadCountQuery } from "@/api/notificationApi"
 import { useAuth } from "@/hooks/useAuth"
 import { useOnlineStatus } from "@/hooks/useOnlineStatus"
 import { useSyncQueue } from "@/hooks/useSyncQueue"
-import { clearOfflineData } from "@/offline/db"
 import { initials } from "@/lib/format"
 import { Badge } from "@/components/ui/Badge"
 import { cn } from "@/lib/cn"
@@ -17,27 +14,15 @@ import { cn } from "@/lib/cn"
 export function Topbar({ onOpenSync }: { onOpenSync: () => void }) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const online = useOnlineStatus()
   const { pending, failed } = useSyncQueue()
-  const [logout, { isLoading: loggingOut }] = useLogoutMutation()
 
   // Polling the count is cheap; polling the whole notification list is not.
   const { data: unread } = useGetUnreadCountQuery(undefined, {
     pollingInterval: online ? 60_000 : 0,
     skip: !user,
   })
-
-  const handleLogout = async () => {
-    try {
-      await logout().unwrap()
-    } catch {
-      // Even if the server call fails, drop the local session.
-    }
-    dispatch(clearUser())
-    await clearOfflineData()
-    navigate("/login", { replace: true })
-  }
 
   const unreadCount = unread?.unreadCount ?? 0
   const queueCount = pending + failed
@@ -106,9 +91,9 @@ export function Topbar({ onOpenSync }: { onOpenSync: () => void }) {
 
         <button
           type="button"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="rounded-label p-2 text-ink-muted hover:bg-alert-soft hover:text-alert disabled:opacity-50"
+          onClick={() => void logout()}
+          className="rounded-label p-2 text-ink-muted hover:bg-alert-soft hover:text-alert transition-colors"
+          title="Sign out"
           aria-label="Sign out"
         >
           <LogOut className="h-4 w-4" aria-hidden />

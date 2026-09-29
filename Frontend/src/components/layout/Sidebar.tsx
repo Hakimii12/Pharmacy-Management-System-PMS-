@@ -13,6 +13,7 @@ import {
   Users,
   Warehouse,
   X,
+  LogOut,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -21,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useAppDispatch, useAppSelector } from "@/app/hooks"
 import { toggleSidebar } from "@/features/ui/uiSlice"
 import { CASHIER_ROLES, MANAGER_ROLES, SELLER_ROLES } from "@/features/auth/authSlice"
+import { initials } from "@/lib/format"
 import type { Role } from "@/types"
 
 interface NavItem {
@@ -75,7 +77,7 @@ const NAV: NavGroup[] = [
 ]
 
 export function Sidebar() {
-  const { can } = useAuth()
+  const { can, user, logout } = useAuth()
   const open = useAppSelector((state) => state.ui.sidebarOpen)
   const dispatch = useAppDispatch()
 
@@ -156,6 +158,37 @@ export function Sidebar() {
             </div>
           ))}
         </nav>
+
+        {user && (
+          <div className="shrink-0 border-t border-mist p-3">
+            <div className="flex items-center justify-between gap-2 rounded-label bg-paper-sunken p-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mint-soft font-mono text-xs font-semibold text-mint"
+                  aria-hidden
+                >
+                  {initials(user.name)}
+                </span>
+                <div className="min-w-0 leading-tight">
+                  <p className="truncate text-xs font-medium text-ink">{user.name}</p>
+                  <p className="truncate eyebrow text-[10px]">{user.role}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  close()
+                  void logout()
+                }}
+                className="rounded-label p-1.5 text-ink-muted hover:bg-alert-soft hover:text-alert transition-colors"
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
     </>
   )
