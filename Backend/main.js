@@ -13,7 +13,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import Database from "./database/database.js";
+import Database, { isDbConnected, dbConnectionError } from "./database/database.js";
 import DrugStore from "./routes/DrugRoutes.js";
 import SalesRoutes from "./routes/SalesRoutes.js";
 import UserRoutes from "./routes/UserRoutes.js";
@@ -55,6 +55,26 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Health check endpoint for monitoring & Render keepalive
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: isDbConnected ? "ok" : "db_disconnected",
+    db: isDbConnected,
+    error: dbConnectionError || null,
+  });
+});
+
+// Guard API routes so they return clear JSON errors if the DB is unavailable instead of hanging
+app.use("/api", (req, res, next) => {
+  if (req.path === "/health") return next();
+  if (!isDbConnected) {
+    return res.status(503).json({
+      message: `Database connection unavailable (${dbConnectionError || "connecting..."}). Please check DB_HOST in your Render dashboard environment variables.`,
+    });
+  }
+  next();
+});
+
 app.use("/api/product", DrugStore);
 app.use("/api/sales", SalesRoutes);
 app.use("/api/user", UserRoutes);
@@ -77,15 +97,19 @@ if (fs.existsSync(frontendDist)) {
   });
 }
 
+// Start HTTP server immediately so Render health checks pass
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port http://localhost:${PORT}`);
+});
+
+// Connect to database in the background without blocking server startup
 Database()
-  .then(() => {
-    startExpirationChecker();
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on port http://localhost:${PORT}`);
-    });
+  .then((connected) => {
+    if (connected) {
+      startExpirationChecker();
+    }
   })
   .catch((err) => {
-    console.error("Database connection failed", err);
-    process.exit(1);
+    console.error("Database connection initialization failed:", err.message);
   });

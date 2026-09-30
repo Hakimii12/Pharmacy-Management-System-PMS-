@@ -32,6 +32,7 @@ export function getApiBaseUrl(): string {
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: getApiBaseUrl(),
+  timeout: 15000,
   credentials: "include",
   prepareHeaders: (headers, { getState }) => {
     const state = getState() as { auth?: { token?: string | null; user?: { token?: string } } };

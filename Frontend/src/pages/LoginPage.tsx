@@ -54,14 +54,7 @@ export default function LoginPage() {
       dispatch(setUser(user))
       navigate("/", { replace: true })
     } catch (error) {
-      // The backend returns a bare string for "pending approval", so the shared
-      // extractor is not enough on its own.
-      const raw = (error as { data?: unknown }).data
-      if (typeof raw === "string" && !raw.trim().startsWith("<")) {
-        setFormError(raw)
-      } else {
-        setFormError(errorMessage(error, "Could not sign in. Please check your credentials."))
-      }
+      setFormError(errorMessage(error, "Could not sign in. Please check your credentials."))
     }
   }
 

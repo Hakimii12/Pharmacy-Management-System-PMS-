@@ -18,12 +18,30 @@ export function errorMessage(error: unknown, fallback = "Something went wrong"):
   if (!error) return fallback
   if (typeof error === "string") return error
 
-  const candidate = error as { data?: { error?: string; message?: string }; error?: string; message?: string }
-  return (
-    candidate.data?.error ||
-    candidate.data?.message ||
-    candidate.error ||
-    candidate.message ||
-    fallback
-  )
+  const candidate = error as {
+    status?: string | number
+    data?: { error?: string; message?: string } | string
+    error?: string
+    message?: string
+  }
+
+  if (candidate.status === "FETCH_ERROR") {
+    return "Cannot connect to the backend server. Please check your internet connection or verify the server status."
+  }
+  if (candidate.status === "TIMEOUT_ERROR") {
+    return "The server took too long to respond. It may be waking up from sleep, please try again."
+  }
+  if (candidate.status === "PARSING_ERROR") {
+    return "Invalid response from server. Please verify the backend API URL."
+  }
+
+  if (typeof candidate.data === "object" && candidate.data !== null) {
+    if (candidate.data.message) return candidate.data.message
+    if (candidate.data.error) return candidate.data.error
+  }
+  if (typeof candidate.data === "string" && !candidate.data.trim().startsWith("<")) {
+    return candidate.data
+  }
+
+  return candidate.error || candidate.message || fallback
 }
