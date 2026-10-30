@@ -36,6 +36,36 @@ export interface ProductInput {
   dispensaryThreshold?: number
 }
 
+export interface DuplicateCheckInput {
+  name: string
+  brand?: string
+  category?: string
+  DosageForms?: string
+}
+
+export interface DuplicateBatchInfo {
+  _id: string
+  batchNo: string
+  expiryDate: string
+  unitPrice: number
+  sellingPrice: number
+  markup: number
+  storeQty: number
+  dispensaryQty: number
+  isExpired: boolean
+}
+
+export interface DuplicateCheckResult {
+  exists: boolean
+  batchCount?: number
+  productName?: string
+  brand?: string
+  category?: string
+  DosageForms?: string
+  batches?: DuplicateBatchInfo[]
+  sourceBatch?: Product
+}
+
 async function mirrorProducts(queryFulfilled: Promise<{ data: Paginated<Product> }>) {
   try {
     const { data } = await queryFulfilled
@@ -666,6 +696,10 @@ export const productApi = baseApi.injectEndpoints({
       query: (body) => ({ url: "/product/bulkImport", method: "POST", body }),
       invalidatesTags: [{ type: "Product", id: "LIST" }, "Report", "Notification"],
     }),
+
+    checkDuplicate: builder.mutation<DuplicateCheckResult, DuplicateCheckInput>({
+      query: (body) => ({ url: "/product/checkDuplicate", method: "POST", body }),
+    }),
   }),
 })
 
@@ -693,4 +727,5 @@ export const {
   useDeleteProductMutation,
   useRemoveFromDispensaryMutation,
   useBulkImportProductsMutation,
+  useCheckDuplicateMutation,
 } = productApi

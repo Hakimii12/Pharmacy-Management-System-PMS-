@@ -1286,6 +1286,147 @@ export async function UpdateStoreQuantity(req, res) {
   }
 }
 
+/**
+ * Check whether a product with the same identity (name, brand, category,
+ * dosage form) already exists. Returns batch count, individual batch details,
+ * and a representative batch the frontend can use to open "Add Batch" instead.
+ */
+export async function CheckDuplicate(req, res) {
+  try {
+    const { name, brand, category, DosageForms } = req.body;
+    if (!name) return res.json({ exists: false });
+
+    const normName = (name || "").trim().toLowerCase();
+    const normBrand = (brand || "no_brand").trim().toLowerCase();
+    const normCategory = (category || "").trim().toLowerCase();
+    const normDosage = (DosageForms || "").trim().toLowerCase();
+
+    const { fn, col, where: whereFn } = await import("sequelize");
+
+    const matchConditions = [
+      whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("name"), ""))), normName),
+      whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("brand"), "no_brand"))), normBrand),
+    ];
+
+    // Category and dosage form: match when both normalised values are equal
+    // (including both being empty).
+    if (normCategory) {
+      matchConditions.push(
+        whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("category"), ""))), normCategory)
+      );
+    } else {
+      matchConditions.push({
+        [Op.or]: [
+          { category: null },
+          { category: "" },
+          whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("category"), ""))), ""),
+        ],
+      });
+    }
+
+    if (normDosage) {
+      matchConditions.push(
+        whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("DosageForms"), ""))), normDosage)
+      );
+    } else {
+      matchConditions.push({
+        [Op.or]: [
+          { DosageForms: null },
+          { DosageForms: "" },
+          whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("DosageForms"), ""))), ""),
+        ],
+      });
+    }
+
+    const existing = await Product.findAll({
+      where: {
+        [Op.or]: [{ isDeleted: false }, { isDeleted: null }, { isDeleted: 0 }],
+        [Op.and]: matchConditions,
+      },
+      include: [
+        { model: Store, as: "store", required: false },
+        { model: Dispensary, as: "dispensary", required: false },
+      ],
+      order: [["expiryDate", "ASC"]],
+    });
+
+    if (existing.length === 0) {
+      return res.json({ exists: false });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const batches = existing.map((p) => {
+      const json = p.toJSON();
+      const st = json.store;
+      const disp = json.dispensary;
+      const stQty = st && st.isActive ? st.quantity : 0;
+      const dispQty = disp && disp.isActive ? disp.quantity : 0;
+      const isExpired = new Date(json.expiryDate) <= today;
+      return {
+        _id: String(json.id),
+        batchNo: json.batchNo,
+        expiryDate: json.expiryDate,
+        unitPrice: json.unitPrice,
+        sellingPrice: json.sellingPrice,
+        markup: json.markup,
+        storeQty: stQty,
+        dispensaryQty: dispQty,
+        isExpired,
+      };
+    });
+
+    // Pick the first non-expired batch as representative, or just the first one
+    const representative = existing.find((p) => new Date(p.expiryDate) > today) || existing[0];
+    const repJson = representative.toJSON();
+    const repSt = repJson.store;
+    const repDisp = repJson.dispensary;
+
+    return res.json({
+      exists: true,
+      batchCount: existing.length,
+      productName: repJson.name,
+      brand: repJson.brand,
+      category: repJson.category,
+      DosageForms: repJson.DosageForms,
+      batches,
+      // A representative batch the frontend can use for "Add Batch" dialog
+      sourceBatch: {
+        _id: String(repJson.id),
+        name: repJson.name,
+        brand: repJson.brand,
+        category: repJson.category,
+        DosageForms: repJson.DosageForms,
+        type: repJson.type,
+        batchNo: repJson.batchNo,
+        expiryDate: repJson.expiryDate,
+        quantity: repJson.quantity,
+        unitPrice: repJson.unitPrice,
+        sellingPrice: repJson.sellingPrice,
+        markup: repJson.markup,
+        distributor: repJson.distributor,
+        inventory: {
+          store: repSt && repSt.isActive ? repSt.quantity : 0,
+          dispensary: repDisp && repDisp.isActive ? repDisp.quantity : 0,
+          storeThreshold: repSt ? repSt.threshold : 10,
+          dispensaryThreshold: repDisp ? repDisp.threshold : 10,
+          storeActive: repSt ? repSt.isActive : false,
+          dispensaryActive: repDisp ? repDisp.isActive : false,
+          storeExists: Boolean(repSt),
+          dispensaryExists: Boolean(repDisp),
+          storeStatus: repSt ? repSt.status : "Sold Out",
+          dispensaryStatus: repDisp ? repDisp.status : "Sold Out",
+          storeIsExpired: false,
+          dispensaryIsExpired: false,
+        },
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+}
+
 export async function UpdateDispensaryQuantity(req, res) {
   try {
     const id = req.params.id;

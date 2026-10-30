@@ -47,10 +47,19 @@ const EMPTY: FormState = {
 export function AddBatchDialog({
   open,
   source,
+  initialValues,
   onClose,
 }: {
   open: boolean
   source: Product | null
+  initialValues?: {
+    batchNo?: string
+    expiryDate?: string
+    quantity?: string
+    distributorName?: string
+    distributorContact?: string
+    destination?: "store" | "dispensary"
+  } | null
   onClose: () => void
 }) {
   const toast = useToast()
@@ -65,13 +74,15 @@ export function AddBatchDialog({
   useEffect(() => {
     if (!open) return
     setForm({
-      ...EMPTY,
-      distributorName: source?.distributor?.name ?? "",
-      distributorContact: String(source?.distributor?.contact ?? ""),
+      batchNo: initialValues?.batchNo ?? "",
+      expiryDate: initialValues?.expiryDate ?? "",
+      quantity: initialValues?.quantity && initialValues.quantity !== "0" ? initialValues.quantity : "0",
+      distributorName: initialValues?.distributorName ?? (source?.distributor?.name ?? ""),
+      distributorContact: initialValues?.distributorContact ?? String(source?.distributor?.contact ?? ""),
     })
     setErrors({})
-    setDestination("store")
-  }, [open, source])
+    setDestination(initialValues?.destination ?? "store")
+  }, [open, source, initialValues])
 
   const update = (field: keyof FormState) => (event: { target: { value: string } }) =>
     setForm((previous) => ({ ...previous, [field]: event.target.value }))

@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from "react"
 import { z } from "zod"
+import { AlertTriangle } from "lucide-react"
 
 import {
+  useCheckDuplicateMutation,
   useCreateProductInDispensaryMutation,
   useCreateProductMutation,
   useUpdateProductMutation,
+  type DuplicateCheckResult,
   type ProductInput,
 } from "@/api/productApi"
 import { useGetCategoriesQuery, useGetDosageFormsQuery } from "@/api/catalogApi"
 import { errorMessage, useToast } from "@/hooks/useToast"
-import { money, toDateInput } from "@/lib/format"
+import { formatDate, money, toDateInput } from "@/lib/format"
+import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Dialog } from "@/components/ui/Dialog"
 import { Input, Select } from "@/components/ui/Input"
@@ -55,10 +59,23 @@ export function ProductFormDialog({
   open,
   product,
   onClose,
+  onSwitchToAddBatch,
 }: {
   open: boolean
   product?: Product | null
   onClose: () => void
+  /** Called when the user elects to add a batch of an existing product instead. */
+  onSwitchToAddBatch?: (
+    source: Product,
+    initialValues?: {
+      batchNo?: string
+      expiryDate?: string
+      quantity?: string
+      distributorName?: string
+      distributorContact?: string
+      destination?: "store" | "dispensary"
+    },
+  ) => void
 }) {
   const toast = useToast()
   const isEdit = Boolean(product)
@@ -67,12 +84,18 @@ export function ProductFormDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [destination, setDestination] = useState<"store" | "dispensary">("store")
 
+  // Duplicate detection state
+  const [duplicateInfo, setDuplicateInfo] = useState<DuplicateCheckResult | null>(null)
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
+  const [forceCreate, setForceCreate] = useState(false)
+
   const { data: categories } = useGetCategoriesQuery({ limit: 200 })
   const { data: dosageForms } = useGetDosageFormsQuery({ limit: 200 })
 
   const [createProduct, { isLoading: creating }] = useCreateProductMutation()
   const [createInDispensary, { isLoading: creatingDispensary }] = useCreateProductInDispensaryMutation()
   const [updateProduct, { isLoading: updating }] = useUpdateProductMutation()
+  const [checkDuplicate, { isLoading: checking }] = useCheckDuplicateMutation()
 
   const saving = creating || creatingDispensary || updating
 
@@ -101,6 +124,9 @@ export function ProductFormDialog({
     }
 
     setErrors({})
+    setDuplicateInfo(null)
+    setShowDuplicateWarning(false)
+    setForceCreate(false)
   }, [open, product])
 
   const update = (field: string) => (event: { target: { value: string } }) =>
@@ -113,6 +139,26 @@ export function ProductFormDialog({
     if (!unitPrice || Number.isNaN(markup)) return null
     return unitPrice * (1 + markup / 100)
   }, [form.unitPrice, form.markup])
+
+  const doCreate = async (payload: ProductInput) => {
+    try {
+      if (destination === "dispensary") {
+        await createInDispensary(payload).unwrap()
+        toast("success", "Batch added to the dispensary")
+      } else {
+        await createProduct(payload).unwrap()
+        toast("success", "Batch added to the back store")
+      }
+      // Keep the dialog open and reset the form for the next entry
+      setForm(EMPTY)
+      setErrors({})
+      setDuplicateInfo(null)
+      setShowDuplicateWarning(false)
+      setForceCreate(false)
+    } catch (error) {
+      toast("error", "Could not save", errorMessage(error))
+    }
+  }
 
   const handleSubmit = async () => {
     const parsed = schema.safeParse(form)
@@ -137,29 +183,188 @@ export function ProductFormDialog({
           : undefined,
     }
 
-    try {
-      if (product) {
+    // For edits, skip duplicate check
+    if (product) {
+      try {
         await updateProduct({ id: product._id, ...payload }).unwrap()
         toast("success", "Batch updated")
         onClose()
-      } else if (destination === "dispensary") {
-        await createInDispensary(payload).unwrap()
-        toast("success", "Batch added to the dispensary")
-        // Keep the dialog open and reset the form for the next entry
-        setForm(EMPTY)
-        setErrors({})
-      } else {
-        await createProduct(payload).unwrap()
-        toast("success", "Batch added to the back store")
-        // Keep the dialog open and reset the form for the next entry
-        setForm(EMPTY)
-        setErrors({})
+      } catch (error) {
+        toast("error", "Could not save", errorMessage(error))
       }
-    } catch (error) {
-      toast("error", "Could not save", errorMessage(error))
+      return
+    }
+
+    // If user already confirmed "Create anyway", proceed directly
+    if (forceCreate) {
+      await doCreate(payload)
+      return
+    }
+
+    // Check for duplicates before creating
+    try {
+      const result = await checkDuplicate({
+        name: parsed.data.name,
+        brand: parsed.data.brand,
+        category: parsed.data.category,
+        DosageForms: parsed.data.DosageForms,
+      }).unwrap()
+
+      if (result.exists) {
+        setDuplicateInfo(result)
+        setShowDuplicateWarning(true)
+        return
+      }
+    } catch {
+      // If the duplicate check fails (e.g. offline), proceed with creation
+    }
+
+    await doCreate(payload)
+  }
+
+  const handleForceCreate = async () => {
+    setForceCreate(true)
+    setShowDuplicateWarning(false)
+
+    const parsed = schema.safeParse(form)
+    if (!parsed.success) return
+
+    const { distributorName, distributorContact, ...rest } = parsed.data
+    const payload: ProductInput = {
+      ...rest,
+      batchNo: rest.batchNo || "",
+      distributor:
+        distributorName || distributorContact
+          ? { name: distributorName || "Unknown", contact: distributorContact || "0000000000" }
+          : undefined,
+    }
+    await doCreate(payload)
+  }
+
+  const handleSwitchToAddBatch = () => {
+    if (duplicateInfo?.sourceBatch && onSwitchToAddBatch) {
+      setShowDuplicateWarning(false)
+      setDuplicateInfo(null)
+      onClose()
+      onSwitchToAddBatch(duplicateInfo.sourceBatch as Product, {
+        batchNo: form.batchNo,
+        expiryDate: form.expiryDate,
+        quantity: form.quantity,
+        distributorName: form.distributorName,
+        distributorContact: form.distributorContact,
+        destination,
+      })
     }
   }
 
+  // ── Duplicate warning overlay ─────────────────────────────────────────
+  if (showDuplicateWarning && duplicateInfo) {
+    const totalStore = duplicateInfo.batches?.reduce((s, b) => s + b.storeQty, 0) ?? 0
+    const totalDisp = duplicateInfo.batches?.reduce((s, b) => s + b.dispensaryQty, 0) ?? 0
+    const nearestBatch = duplicateInfo.batches?.[0]
+
+    return (
+      <Dialog
+        open={open}
+        onClose={() => setShowDuplicateWarning(false)}
+        width="max-w-xl"
+        eyebrow="Duplicate Product Detected"
+        title="This product already exists"
+        description="A product matching this Category, Dosage Form, Name, and Brand is already in the system."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setShowDuplicateWarning(false)}>
+              Cancel
+            </Button>
+            <Button variant="ghost" onClick={handleForceCreate} loading={saving}>
+              Create repetitive product
+            </Button>
+            {onSwitchToAddBatch && duplicateInfo.sourceBatch && (
+              <Button onClick={handleSwitchToAddBatch}>
+                Add batch instead
+              </Button>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Question / Prompt Banner */}
+          <div className="flex gap-3 rounded-label border border-rx-amber/30 bg-rx-amber-soft px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rx-amber-deep" aria-hidden />
+            <div className="text-sm text-rx-amber-deep">
+              <p className="font-semibold text-ink">
+                Would you like to add a new batch instead of creating a repetitive product?
+              </p>
+              <p className="mt-1">
+                Found <strong>{duplicateInfo.batchCount}</strong> existing batch
+                {duplicateInfo.batchCount === 1 ? "" : "es"} for this product with a total of{" "}
+                <strong>{totalStore + totalDisp}</strong> units in stock ({totalStore} in back store,{" "}
+                {totalDisp} on shelf).
+                {nearestBatch && (
+                  <> Nearest expiry is <strong>{formatDate(nearestBatch.expiryDate)}</strong> (Batch: {nearestBatch.batchNo}).</>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Identity summary */}
+          <div className="rounded-label border border-mist bg-paper-sunken px-3.5 py-2.5 text-sm">
+            <p className="font-semibold text-ink">{duplicateInfo.productName}</p>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              Brand: <strong>{duplicateInfo.brand || "None"}</strong> · Category:{" "}
+              <strong>{duplicateInfo.category || "Uncategorised"}</strong> · Dosage Form:{" "}
+              <strong>{duplicateInfo.DosageForms || "Not specified"}</strong>
+            </p>
+          </div>
+
+          {/* Existing batches list */}
+          <div>
+            <p className="eyebrow mb-2">Existing Batches ({duplicateInfo.batches?.length ?? 0})</p>
+            <div className="max-h-48 overflow-y-auto rounded-label border border-mist">
+              <table className="w-full text-sm">
+                <thead className="bg-paper-raised sticky top-0 border-b border-mist text-left text-xs uppercase tracking-wider text-ink-muted">
+                  <tr>
+                    <th className="py-2 px-3">Batch No</th>
+                    <th className="py-2 px-3">Expiry Date</th>
+                    <th className="py-2 px-3 text-right">Store</th>
+                    <th className="py-2 px-3 text-right">Dispensary</th>
+                    <th className="py-2 px-3 text-right">Price</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-mist/60 bg-paper">
+                  {duplicateInfo.batches?.map((batch) => (
+                    <tr key={batch._id} className="hover:bg-paper-raised">
+                      <td className="py-2 px-3 font-mono text-xs font-medium text-ink">{batch.batchNo}</td>
+                      <td className="py-2 px-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs">
+                          {formatDate(batch.expiryDate)}
+                          {batch.isExpired && <Badge tone="bad">Expired</Badge>}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right tabular text-xs">{batch.storeQty}</td>
+                      <td className="py-2 px-3 text-right tabular text-xs">{batch.dispensaryQty}</td>
+                      <td className="py-2 px-3 text-right tabular text-xs font-medium">{money(batch.sellingPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </Dialog>
+    )
+  }
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Dialog>
+    )
+  }
+
+  // ── Main product form ─────────────────────────────────────────────────
   return (
     <Dialog
       open={open}
@@ -174,10 +379,10 @@ export function ProductFormDialog({
       }
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>
+          <Button variant="ghost" onClick={onClose} disabled={saving || checking}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} loading={saving}>
+          <Button onClick={handleSubmit} loading={saving || checking}>
             {isEdit ? "Save changes" : "Add product"}
           </Button>
         </>

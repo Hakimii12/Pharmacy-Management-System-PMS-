@@ -22,7 +22,17 @@ export default function InventoryPage() {
 
   const [editing, setEditing] = useState<Product | null>(null)
   const [creating, setCreating] = useState(false)
-  const [addingBatch, setAddingBatch] = useState<Product | null>(null)
+  const [addingBatch, setAddingBatch] = useState<{
+    source: Product
+    initialValues?: {
+      batchNo?: string
+      expiryDate?: string
+      quantity?: string
+      distributorName?: string
+      distributorContact?: string
+      destination?: "store" | "dispensary"
+    }
+  } | null>(null)
   const [deleting, setDeleting] = useState<Product | null>(null)
   const [openedGroup, setOpenedGroup] = useState<ProductGroup | null>(null)
   const [transferring, setTransferring] = useState<{ product: Product; direction: "issue" | "return" } | null>(null)
@@ -91,7 +101,7 @@ export default function InventoryPage() {
         group={selectedGroup}
         canManage={isManager}
         onClose={() => setOpenedGroup(null)}
-        onAddBatch={(source) => setAddingBatch(source)}
+        onAddBatch={(source) => setAddingBatch({ source })}
         onEdit={(batch) => setEditing(batch)}
         onDelete={(batch) => setDeleting(batch)}
         onTransfer={(batch, dir) => setTransferring({ product: batch, direction: dir })}
@@ -110,11 +120,17 @@ export default function InventoryPage() {
           setCreating(false)
           setEditing(null)
         }}
+        onSwitchToAddBatch={(source, initialValues) => {
+          setCreating(false)
+          setEditing(null)
+          setAddingBatch({ source, initialValues })
+        }}
       />
 
       <AddBatchDialog
         open={Boolean(addingBatch)}
-        source={addingBatch}
+        source={addingBatch?.source ?? null}
+        initialValues={addingBatch?.initialValues}
         onClose={() => setAddingBatch(null)}
       />
 

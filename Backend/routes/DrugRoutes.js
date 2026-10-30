@@ -21,6 +21,7 @@ import { CreateProduct,
   UpdateDispensaryQuantity,
   UpdateStoreQuantity,
   BulkImportProducts,
+  CheckDuplicate,
   GetDispensaryProductToSell} from "../controllers/ProductController.js";
 import Authenticated from "../middlewares/Authenticated.js";
 import allowedUsers, { MANAGERS } from "../middlewares/Authorization.js";
@@ -46,6 +47,7 @@ router.get("/getCountAllProduct", Authenticated(), CountAllProduct);
 // Anything that mutates stock or the catalog is restricted to managers.
 router.post("/CreateProducts", Authenticated(), allowedUsers(...MANAGERS), CreateProduct);
 router.post("/createProductInDispensary", Authenticated(), allowedUsers(...MANAGERS), CreateProductInDispensary);
+router.post("/checkDuplicate", Authenticated(), allowedUsers(...MANAGERS), CheckDuplicate);
 router.post("/bulkImport", Authenticated(), allowedUsers(...MANAGERS), BulkImportProducts);
 router.put("/update/:id", Authenticated(), allowedUsers(...MANAGERS), UpdateProduct);
 router.put("/updateDispensaryQuantity/:id", Authenticated(), allowedUsers(...MANAGERS), UpdateDispensaryQuantity);
