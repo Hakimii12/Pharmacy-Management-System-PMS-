@@ -141,14 +141,20 @@ export function ProductFormDialog({
       if (product) {
         await updateProduct({ id: product._id, ...payload }).unwrap()
         toast("success", "Batch updated")
+        onClose()
       } else if (destination === "dispensary") {
         await createInDispensary(payload).unwrap()
         toast("success", "Batch added to the dispensary")
+        // Keep the dialog open and reset the form for the next entry
+        setForm(EMPTY)
+        setErrors({})
       } else {
         await createProduct(payload).unwrap()
         toast("success", "Batch added to the back store")
+        // Keep the dialog open and reset the form for the next entry
+        setForm(EMPTY)
+        setErrors({})
       }
-      onClose()
     } catch (error) {
       toast("error", "Could not save", errorMessage(error))
     }

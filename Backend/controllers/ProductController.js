@@ -525,12 +525,41 @@ export async function CreateProductInDispensary(req, res) {
 
     await t.commit();
 
-    await Store.updateStatus(product.id);
-    await Dispensary.updateStatus(product.id);
-    syncExpiryNotificationsInBackground(product);
+    // Build the inventory response inline — we already know the values
+    // we just inserted. Defer expensive status updates & notifications
+    // to the background so the HTTP response is instant.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isExpired = new Date(expiryDate) <= today;
+    const dispStoreStatus = quantity <= dispensaryThreshold ? "Low Stock" : "In Stock";
 
-    const populated = await populateProductWithInventory(product);
+    const json = typeof product.toJSON === "function" ? product.toJSON() : product;
+    const populated = {
+      ...json,
+      inventory: {
+        store: 0,
+        dispensary: quantity,
+        storeThreshold,
+        dispensaryThreshold,
+        storeActive: true,
+        dispensaryActive: true,
+        storeExists: true,
+        dispensaryExists: true,
+        storeStatus: "Sold Out",
+        dispensaryStatus: isExpired ? "Expired" : dispStoreStatus,
+        storeIsExpired: isExpired,
+        dispensaryIsExpired: isExpired,
+      },
+    };
+
     res.status(201).json(populated);
+
+    // Fire-and-forget background work (status recalc + notifications)
+    Promise.all([
+      Store.updateStatus(product.id),
+      Dispensary.updateStatus(product.id),
+    ]).catch((err) => console.error("Background status update failed:", err));
+    syncExpiryNotificationsInBackground(product);
   } catch (error) {
     await t.rollback();
     res.status(500).json({ message: error.message });
@@ -646,12 +675,41 @@ export async function CreateProduct(req, res) {
 
     await t.commit();
 
-    await Store.updateStatus(product.id);
-    await Dispensary.updateStatus(product.id);
-    syncExpiryNotificationsInBackground(product);
+    // Build the inventory response inline — we already know the values
+    // we just inserted. Defer expensive status updates & notifications
+    // to the background so the HTTP response is instant.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isExpired = new Date(expiryDate) <= today;
+    const storeStatusVal = quantity <= storeThreshold ? "Low Stock" : "In Stock";
 
-    const populated = await populateProductWithInventory(product);
+    const json = typeof product.toJSON === "function" ? product.toJSON() : product;
+    const populated = {
+      ...json,
+      inventory: {
+        store: quantity,
+        dispensary: 0,
+        storeThreshold,
+        dispensaryThreshold,
+        storeActive: true,
+        dispensaryActive: true,
+        storeExists: true,
+        dispensaryExists: true,
+        storeStatus: isExpired ? "Expired" : storeStatusVal,
+        dispensaryStatus: "Sold Out",
+        storeIsExpired: isExpired,
+        dispensaryIsExpired: isExpired,
+      },
+    };
+
     res.status(201).json(populated);
+
+    // Fire-and-forget background work (status recalc + notifications)
+    Promise.all([
+      Store.updateStatus(product.id),
+      Dispensary.updateStatus(product.id),
+    ]).catch((err) => console.error("Background status update failed:", err));
+    syncExpiryNotificationsInBackground(product);
   } catch (error) {
     await t.rollback();
     res.status(500).json({ message: error.message });
