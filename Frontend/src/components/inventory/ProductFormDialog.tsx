@@ -28,8 +28,9 @@ const schema = z.object({
   batchNo: z.string().optional(),
   expiryDate: z.string().min(1, "Expiry date is required"),
   quantity: z.coerce.number().int().min(0, "Quantity cannot be negative"),
-  unitPrice: z.coerce.number().min(0.01, "Unit price is required"),
-  markup: z.coerce.number().min(0, "Markup cannot be negative"),
+  unitPrice: z.coerce.number().min(0.01, "Unit cost is required"),
+  sellingPrice: z.coerce.number().min(0.01, "Selling price is required"),
+  markup: z.coerce.number().min(0, "Markup cannot be negative (selling price must be at least unit cost)"),
   storeThreshold: z.coerce.number().int().min(0),
   dispensaryThreshold: z.coerce.number().int().min(0),
   distributorName: z.string().optional(),
@@ -48,7 +49,8 @@ const EMPTY: FormState = {
   expiryDate: "",
   quantity: "0",
   unitPrice: "",
-  markup: "20",
+  sellingPrice: "",
+  markup: "",
   storeThreshold: "10",
   dispensaryThreshold: "10",
   distributorName: "",
@@ -83,6 +85,7 @@ export function ProductFormDialog({
   const [form, setForm] = useState<FormState>(EMPTY)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [destination, setDestination] = useState<"store" | "dispensary">("store")
+  const [priceCalcMode, setPriceCalcMode] = useState<"sellingPrice" | "markup">("sellingPrice")
 
   // Duplicate detection state
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateCheckResult | null>(null)
@@ -103,6 +106,14 @@ export function ProductFormDialog({
     if (!open) return
 
     if (product) {
+      const up = product.unitPrice ?? 0
+      const sp =
+        product.sellingPrice ??
+        (up && product.markup ? Math.round(up * (1 + product.markup / 100) * 100) / 100 : 0)
+      const mk =
+        product.markup ??
+        (up && sp ? Math.round((((sp - up) / up) * 100) * 100) / 100 : 0)
+
       setForm({
         name: product.name,
         brand: product.brand ?? "",
@@ -112,8 +123,9 @@ export function ProductFormDialog({
         batchNo: product.batchNo,
         expiryDate: toDateInput(product.expiryDate),
         quantity: String(product.quantity),
-        unitPrice: String(product.unitPrice),
-        markup: String(product.markup ?? 0),
+        unitPrice: up ? String(up) : "",
+        sellingPrice: sp ? String(parseFloat(sp.toFixed(2))) : "",
+        markup: mk !== undefined && !Number.isNaN(mk) ? String(parseFloat(mk.toFixed(2))) : "",
         storeThreshold: String(product.inventory.storeThreshold ?? 10),
         dispensaryThreshold: String(product.inventory.dispensaryThreshold ?? 10),
         distributorName: product.distributor?.name ?? "",
@@ -123,6 +135,7 @@ export function ProductFormDialog({
       setForm(EMPTY)
     }
 
+    setPriceCalcMode("sellingPrice")
     setErrors({})
     setDuplicateInfo(null)
     setShowDuplicateWarning(false)
@@ -132,13 +145,122 @@ export function ProductFormDialog({
   const update = (field: string) => (event: { target: { value: string } }) =>
     setForm((previous) => ({ ...previous, [field]: event.target.value }))
 
-  // Selling price is derived, so show the operator what the markup produces.
-  const derivedSellingPrice = useMemo(() => {
-    const unitPrice = Number(form.unitPrice)
-    const markup = Number(form.markup)
-    if (!unitPrice || Number.isNaN(markup)) return null
-    return unitPrice * (1 + markup / 100)
-  }, [form.unitPrice, form.markup])
+  const handleUnitPriceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const val = event.target.value
+    setForm((prev) => {
+      const up = parseFloat(val)
+      const sp = parseFloat(prev.sellingPrice)
+      const mk = parseFloat(prev.markup)
+
+      if (!Number.isNaN(up) && up > 0) {
+        if (priceCalcMode === "sellingPrice" && !Number.isNaN(sp) && sp > 0) {
+          const calculatedMarkup = Math.round((((sp - up) / up) * 100) * 100) / 100
+          return {
+            ...prev,
+            unitPrice: val,
+            markup: String(parseFloat(calculatedMarkup.toFixed(2))),
+          }
+        }
+        if (priceCalcMode === "markup" && !Number.isNaN(mk) && mk >= 0) {
+          const calculatedSelling = Math.round((up * (1 + mk / 100)) * 100) / 100
+          return {
+            ...prev,
+            unitPrice: val,
+            sellingPrice: String(parseFloat(calculatedSelling.toFixed(2))),
+          }
+        }
+        if (!Number.isNaN(sp) && sp > 0) {
+          const calculatedMarkup = Math.round((((sp - up) / up) * 100) * 100) / 100
+          return {
+            ...prev,
+            unitPrice: val,
+            markup: String(parseFloat(calculatedMarkup.toFixed(2))),
+          }
+        }
+        if (!Number.isNaN(mk) && mk >= 0) {
+          const calculatedSelling = Math.round((up * (1 + mk / 100)) * 100) / 100
+          return {
+            ...prev,
+            unitPrice: val,
+            sellingPrice: String(parseFloat(calculatedSelling.toFixed(2))),
+          }
+        }
+      }
+
+      return { ...prev, unitPrice: val }
+    })
+  }
+
+  const handleSellingPriceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const val = event.target.value
+    setPriceCalcMode("sellingPrice")
+    setForm((prev) => {
+      const sp = parseFloat(val)
+      const up = parseFloat(prev.unitPrice)
+
+      if (!Number.isNaN(up) && up > 0 && !Number.isNaN(sp) && sp >= 0) {
+        const calculatedMarkup = Math.round((((sp - up) / up) * 100) * 100) / 100
+        return {
+          ...prev,
+          sellingPrice: val,
+          markup: String(parseFloat(calculatedMarkup.toFixed(2))),
+        }
+      }
+
+      return { ...prev, sellingPrice: val }
+    })
+  }
+
+  const handleMarkupChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const val = event.target.value
+    setPriceCalcMode("markup")
+    setForm((prev) => {
+      const mk = parseFloat(val)
+      const up = parseFloat(prev.unitPrice)
+
+      if (!Number.isNaN(up) && up > 0 && !Number.isNaN(mk) && mk >= 0) {
+        const calculatedSelling = Math.round((up * (1 + mk / 100)) * 100) / 100
+        return {
+          ...prev,
+          markup: val,
+          sellingPrice: String(parseFloat(calculatedSelling.toFixed(2))),
+        }
+      }
+
+      return { ...prev, markup: val }
+    })
+  }
+
+  const pricingInsights = useMemo(() => {
+    const up = parseFloat(form.unitPrice)
+    const sp = parseFloat(form.sellingPrice)
+
+    if (Number.isNaN(up) || up <= 0 || Number.isNaN(sp) || sp <= 0) return null
+
+    const profit = Math.round((sp - up) * 100) / 100
+    const marginPct = Math.round(((profit / sp) * 100) * 100) / 100
+
+    return {
+      profit,
+      marginPct,
+      isLoss: profit < 0,
+    }
+  }, [form.unitPrice, form.sellingPrice])
+
+  const prepareFormForSubmission = () => {
+    const formToValidate = { ...form }
+    const up = parseFloat(formToValidate.unitPrice)
+    const sp = parseFloat(formToValidate.sellingPrice)
+    const mk = parseFloat(formToValidate.markup)
+
+    if (!Number.isNaN(up) && up > 0 && !Number.isNaN(sp) && sp > 0 && (Number.isNaN(mk) || formToValidate.markup === "")) {
+      formToValidate.markup = String(parseFloat((((sp - up) / up) * 100).toFixed(2)))
+    } else if (!Number.isNaN(up) && up > 0 && !Number.isNaN(mk) && mk >= 0 && (Number.isNaN(sp) || formToValidate.sellingPrice === "")) {
+      formToValidate.sellingPrice = String(parseFloat((up * (1 + mk / 100)).toFixed(2)))
+    }
+
+    return formToValidate
+  }
 
   const doCreate = async (payload: ProductInput) => {
     try {
@@ -161,7 +283,8 @@ export function ProductFormDialog({
   }
 
   const handleSubmit = async () => {
-    const parsed = schema.safeParse(form)
+    const formToValidate = prepareFormForSubmission()
+    const parsed = schema.safeParse(formToValidate)
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {}
       for (const issue of parsed.error.issues) {
@@ -226,7 +349,8 @@ export function ProductFormDialog({
     setForceCreate(true)
     setShowDuplicateWarning(false)
 
-    const parsed = schema.safeParse(form)
+    const formToValidate = prepareFormForSubmission()
+    const parsed = schema.safeParse(formToValidate)
     if (!parsed.success) return
 
     const { distributorName, distributorContact, ...rest } = parsed.data
@@ -463,48 +587,97 @@ export function ProductFormDialog({
             required
           />
 
-          <Input
-            label="Unit cost"
-            type="number"
-            numeric
-            step="0.01"
-            min={0}
-            value={form.unitPrice}
-            onChange={update("unitPrice")}
-            error={errors.unitPrice}
-            required
-          />
+          <div className="sm:col-span-2 rounded-label border border-mist bg-paper-sunken/40 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <p className="eyebrow">Pricing &amp; Markup</p>
+              <span className="text-xs text-ink-muted">
+                Enter Unit cost &amp; Selling price to auto-calculate Markup %
+              </span>
+            </div>
 
-          <Input
-            label="Markup %"
-            type="number"
-            numeric
-            min={0}
-            value={form.markup}
-            onChange={update("markup")}
-            error={errors.markup}
-            hint={derivedSellingPrice ? `Sells at ${money(derivedSellingPrice)}` : undefined}
-            required
-          />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input
+                label="Unit cost"
+                type="number"
+                numeric
+                step="0.01"
+                min={0}
+                value={form.unitPrice}
+                onChange={handleUnitPriceChange}
+                error={errors.unitPrice}
+                placeholder="0.00"
+                required
+              />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Store alert at"
-              type="number"
-              numeric
-              min={0}
-              value={form.storeThreshold}
-              onChange={update("storeThreshold")}
-            />
-            <Input
-              label="Shelf alert at"
-              type="number"
-              numeric
-              min={0}
-              value={form.dispensaryThreshold}
-              onChange={update("dispensaryThreshold")}
-            />
+              <Input
+                label="Selling price"
+                type="number"
+                numeric
+                step="0.01"
+                min={0}
+                value={form.sellingPrice}
+                onChange={handleSellingPriceChange}
+                error={errors.sellingPrice}
+                placeholder="0.00"
+                required
+              />
+
+              <Input
+                label="Markup %"
+                type="number"
+                numeric
+                step="any"
+                min={0}
+                value={form.markup}
+                onChange={handleMarkupChange}
+                error={errors.markup}
+                placeholder="0"
+                required
+              />
+            </div>
+
+            {pricingInsights && (
+              <div
+                className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded ${
+                  pricingInsights.isLoss
+                    ? "bg-rx-amber-soft text-rx-amber-deep font-medium"
+                    : "bg-paper-raised text-ink-muted border border-mist"
+                }`}
+              >
+                {pricingInsights.isLoss ? (
+                  <span>
+                    Warning: Selling price is below unit cost (Loss of {money(Math.abs(pricingInsights.profit))} per unit)
+                  </span>
+                ) : (
+                  <>
+                    <span>
+                      Profit per unit: <strong className="text-ink">{money(pricingInsights.profit)}</strong>
+                    </span>
+                    <span>
+                      Margin: <strong className="text-ink">{pricingInsights.marginPct}%</strong>
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+
+          <Input
+            label="Store alert at"
+            type="number"
+            numeric
+            min={0}
+            value={form.storeThreshold}
+            onChange={update("storeThreshold")}
+          />
+          <Input
+            label="Shelf alert at"
+            type="number"
+            numeric
+            min={0}
+            value={form.dispensaryThreshold}
+            onChange={update("dispensaryThreshold")}
+          />
 
           <Input
             label="Distributor"

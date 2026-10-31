@@ -771,6 +771,12 @@ export async function UpdateProduct(req, res) {
     Object.assign(product, priceUpdates);
 
     if (updates.expiryDate) product.expiryDate = new Date(updates.expiryDate);
+    if (product.unitPrice !== undefined && product.quantity !== undefined) {
+      product.totalPrice = Math.round((product.unitPrice * product.quantity) * 100) / 100;
+    }
+    if (product.sellingPrice !== undefined && product.quantity !== undefined) {
+      product.totalSellingPrice = Math.round((product.sellingPrice * product.quantity) * 100) / 100;
+    }
     await product.save();
 
     await Store.updateStatus(id);

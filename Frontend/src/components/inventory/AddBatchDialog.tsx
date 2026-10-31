@@ -121,6 +121,7 @@ export function AddBatchDialog({
       DosageForms: source.DosageForms,
       type: source.type,
       unitPrice: source.unitPrice,
+      sellingPrice: source.sellingPrice,
       markup: source.markup,
       storeThreshold: source.inventory.storeThreshold,
       dispensaryThreshold: source.inventory.dispensaryThreshold,
