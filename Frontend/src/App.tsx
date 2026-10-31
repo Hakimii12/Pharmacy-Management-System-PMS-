@@ -12,7 +12,6 @@ import RegisterPage from "@/pages/RegisterPage"
 import DashboardPage from "@/pages/DashboardPage"
 import PosPage from "@/pages/PosPage"
 
-const CheckoutPage = lazy(() => import("@/pages/CheckoutPage"))
 const InventoryPage = lazy(() => import("@/pages/InventoryPage"))
 const StorePage = lazy(() => import("@/pages/StorePage"))
 const DispensaryPage = lazy(() => import("@/pages/DispensaryPage"))
@@ -67,16 +66,7 @@ export default function App() {
             }
           />
 
-          <Route
-            path="checkout"
-            element={
-              <RequireAuth roles={[...CASHIER_ROLES, "pharmacist"]}>
-                <Suspense fallback={<PageFallback />}>
-                  <CheckoutPage />
-                </Suspense>
-              </RequireAuth>
-            }
-          />
+          <Route path="checkout" element={<Navigate to="/pos" replace />} />
 
           <Route
             path="inventory"

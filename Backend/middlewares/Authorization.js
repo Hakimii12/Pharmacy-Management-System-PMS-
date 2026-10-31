@@ -18,13 +18,13 @@ const allowedUsers = (...allowedRoles) => {
 };
 
 /** Every approved account. */
-export const ALL_ROLES = ["superAdmin", "admin", "pharmacist", "cashier"];
+export const ALL_ROLES = ["superAdmin", "admin", "pharmacist"];
 /** Inventory, catalog and credit administration. */
 export const MANAGERS = ["superAdmin", "admin"];
-/** Who may ring up a sale (prepare a cash order, create a credit sale). */
+/** Who may ring up a sale (prepares and completes cash & credit sales directly). */
 export const SELLERS = ["superAdmin", "admin", "pharmacist"];
-/** Who may take payment on a prepared order. */
-export const CASHIERS = ["superAdmin", "admin", "cashier"];
+/** Maintained for backwards compatibility with any remaining cashier-scoped endpoints. */
+export const CASHIERS = ["superAdmin", "admin", "pharmacist"];
 /** User administration. */
 export const SUPER_ADMIN = ["superAdmin"];
 

@@ -13,15 +13,14 @@ import type { Role } from "@/types"
 // `admin` is deliberately absent: the backend rejects it here, and only a
 // superAdmin can mint one.
 const SELF_SERVICE_ROLES: { value: Role; label: string }[] = [
-  { value: "pharmacist", label: "Pharmacist — prepares sales, manages stock" },
-  { value: "cashier", label: "Cashier — confirms payment, closes the till" },
+  { value: "pharmacist", label: "Pharmacist — dispenses medication, manages stock and sales" },
 ]
 
 const schema = z
   .object({
     name: z.string().min(2, "Enter your full name"),
     email: z.string().email("Enter a valid email address"),
-    role: z.enum(["pharmacist", "cashier"], { message: "Choose a role" }),
+    role: z.enum(["pharmacist"], { message: "Choose a role" }),
     password: z.string().min(8, "Use at least 8 characters"),
     confirm: z.string(),
   })

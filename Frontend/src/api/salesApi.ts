@@ -59,18 +59,20 @@ function optimisticTransaction(
   overrides: Partial<Transaction>,
 ): Transaction {
   const totalAmount = lines.reduce((sum, line) => sum + line.sellingPrice * line.quantity, 0)
+  const isCredit = overrides.saleType === "credit"
   return {
     id,
     transactionId: id,
-    saleType: "cash",
-    status: "pending",
-    paymentStatus: "pending",
+    saleType: overrides.saleType || "cash",
+    status: overrides.status || "completed",
+    paymentStatus: overrides.paymentStatus || (isCredit ? "credit" : "paid"),
     isOverdue: false,
     totalAmount,
-    amountPaid: 0,
-    remainingBalance: totalAmount,
+    amountPaid: overrides.amountPaid ?? (isCredit ? 0 : totalAmount),
+    remainingBalance: overrides.remainingBalance ?? (isCredit ? totalAmount : 0),
     itemCount: lines.length,
     timestamp: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
     items: lines.map((line) => ({
       saleId: `${id}:${line.productId}`,
       productId: line.productId,
@@ -126,14 +128,26 @@ export const salesApi = baseApi.injectEndpoints({
         const body = { items, patientName }
 
         if (!navigator.onLine) {
-          return queueSale("/sales/prepareAndSaveSale", body, lines, { saleType: "cash" }, `Sale for ${patientName || "walk-in"}`)
+          return queueSale(
+            "/sales/prepareAndSaveSale",
+            body,
+            lines,
+            { saleType: "cash", status: "completed", paymentStatus: "paid" },
+            `Sale for ${patientName || "walk-in"}`,
+          )
         }
 
         const result = await fetchWithBQ({ url: "/sales/prepareAndSaveSale", method: "POST", body })
 
         if (result.error) {
           if (result.error.status === "FETCH_ERROR" || result.error.status === "TIMEOUT_ERROR") {
-            return queueSale("/sales/prepareAndSaveSale", body, lines, { saleType: "cash" }, `Sale for ${patientName || "walk-in"}`)
+            return queueSale(
+              "/sales/prepareAndSaveSale",
+              body,
+              lines,
+              { saleType: "cash", status: "completed", paymentStatus: "paid" },
+              `Sale for ${patientName || "walk-in"}`,
+            )
           }
           return { error: result.error }
         }
@@ -141,6 +155,7 @@ export const salesApi = baseApi.injectEndpoints({
         return { data: result.data as SaleResponse }
       },
       invalidatesTags: [
+        { type: "Sale", id: "LIST" },
         { type: "PendingSale", id: "LIST" },
         { type: "Product", id: "LIST" },
         "Report",

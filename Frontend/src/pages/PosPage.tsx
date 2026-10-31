@@ -139,6 +139,7 @@ export default function PosPage() {
 
         setReceipt({ transactionId: result.transactionId, queued: Boolean(result.queued) })
         dispatch(setLastCompleted(result.transactionId))
+        toast("success", "Credit sale recorded")
       } else {
         const result = await prepareSale({
           items,
@@ -148,6 +149,7 @@ export default function PosPage() {
 
         setReceipt({ transactionId: result.transactionId, queued: Boolean(result.queued) })
         dispatch(setLastCompleted(result.transactionId))
+        toast("success", "Sale completed successfully")
       }
 
       dispatch(clearCart())
@@ -428,12 +430,12 @@ export default function PosPage() {
             onClick={handleCheckout}
             variant={saleType === "credit" ? "secondary" : "primary"}
           >
-            {saleType === "credit" ? "Record credit sale" : "Send to cashier"}
+            {saleType === "credit" ? "Record credit sale" : "Complete sale"}
           </Button>
 
           {saleType === "cash" && cart.length > 0 && (
             <p className="text-center text-xs text-ink-muted">
-              A cashier confirms payment before stock leaves the shelf.
+              Stock will be deducted from dispensary shelf immediately upon sale.
             </p>
           )}
         </LabelCard>

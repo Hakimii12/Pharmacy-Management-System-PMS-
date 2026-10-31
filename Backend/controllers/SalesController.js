@@ -197,6 +197,8 @@ export const PrepareAndSaveSale = async (req, res) => {
         saleAmount,
         profit,
         dosageForm: product.DosageForms,
+        unitPrice: product.unitPrice,
+        sellingPrice: product.sellingPrice,
       });
       grandTotal += saleAmount;
     }
@@ -210,20 +212,46 @@ export const PrepareAndSaveSale = async (req, res) => {
           name: item.name,
           patientName,
           brand: item.brand,
+          dosageForm: item.dosageForm,
           quantitySold: item.quantity,
           profit: item.profit,
           saleAmount: item.saleAmount,
-          status: "pending",
+          sellingPrice: item.sellingPrice,
+          totalUnitPrice: item.unitPrice * item.quantity,
+          status: "completed",
+          saleType: "cash",
+          paymentStatus: "paid",
+          amountPaid: item.saleAmount,
+          remainingBalance: 0,
           pharmacistId,
-          dosageForm: item.dosageForm,
+          cashierId: pharmacistId,
+          completedAt: timestamp,
           timestamp,
         },
         { transaction: t }
       );
       salesRecords.push(saleRecord.toJSON());
+
+      // Deduct stock immediately from dispensary and product catalog
+      await Dispensary.decrement(
+        { quantity: item.quantity },
+        { where: { productId: item.productId }, transaction: t }
+      );
+      await Product.decrement(
+        { quantity: item.quantity },
+        { where: { id: item.productId }, transaction: t }
+      );
     }
 
     await t.commit();
+
+    for (const item of preparedItems) {
+      await Dispensary.updateStatus(item.productId);
+    }
+
+    const totalProfit = preparedItems.reduce((sum, item) => sum + item.profit, 0);
+    updateProfitSummary(totalProfit, timestamp);
+
     res.status(201).json({
       success: true,
       transactionId,

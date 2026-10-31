@@ -73,8 +73,8 @@ export function ReceiptDialog({
 
           {queued && (
             <p className="rounded-label border border-rx-amber/30 bg-rx-amber-soft px-3 py-2 text-xs text-rx-amber-deep">
-              This sale has not reached the server yet. It will send automatically when the
-              connection returns, and a cashier will only see it after that.
+              This sale has been recorded locally and will automatically sync with the server when your
+              connection returns.
             </p>
           )}
         </div>

@@ -16,9 +16,9 @@ export async function RegisterUser(req, res) {
       });
     }
 
-    if (role === "admin") {
+    if (role === "admin" || role === "cashier") {
       return res.status(403).json({
-        message: "Admin registration is not allowed here",
+        message: role === "admin" ? "Admin registration is not allowed here" : "Cashier role has been removed",
       });
     }
 

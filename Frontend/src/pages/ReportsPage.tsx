@@ -310,7 +310,7 @@ export default function ReportsPage() {
             loading={historyFetching}
             empty={{
               title: "No balances closed yet",
-              description: "Closing a cashier's till records the expected and actual amounts here.",
+              description: "Closing the daily balance records the expected and actual amounts here.",
             }}
             columns={[
               {

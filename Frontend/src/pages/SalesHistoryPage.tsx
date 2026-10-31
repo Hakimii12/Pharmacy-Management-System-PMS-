@@ -217,8 +217,10 @@ export default function SalesHistoryPage() {
 
                       <dl className="mt-3 grid gap-x-6 gap-y-1 border-t border-dashed border-mist pt-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
                         <Detail label="Transaction" value={transaction.transactionId} mono />
-                        <Detail label="Pharmacist" value={transaction.pharmacist?.name ?? "—"} />
-                        <Detail label="Cashier" value={transaction.cashier?.name ?? "—"} />
+                        <Detail label="Dispensed by" value={transaction.pharmacist?.name ?? "—"} />
+                        {transaction.cashier?.name && transaction.cashier.name !== transaction.pharmacist?.name && (
+                          <Detail label="Cashier" value={transaction.cashier.name} />
+                        )}
                         {transaction.saleType === "credit" && (
                           <Detail label="Balance" value={money(transaction.remainingBalance)} mono />
                         )}

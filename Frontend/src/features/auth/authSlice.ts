@@ -32,5 +32,5 @@ export default authSlice.reducer
 
 export const MANAGER_ROLES: Role[] = ["superAdmin", "admin"]
 export const SELLER_ROLES: Role[] = ["superAdmin", "admin", "pharmacist"]
-export const CASHIER_ROLES: Role[] = ["superAdmin", "admin", "cashier"]
+export const CASHIER_ROLES: Role[] = ["superAdmin", "admin", "pharmacist"]
 export const SUPER_ADMIN_ROLES: Role[] = ["superAdmin"]

@@ -96,7 +96,6 @@ export default function UsersPage() {
           <option value="superAdmin">Super admin</option>
           <option value="admin">Admin</option>
           <option value="pharmacist">Pharmacist</option>
-          <option value="cashier">Cashier</option>
         </Select>
 
         <Select

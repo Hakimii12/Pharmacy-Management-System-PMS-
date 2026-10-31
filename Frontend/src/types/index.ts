@@ -12,7 +12,7 @@ export interface PageQuery {
   limit?: number
 }
 
-export type Role = "superAdmin" | "admin" | "pharmacist" | "cashier"
+export type Role = "superAdmin" | "admin" | "pharmacist"
 export type UserStatus = "approved" | "pending" | "rejected" | "suspended"
 
 export interface User {

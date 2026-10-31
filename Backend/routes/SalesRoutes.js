@@ -25,14 +25,14 @@ const router = express.Router();
 router.post("/prepareAndSaveSale", Authenticated(), allowedUsers(...SELLERS), PrepareAndSaveSale);
 router.post("/create-credit-sale", Authenticated(), allowedUsers(...SELLERS), CreateCreditSale);
 
-// Taking payment on a prepared order — cashier.
-router.get("/pendingStatusItems", Authenticated(), allowedUsers(...CASHIERS, "pharmacist"), GetAllPendingStatus);
-router.post("/confirm/:transactionId", Authenticated(), allowedUsers(...CASHIERS), ConfirmSale);
-router.post("/abort/:transactionId", Authenticated(), allowedUsers(...CASHIERS), AbortSale);
+// Taking payment on a prepared order — sellers / managers.
+router.get("/pendingStatusItems", Authenticated(), allowedUsers(...SELLERS), GetAllPendingStatus);
+router.post("/confirm/:transactionId", Authenticated(), allowedUsers(...SELLERS), ConfirmSale);
+router.post("/abort/:transactionId", Authenticated(), allowedUsers(...SELLERS), AbortSale);
 
 // Credit ledger administration.
 router.get("/credit-sales", Authenticated(), allowedUsers(...MANAGERS), GetCreditSales);
-router.post("/process-credit-payment", Authenticated(), allowedUsers(...MANAGERS, "cashier"), ProcessCreditPayment);
+router.post("/process-credit-payment", Authenticated(), allowedUsers(...SELLERS), ProcessCreditPayment);
 router.post("/undo", Authenticated(), allowedUsers(...MANAGERS), UndoSale);
 
 // Reporting — readable by any approved account.

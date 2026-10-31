@@ -38,7 +38,7 @@ interface NavGroup {
   items: NavItem[]
 }
 
-const ALL: Role[] = ["superAdmin", "admin", "pharmacist", "cashier"]
+const ALL: Role[] = ["superAdmin", "admin", "pharmacist"]
 
 const NAV: NavGroup[] = [
   {
@@ -46,7 +46,6 @@ const NAV: NavGroup[] = [
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ALL, end: true },
       { to: "/pos", label: "New sale", icon: ShoppingCart, roles: SELLER_ROLES },
-      { to: "/checkout", label: "Checkout queue", icon: Receipt, roles: [...CASHIER_ROLES, "pharmacist"] },
     ],
   },
   {
