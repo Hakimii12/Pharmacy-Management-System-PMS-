@@ -354,15 +354,6 @@ export function ProductFormDialog({
       </Dialog>
     )
   }
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </Dialog>
-    )
-  }
 
   // ── Main product form ─────────────────────────────────────────────────
   return (
