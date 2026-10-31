@@ -771,6 +771,7 @@ export async function UpdateProduct(req, res) {
     Object.assign(product, priceUpdates);
 
     if (updates.expiryDate) product.expiryDate = new Date(updates.expiryDate);
+    if (updates.batchNo && updates.batchNo.trim()) product.batchNo = updates.batchNo.trim();
     if (product.unitPrice !== undefined && product.quantity !== undefined) {
       product.totalPrice = Math.round((product.unitPrice * product.quantity) * 100) / 100;
     }
@@ -778,6 +779,35 @@ export async function UpdateProduct(req, res) {
       product.totalSellingPrice = Math.round((product.sellingPrice * product.quantity) * 100) / 100;
     }
     await product.save();
+
+    // If quantity was updated in product form, synchronize with Store or Dispensary
+    if (updates.quantity !== undefined) {
+      const newQty = Math.max(0, Number(updates.quantity) || 0);
+      const store = await Store.findOne({ where: { productId: id } });
+      const disp = await Dispensary.findOne({ where: { productId: id } });
+
+      if (store && (!disp || disp.quantity === 0)) {
+        store.quantity = newQty;
+        if (store.quantity > 0) store.isActive = true;
+        await store.save();
+      } else if (disp && (!store || store.quantity === 0)) {
+        disp.quantity = newQty;
+        if (disp.quantity > 0) disp.isActive = true;
+        await disp.save();
+      } else if (store && disp) {
+        const total = store.quantity + disp.quantity;
+        if (total > 0) {
+          const storeRatio = store.quantity / total;
+          store.quantity = Math.round(newQty * storeRatio);
+          disp.quantity = newQty - store.quantity;
+          await store.save();
+          await disp.save();
+        } else {
+          store.quantity = newQty;
+          await store.save();
+        }
+      }
+    }
 
     await Store.updateStatus(id);
     await Dispensary.updateStatus(id);
@@ -1273,20 +1303,41 @@ export async function UpdateStoreQuantity(req, res) {
   try {
     const id = req.params.id;
     const { quantity } = req.body;
-    const store = await Store.findOne({ where: { productId: id } });
-    if (!store) return res.status(404).json({ message: "Store record not found" });
+    const newQty = Math.max(0, Number(quantity) || 0);
 
-    store.quantity = Number(quantity);
-    await store.save();
+    let store = await Store.findOne({ where: { productId: id } });
+    if (!store) {
+      store = await Store.create({
+        productId: id,
+        quantity: newQty,
+        initialStoreQty: newQty,
+        threshold: 10,
+        isActive: true,
+        isDeleted: false,
+      });
+    } else {
+      store.quantity = newQty;
+      if (store.quantity > 0) store.isActive = true;
+      await store.save();
+    }
 
     const product = await Product.findByPk(id);
     const disp = await Dispensary.findOne({ where: { productId: id } });
     if (product) {
       product.quantity = store.quantity + (disp ? disp.quantity : 0);
+      if (product.unitPrice !== undefined) {
+        product.totalPrice = Math.round(product.unitPrice * product.quantity * 100) / 100;
+      }
+      if (product.sellingPrice !== undefined) {
+        product.totalSellingPrice = Math.round(product.sellingPrice * product.quantity * 100) / 100;
+      }
       await product.save();
     }
 
-    return res.json({ message: "Store quantity updated successfully", store });
+    await Store.updateStatus(id);
+    await Dispensary.updateStatus(id);
+
+    return res.json({ message: "Store quantity updated successfully", store, product });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -1412,20 +1463,41 @@ export async function UpdateDispensaryQuantity(req, res) {
   try {
     const id = req.params.id;
     const { quantity } = req.body;
-    const dispensary = await Dispensary.findOne({ where: { productId: id } });
-    if (!dispensary) return res.status(404).json({ message: "Dispensary record not found" });
+    const newQty = Math.max(0, Number(quantity) || 0);
 
-    dispensary.quantity = Number(quantity);
-    await dispensary.save();
+    let dispensary = await Dispensary.findOne({ where: { productId: id } });
+    if (!dispensary) {
+      dispensary = await Dispensary.create({
+        productId: id,
+        quantity: newQty,
+        initialDispensaryQty: newQty,
+        threshold: 10,
+        isActive: true,
+        isDeleted: false,
+      });
+    } else {
+      dispensary.quantity = newQty;
+      if (dispensary.quantity > 0) dispensary.isActive = true;
+      await dispensary.save();
+    }
 
     const product = await Product.findByPk(id);
     const store = await Store.findOne({ where: { productId: id } });
     if (product) {
       product.quantity = (store ? store.quantity : 0) + dispensary.quantity;
+      if (product.unitPrice !== undefined) {
+        product.totalPrice = Math.round(product.unitPrice * product.quantity * 100) / 100;
+      }
+      if (product.sellingPrice !== undefined) {
+        product.totalSellingPrice = Math.round(product.sellingPrice * product.quantity * 100) / 100;
+      }
       await product.save();
     }
 
-    return res.json({ message: "Dispensary quantity updated successfully", dispensary });
+    await Store.updateStatus(id);
+    await Dispensary.updateStatus(id);
+
+    return res.json({ message: "Dispensary quantity updated successfully", dispensary, product });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

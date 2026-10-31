@@ -19,6 +19,7 @@ export function ProductBatchesDialog({
   onClose,
   onAddBatch,
   onEdit,
+  onEditQuantity,
   onDelete,
   onTransfer,
 }: {
@@ -29,6 +30,7 @@ export function ProductBatchesDialog({
   onClose: () => void
   onAddBatch?: (source: Product) => void
   onEdit?: (batch: Product) => void
+  onEditQuantity?: (batch: Product) => void
   onDelete?: (batch: Product) => void
   onTransfer?: (batch: Product, direction: "issue" | "return") => void
 }) {
@@ -76,12 +78,31 @@ export function ProductBatchesDialog({
       key: "onHand",
       header: "On hand",
       numeric: true,
-      render: (row) =>
-        formatQuantity(
+      render: (row) => {
+        const qty =
           location === "store"
             ? (row.inventory?.store ?? (row as any).stQty ?? row.quantity ?? 0)
-            : (row.inventory?.dispensary ?? (row as any).dispQty ?? row.quantity ?? 0),
-        ),
+            : (row.inventory?.dispensary ?? (row as any).dispQty ?? row.quantity ?? 0)
+        return (
+          <div className="inline-flex items-center justify-end gap-1.5">
+            <span className="tabular font-medium">{formatQuantity(qty)}</span>
+            {canManage && onEditQuantity && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEditQuantity(row)
+                }}
+                className="rounded-label p-1 text-ink-muted hover:bg-paper-sunken hover:text-ink transition-colors"
+                title={`Edit ${location === "store" ? "store" : "dispensary"} quantity`}
+                aria-label={`Edit ${location === "store" ? "store" : "dispensary"} quantity for batch ${row.batchNo}`}
+              >
+                <Pencil className="h-3 w-3" aria-hidden />
+              </button>
+            )}
+          </div>
+        )
+      },
     })
   }
 
@@ -110,7 +131,7 @@ export function ProductBatchesDialog({
     },
   )
 
-  if (canManage && (onTransfer || onEdit || onDelete)) {
+  if (canManage && (onTransfer || onEdit || onEditQuantity || onDelete)) {
     columns.push({
       key: "actions",
       header: "",
@@ -139,11 +160,23 @@ export function ProductBatchesDialog({
               Return
             </Button>
           )}
+          {onEditQuantity && !onEdit && (
+            <button
+              type="button"
+              onClick={() => onEditQuantity(row)}
+              className="rounded-label p-1.5 text-ink-muted hover:bg-paper-sunken hover:text-ink"
+              title={`Edit ${location === "store" ? "store" : "dispensary"} quantity`}
+              aria-label={`Edit ${location === "store" ? "store" : "dispensary"} quantity for batch ${row.batchNo}`}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          )}
           {onEdit && (
             <button
               type="button"
               onClick={() => onEdit(row)}
               className="rounded-label p-1.5 text-ink-muted hover:bg-paper-sunken hover:text-ink"
+              title="Edit batch"
               aria-label={`Edit batch ${row.batchNo}`}
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden />

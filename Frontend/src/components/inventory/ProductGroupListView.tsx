@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronRight, CloudOff, Search } from "lucide-react"
+import { ChevronRight, CloudOff, Pencil, Search } from "lucide-react"
 
 import { useGetCategoriesQuery } from "@/api/catalogApi"
 import { useDebounced } from "@/hooks/useDebounced"
@@ -32,6 +32,7 @@ export function ProductGroupListView({
   location = "both",
   useQuery,
   onOpenGroup,
+  onEditQuantity,
   emptyTitle = "No products match these filters",
 }: {
   eyebrow: string
@@ -39,6 +40,7 @@ export function ProductGroupListView({
   location?: "both" | "store" | "dispensary"
   useQuery: GroupedProductQuery
   onOpenGroup: (group: ProductGroup) => void
+  onEditQuantity?: (group: ProductGroup) => void
   emptyTitle?: string
 }) {
   const online = useOnlineStatus()
@@ -95,13 +97,28 @@ export function ProductGroupListView({
             key: "onHand",
             header: "On hand",
             numeric: true,
-            render: (row) => (
-              <span className="font-medium">
-                {formatQuantity(
-                  location === "store" ? (row.inventory?.store ?? 0) : (row.inventory?.dispensary ?? 0),
-                )}
-              </span>
-            ),
+            render: (row) => {
+              const qty = location === "store" ? (row.inventory?.store ?? 0) : (row.inventory?.dispensary ?? 0)
+              return (
+                <div className="inline-flex items-center justify-end gap-1.5">
+                  <span className="font-medium">{formatQuantity(qty)}</span>
+                  {onEditQuantity && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEditQuantity(row)
+                      }}
+                      className="rounded-label p-1 text-ink-muted hover:bg-paper-sunken hover:text-ink transition-colors"
+                      title={`Edit ${location === "store" ? "store" : "dispensary"} quantity`}
+                      aria-label={`Edit ${location === "store" ? "store" : "dispensary"} quantity for ${row.name}`}
+                    >
+                      <Pencil className="h-3 w-3" aria-hidden />
+                    </button>
+                  )}
+                </div>
+              )
+            },
           },
         ]
 

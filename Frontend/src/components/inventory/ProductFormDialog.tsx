@@ -60,11 +60,13 @@ const EMPTY: FormState = {
 export function ProductFormDialog({
   open,
   product,
+  defaultDestination,
   onClose,
   onSwitchToAddBatch,
 }: {
   open: boolean
   product?: Product | null
+  defaultDestination?: "store" | "dispensary"
   onClose: () => void
   /** Called when the user elects to add a batch of an existing product instead. */
   onSwitchToAddBatch?: (
@@ -84,7 +86,7 @@ export function ProductFormDialog({
 
   const [form, setForm] = useState<FormState>(EMPTY)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [destination, setDestination] = useState<"store" | "dispensary">("store")
+  const [destination, setDestination] = useState<"store" | "dispensary">(defaultDestination ?? "store")
   const [priceCalcMode, setPriceCalcMode] = useState<"sellingPrice" | "markup">("sellingPrice")
 
   // Duplicate detection state
@@ -104,6 +106,8 @@ export function ProductFormDialog({
 
   useEffect(() => {
     if (!open) return
+
+    setDestination(defaultDestination ?? "store")
 
     if (product) {
       const up = product.unitPrice ?? 0
@@ -140,7 +144,7 @@ export function ProductFormDialog({
     setDuplicateInfo(null)
     setShowDuplicateWarning(false)
     setForceCreate(false)
-  }, [open, product])
+  }, [open, product, defaultDestination])
 
   const update = (field: string) => (event: { target: { value: string } }) =>
     setForm((previous) => ({ ...previous, [field]: event.target.value }))
@@ -563,8 +567,7 @@ export function ProductFormDialog({
             label="Batch number"
             value={form.batchNo}
             onChange={update("batchNo")}
-            hint={isEdit ? undefined : "Left blank, one is generated."}
-            disabled={isEdit}
+            hint={isEdit ? "Update batch number if needed" : "Left blank, one is generated."}
           />
 
           <Input
