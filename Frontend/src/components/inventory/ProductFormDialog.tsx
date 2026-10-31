@@ -590,8 +590,8 @@ export function ProductFormDialog({
             required
           />
 
-          <div className="sm:col-span-2 rounded-label border border-mist bg-paper-sunken/40 p-3.5 space-y-2.5">
-            <div className="flex items-center justify-between">
+          <div className="sm:col-span-2 rounded-label border border-mist bg-paper-sunken/40 p-3 sm:p-3.5 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <p className="eyebrow">Pricing &amp; Markup</p>
               <span className="text-xs text-ink-muted">
                 Enter Unit cost &amp; Selling price to auto-calculate Markup %
@@ -641,7 +641,7 @@ export function ProductFormDialog({
 
             {pricingInsights && (
               <div
-                className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded ${
+                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs px-2.5 py-1.5 rounded ${
                   pricingInsights.isLoss
                     ? "bg-rx-amber-soft text-rx-amber-deep font-medium"
                     : "bg-paper-raised text-ink-muted border border-mist"
