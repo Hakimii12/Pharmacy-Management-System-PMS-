@@ -118,6 +118,22 @@ export function ProductFormDialog({
         product.markup ??
         (up && sp ? Math.round((((sp - up) / up) * 100) * 100) / 100 : 0)
 
+      const storeQty = product.inventory?.store ?? (product as any).stQty ?? 0
+      const dispQty = product.inventory?.dispensary ?? (product as any).dispQty ?? 0
+      const totalActualQty = storeQty + dispQty
+
+      let initialQty = String(product.quantity ?? 0)
+      if (defaultDestination === "dispensary") {
+        initialQty = String(dispQty)
+      } else if (defaultDestination === "store") {
+        initialQty = String(storeQty)
+      } else if (
+        totalActualQty > 0 ||
+        (product.inventory && (product.inventory.storeExists || product.inventory.dispensaryExists))
+      ) {
+        initialQty = String(totalActualQty)
+      }
+
       setForm({
         name: product.name,
         brand: product.brand ?? "",
@@ -126,12 +142,12 @@ export function ProductFormDialog({
         type: product.type ?? "",
         batchNo: product.batchNo,
         expiryDate: toDateInput(product.expiryDate),
-        quantity: String(product.quantity),
+        quantity: initialQty,
         unitPrice: up ? String(up) : "",
         sellingPrice: sp ? String(parseFloat(sp.toFixed(2))) : "",
         markup: mk !== undefined && !Number.isNaN(mk) ? String(parseFloat(mk.toFixed(2))) : "",
-        storeThreshold: String(product.inventory.storeThreshold ?? 10),
-        dispensaryThreshold: String(product.inventory.dispensaryThreshold ?? 10),
+        storeThreshold: String(product.inventory?.storeThreshold ?? 10),
+        dispensaryThreshold: String(product.inventory?.dispensaryThreshold ?? 10),
         distributorName: product.distributor?.name ?? "",
         distributorContact: String(product.distributor?.contact ?? ""),
       })
@@ -313,7 +329,7 @@ export function ProductFormDialog({
     // For edits, skip duplicate check
     if (product) {
       try {
-        await updateProduct({ id: product._id, ...payload }).unwrap()
+        await updateProduct({ id: product._id, destination, ...payload }).unwrap()
         toast("success", "Batch updated")
         onClose()
       } catch (error) {
@@ -580,13 +596,26 @@ export function ProductFormDialog({
           />
 
           <Input
-            label="Quantity"
+            label={
+              isEdit && defaultDestination === "dispensary"
+                ? "Dispensary shelf quantity"
+                : isEdit && defaultDestination === "store"
+                ? "Back store quantity"
+                : isEdit
+                ? "Total quantity"
+                : "Quantity"
+            }
             type="number"
             numeric
             min={0}
             value={form.quantity}
             onChange={update("quantity")}
             error={errors.quantity}
+            hint={
+              isEdit && product?.inventory
+                ? `Current on-hand: Store: ${product.inventory.store ?? 0} · Dispensary: ${product.inventory.dispensary ?? 0}`
+                : undefined
+            }
             required
           />
 

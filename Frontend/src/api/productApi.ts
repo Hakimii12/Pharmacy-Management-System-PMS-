@@ -34,6 +34,7 @@ export interface ProductInput {
   distributor?: { name: string; contact: string }
   storeThreshold?: number
   dispensaryThreshold?: number
+  destination?: "store" | "dispensary"
 }
 
 export interface DuplicateCheckInput {

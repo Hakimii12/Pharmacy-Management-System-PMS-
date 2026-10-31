@@ -35,6 +35,7 @@ async function populateProductWithInventory(product) {
   if (!product) return null;
   const json = typeof product.toJSON === "function" ? product.toJSON() : product;
   const inventory = await getInventoryData(json.id || json._id);
+  json.quantity = (inventory.store || 0) + (inventory.dispensary || 0);
   return { ...json, inventory };
 }
 
@@ -150,6 +151,7 @@ async function queryProductsWithInventory({
       storeIsExpired: isExpired,
       dispensaryIsExpired: isExpired,
     };
+    json.quantity = stQty + dispQty;
     return json;
   });
 
@@ -270,6 +272,7 @@ async function queryGroupedProductsWithInventory({
 
     group.batches.push({
       ...json,
+      quantity: stQty + dispQty,
       _id: String(json.id),
       id: String(json.id),
       stQty,
@@ -314,6 +317,7 @@ async function queryGroupedProductsWithInventory({
 
       return {
         ...b,
+        quantity: b.stQty + b.dispQty,
         inventory: {
           store: b.stQty,
           dispensary: b.dispQty,
@@ -783,10 +787,40 @@ export async function UpdateProduct(req, res) {
     // If quantity was updated in product form, synchronize with Store or Dispensary
     if (updates.quantity !== undefined) {
       const newQty = Math.max(0, Number(updates.quantity) || 0);
-      const store = await Store.findOne({ where: { productId: id } });
-      const disp = await Dispensary.findOne({ where: { productId: id } });
+      let store = await Store.findOne({ where: { productId: id } });
+      let disp = await Dispensary.findOne({ where: { productId: id } });
 
-      if (store && (!disp || disp.quantity === 0)) {
+      if (updates.destination === "dispensary") {
+        if (!disp) {
+          disp = await Dispensary.create({
+            productId: id,
+            quantity: newQty,
+            initialDispensaryQty: newQty,
+            threshold: 10,
+            isActive: true,
+            isDeleted: false,
+          });
+        } else {
+          disp.quantity = newQty;
+          if (disp.quantity > 0) disp.isActive = true;
+          await disp.save();
+        }
+      } else if (updates.destination === "store") {
+        if (!store) {
+          store = await Store.create({
+            productId: id,
+            quantity: newQty,
+            initialStoreQty: newQty,
+            threshold: 10,
+            isActive: true,
+            isDeleted: false,
+          });
+        } else {
+          store.quantity = newQty;
+          if (store.quantity > 0) store.isActive = true;
+          await store.save();
+        }
+      } else if (store && (!disp || disp.quantity === 0)) {
         store.quantity = newQty;
         if (store.quantity > 0) store.isActive = true;
         await store.save();
@@ -807,6 +841,11 @@ export async function UpdateProduct(req, res) {
           await store.save();
         }
       }
+
+      product.quantity = (store ? store.quantity : 0) + (disp ? disp.quantity : 0);
+      if (product.unitPrice) product.totalPrice = Math.round(product.unitPrice * product.quantity * 100) / 100;
+      if (product.sellingPrice) product.totalSellingPrice = Math.round(product.sellingPrice * product.quantity * 100) / 100;
+      await product.save();
     }
 
     await Store.updateStatus(id);
