@@ -5,7 +5,6 @@ import {
   CreditCard,
   LayoutDashboard,
   Package,
-  Receipt,
   ScrollText,
   Settings2,
   ShoppingBag,
@@ -21,7 +20,7 @@ import { cn } from "@/lib/cn"
 import { useAuth } from "@/hooks/useAuth"
 import { useAppDispatch, useAppSelector } from "@/app/hooks"
 import { toggleSidebar } from "@/features/ui/uiSlice"
-import { CASHIER_ROLES, MANAGER_ROLES, SELLER_ROLES } from "@/features/auth/authSlice"
+import { MANAGER_ROLES, SELLER_ROLES } from "@/features/auth/authSlice"
 import { initials } from "@/lib/format"
 import type { Role } from "@/types"
 

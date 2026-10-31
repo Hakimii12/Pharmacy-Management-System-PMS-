@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { RequireAuth } from "@/components/layout/RequireAuth"
 import { ToastHost } from "@/components/layout/ToastHost"
-import { CASHIER_ROLES, MANAGER_ROLES, SELLER_ROLES } from "@/features/auth/authSlice"
+import { MANAGER_ROLES, SELLER_ROLES } from "@/features/auth/authSlice"
 
 import LoginPage from "@/pages/LoginPage"
 import RegisterPage from "@/pages/RegisterPage"
