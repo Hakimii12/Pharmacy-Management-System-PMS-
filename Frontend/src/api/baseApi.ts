@@ -84,8 +84,10 @@ async function readCachedGroupedProducts(
 
   for (const p of products) {
     const key = [
-      p.name.trim().toLowerCase(),
+      (p.name || "").trim().toLowerCase(),
       (p.brand || "no_brand").trim().toLowerCase(),
+      (p.category || "uncategorised").trim().toLowerCase(),
+      (p.DosageForms || (p as any).dosageForm || "unspecified").trim().toLowerCase(),
     ].join("|")
 
     const stQty = p.inventory?.store ?? 0
@@ -178,7 +180,12 @@ async function readCachedStoreCounts() {
     totalInventoryValue += stQty * p.unitPrice
     potentialProfit += stQty * (p.sellingPrice - p.unitPrice)
 
-    const key = [p.name.trim().toLowerCase(), (p.brand || "no_brand").trim().toLowerCase()].join("|")
+    const key = [
+      (p.name || "").trim().toLowerCase(),
+      (p.brand || "no_brand").trim().toLowerCase(),
+      (p.category || "uncategorised").trim().toLowerCase(),
+      (p.DosageForms || (p as any).dosageForm || "unspecified").trim().toLowerCase(),
+    ].join("|")
     if (!groupMap.has(key)) {
       groupMap.set(key, { usableQty: 0, threshold: p.inventory?.storeThreshold ?? 10 })
     }
@@ -222,7 +229,12 @@ async function readCachedDispensaryCounts() {
     totalSellingValue += dispQty * p.sellingPrice
     potentialProfit += dispQty * (p.sellingPrice - p.unitPrice)
 
-    const key = [p.name.trim().toLowerCase(), (p.brand || "no_brand").trim().toLowerCase()].join("|")
+    const key = [
+      (p.name || "").trim().toLowerCase(),
+      (p.brand || "no_brand").trim().toLowerCase(),
+      (p.category || "uncategorised").trim().toLowerCase(),
+      (p.DosageForms || (p as any).dosageForm || "unspecified").trim().toLowerCase(),
+    ].join("|")
     if (!groupMap.has(key)) {
       groupMap.set(key, { usableQty: 0, threshold: p.inventory?.dispensaryThreshold ?? 10 })
     }

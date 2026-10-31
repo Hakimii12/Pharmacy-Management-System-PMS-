@@ -9,7 +9,7 @@ import User from "../models/UserModel.js";
 import { calculateInterdependentPrices } from "../helper/calculateInterdependentPrices.js";
 import { getPagination, paginated, searchLike } from "../utils/pagination.js";
 import { syncExpiryNotificationsInBackground } from "../services/notificationService.js";
-import { productIdentityKey } from "../utils/productIdentity.js";
+import { productIdentityKey, normalizeIdentityPart } from "../utils/productIdentity.js";
 
 async function getInventoryData(productId) {
   const store = await Store.findOne({ where: { productId, isDeleted: false } });
@@ -1287,56 +1287,31 @@ export async function UpdateStoreQuantity(req, res) {
 }
 
 /**
- * Check whether a product with the same identity (name, brand, category,
- * dosage form) already exists. Returns batch count, individual batch details,
- * and a representative batch the frontend can use to open "Add Batch" instead.
+ * Check whether a product with the exact same identity already exists.
+ * All four specifications must match: Category, Dosage form, Product name, and Brand.
+ * If any single one differs, the product is considered different.
+ * Returns batch count, individual batch details, and a representative batch.
  */
 export async function CheckDuplicate(req, res) {
   try {
     const { name, brand, category, DosageForms } = req.body;
-    if (!name) return res.json({ exists: false });
+    if (!name || !name.trim()) return res.json({ exists: false });
 
-    const normName = (name || "").trim().toLowerCase();
-    const normBrand = (brand || "no_brand").trim().toLowerCase();
-    const normCategory = (category || "").trim().toLowerCase();
-    const normDosage = (DosageForms || "").trim().toLowerCase();
+    const normName = normalizeIdentityPart(name);
+    const normBrand = normalizeIdentityPart(brand, "no_brand");
+    const normCategory = normalizeIdentityPart(category, "uncategorised");
+    const normDosage = normalizeIdentityPart(DosageForms, "unspecified");
 
     const { fn, col, where: whereFn } = await import("sequelize");
 
+    // All four must be identical: Category, Dosage form, Product name, and Brand.
+    // If any single one differs, the product is considered different.
     const matchConditions = [
       whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("name"), ""))), normName),
-      whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("brand"), "no_brand"))), normBrand),
+      whereFn(fn("LOWER", fn("COALESCE", fn("NULLIF", fn("TRIM", col("brand")), ""), "no_brand")), normBrand),
+      whereFn(fn("LOWER", fn("COALESCE", fn("NULLIF", fn("TRIM", col("category")), ""), "uncategorised")), normCategory),
+      whereFn(fn("LOWER", fn("COALESCE", fn("NULLIF", fn("TRIM", col("DosageForms")), ""), "unspecified")), normDosage),
     ];
-
-    // Category and dosage form: match when both normalised values are equal
-    // (including both being empty).
-    if (normCategory) {
-      matchConditions.push(
-        whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("category"), ""))), normCategory)
-      );
-    } else {
-      matchConditions.push({
-        [Op.or]: [
-          { category: null },
-          { category: "" },
-          whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("category"), ""))), ""),
-        ],
-      });
-    }
-
-    if (normDosage) {
-      matchConditions.push(
-        whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("DosageForms"), ""))), normDosage)
-      );
-    } else {
-      matchConditions.push({
-        [Op.or]: [
-          { DosageForms: null },
-          { DosageForms: "" },
-          whereFn(fn("LOWER", fn("TRIM", fn("COALESCE", col("DosageForms"), ""))), ""),
-        ],
-      });
-    }
 
     const existing = await Product.findAll({
       where: {

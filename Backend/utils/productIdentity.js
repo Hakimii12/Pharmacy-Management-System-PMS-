@@ -10,29 +10,38 @@ function startOfToday() {
 }
 
 export function normalizeIdentityPart(value, fallback = "") {
-  return String(value ?? fallback).trim().toLowerCase();
+  const trimmed = String(value ?? "").trim().toLowerCase();
+  return trimmed || fallback.trim().toLowerCase();
 }
 
 export function productIdentityKey(product) {
   return [
     normalizeIdentityPart(product.name),
     normalizeIdentityPart(product.brand, "no_brand"),
+    normalizeIdentityPart(product.category, "uncategorised"),
+    normalizeIdentityPart(product.DosageForms || product.dosageForm, "unspecified"),
   ].join("|");
 }
 
 /**
- * All non-deleted product batches that share the same catalogue identity.
+ * All non-deleted product batches that share the exact same catalogue identity
+ * across all four required specifications: Category, Dosage form, Product name, and Brand.
+ * If any single one differs, it is considered a different product.
  */
 export async function findSiblingProducts(productDoc) {
   const name = normalizeIdentityPart(productDoc.name);
   const brand = normalizeIdentityPart(productDoc.brand, "no_brand");
+  const category = normalizeIdentityPart(productDoc.category, "uncategorised");
+  const dosageForm = normalizeIdentityPart(productDoc.DosageForms || productDoc.dosageForm, "unspecified");
 
   return Product.findAll({
     where: {
       [Op.or]: [{ isDeleted: false }, { isDeleted: null }, { isDeleted: 0 }],
       [Op.and]: [
         where(fn("LOWER", fn("TRIM", fn("COALESCE", col("name"), ""))), name),
-        where(fn("LOWER", fn("TRIM", fn("COALESCE", col("brand"), "no_brand"))), brand),
+        where(fn("LOWER", fn("COALESCE", fn("NULLIF", fn("TRIM", col("brand")), ""), "no_brand")), brand),
+        where(fn("LOWER", fn("COALESCE", fn("NULLIF", fn("TRIM", col("category")), ""), "uncategorised")), category),
+        where(fn("LOWER", fn("COALESCE", fn("NULLIF", fn("TRIM", col("DosageForms")), ""), "unspecified")), dosageForm),
       ],
     },
     attributes: ["id", "name", "expiryDate"],

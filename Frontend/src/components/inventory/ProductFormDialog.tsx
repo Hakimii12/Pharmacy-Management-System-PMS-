@@ -270,7 +270,7 @@ export function ProductFormDialog({
         width="max-w-xl"
         eyebrow="Duplicate Product Detected"
         title="This product already exists"
-        description="A product matching this Category, Dosage Form, Name, and Brand is already in the system."
+        description="All 4 specifications match: Category, Dosage Form, Product Name, and Brand."
         footer={
           <>
             <Button variant="ghost" onClick={() => setShowDuplicateWarning(false)}>
@@ -296,10 +296,10 @@ export function ProductFormDialog({
                 Would you like to add a new batch instead of creating a repetitive product?
               </p>
               <p className="mt-1">
-                Found <strong>{duplicateInfo.batchCount}</strong> existing batch
-                {duplicateInfo.batchCount === 1 ? "" : "es"} for this product with a total of{" "}
-                <strong>{totalStore + totalDisp}</strong> units in stock ({totalStore} in back store,{" "}
-                {totalDisp} on shelf).
+                A product with the exact same <strong>Category</strong>, <strong>Dosage Form</strong>,{" "}
+                <strong>Product Name</strong>, and <strong>Brand</strong> already exists with{" "}
+                <strong>{duplicateInfo.batchCount}</strong> registered batch
+                {duplicateInfo.batchCount === 1 ? "" : "es"} (Total stock: <strong>{totalStore + totalDisp}</strong> units).
                 {nearestBatch && (
                   <> Nearest expiry is <strong>{formatDate(nearestBatch.expiryDate)}</strong> (Batch: {nearestBatch.batchNo}).</>
                 )}
