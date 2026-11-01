@@ -70,7 +70,7 @@ async function createStoreBatchFromLine({ line, supplier, userId, orderNumber })
     throw new Error(`Invalid unit cost for ${line.name}`);
   }
 
-  const markup = Number.isFinite(Number(line.markup)) ? Number(line.markup) : 20;
+  const markup = Number.isFinite(Number(line.markup)) ? Number(line.markup) : 25;
   const batchNo = line.batchNo?.trim() || (await uniqueBatchNo());
   if (!line.expiryDate) {
     throw new Error(`Expiry date is required to receive ${line.name}`);
@@ -82,19 +82,19 @@ async function createStoreBatchFromLine({ line, supplier, userId, orderNumber })
   }
 
   const brand = line.brand || "no_brand";
-  const sellingPrice = unitCost * (1 + markup / 100);
+  const sellingPrice = Math.round(unitCost * (1 + markup / 100) * 100) / 100;
   const product = await Product.create({
     addedBy: userId,
     name: line.name.trim(),
     brand,
     unitPrice: unitCost,
     quantity: qty,
-    totalPrice: unitCost * qty,
+    totalPrice: Math.round(unitCost * qty * 100) / 100,
     batchNo,
     expiryDate: new Date(line.expiryDate),
     markup,
     sellingPrice,
-    totalSellingPrice: sellingPrice * qty,
+    totalSellingPrice: Math.round(sellingPrice * qty * 100) / 100,
     DosageForms: line.DosageForms || "",
     category: line.category || "",
     distributor: {
@@ -328,7 +328,7 @@ function normalizeLines(rawLines = []) {
       quantityOrdered,
       quantityReceived: line.quantityReceived || 0,
       unitCost,
-      markup: Number.isFinite(Number(line.markup)) ? Number(line.markup) : 20,
+      markup: Number.isFinite(Number(line.markup)) ? Number(line.markup) : 25,
       batchNo: line.batchNo ? String(line.batchNo).trim() : undefined,
       expiryDate: line.expiryDate || undefined,
       notes: line.notes ? String(line.notes).trim() : undefined,
@@ -609,7 +609,7 @@ export async function GetReorderSuggestions(req, res) {
           onHand: 0,
           threshold: item.threshold || 10,
           unitCost: prod.unitPrice || 0,
-          markup: prod.markup || 20,
+          markup: prod.markup || 25,
           lastDistributor: prod.distributor,
         });
       }

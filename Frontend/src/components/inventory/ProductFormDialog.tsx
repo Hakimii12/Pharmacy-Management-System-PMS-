@@ -38,6 +38,9 @@ const schema = z.object({
 })
 
 type FormState = Record<string, string>
+type PriceCalcMode = "unitPrice" | "sellingPrice" | "markup"
+
+const round2 = (num: number) => Math.round((Number(num) + Number.EPSILON) * 100) / 100
 
 const EMPTY: FormState = {
   name: "",
@@ -50,7 +53,7 @@ const EMPTY: FormState = {
   quantity: "0",
   unitPrice: "",
   sellingPrice: "",
-  markup: "",
+  markup: "25",
   storeThreshold: "10",
   dispensaryThreshold: "10",
   distributorName: "",
@@ -87,7 +90,7 @@ export function ProductFormDialog({
   const [form, setForm] = useState<FormState>(EMPTY)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [destination, setDestination] = useState<"store" | "dispensary">(defaultDestination ?? "store")
-  const [priceCalcMode, setPriceCalcMode] = useState<"sellingPrice" | "markup">("sellingPrice")
+  const [priceCalcMode, setPriceCalcMode] = useState<PriceCalcMode>("unitPrice")
 
   // Duplicate detection state
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateCheckResult | null>(null)
@@ -113,10 +116,13 @@ export function ProductFormDialog({
       const up = product.unitPrice ?? 0
       const sp =
         product.sellingPrice ??
-        (up && product.markup ? Math.round(up * (1 + product.markup / 100) * 100) / 100 : 0)
+        (up && product.markup ? round2(up * (1 + product.markup / 100)) : 0)
       const mk =
-        product.markup ??
-        (up && sp ? Math.round((((sp - up) / up) * 100) * 100) / 100 : 0)
+        product.markup !== undefined && product.markup !== null && !Number.isNaN(Number(product.markup))
+          ? Number(product.markup)
+          : up && sp
+          ? round2(((sp - up) / up) * 100)
+          : 25
 
       const storeQty = product.inventory?.store ?? (product as any).stQty ?? 0
       const dispQty = product.inventory?.dispensary ?? (product as any).dispQty ?? 0
@@ -145,7 +151,7 @@ export function ProductFormDialog({
         quantity: initialQty,
         unitPrice: up ? String(up) : "",
         sellingPrice: sp ? String(parseFloat(sp.toFixed(2))) : "",
-        markup: mk !== undefined && !Number.isNaN(mk) ? String(parseFloat(mk.toFixed(2))) : "",
+        markup: mk !== undefined && !Number.isNaN(mk) ? String(parseFloat(mk.toFixed(2))) : "25",
         storeThreshold: String(product.inventory?.storeThreshold ?? 10),
         dispensaryThreshold: String(product.inventory?.dispensaryThreshold ?? 10),
         distributorName: product.distributor?.name ?? "",
@@ -155,12 +161,35 @@ export function ProductFormDialog({
       setForm(EMPTY)
     }
 
-    setPriceCalcMode("sellingPrice")
+    setPriceCalcMode("unitPrice")
     setErrors({})
     setDuplicateInfo(null)
     setShowDuplicateWarning(false)
     setForceCreate(false)
   }, [open, product, defaultDestination])
+
+  const setCalcModeAndRecalc = (mode: PriceCalcMode) => {
+    setPriceCalcMode(mode)
+    setForm((prev) => {
+      const up = parseFloat(prev.unitPrice)
+      const sp = parseFloat(prev.sellingPrice)
+      const mk = parseFloat(prev.markup)
+
+      if (mode === "unitPrice" && !Number.isNaN(sp) && sp > 0 && !Number.isNaN(mk) && mk >= 0) {
+        const calculatedUp = round2(sp / (1 + mk / 100))
+        return { ...prev, unitPrice: String(calculatedUp) }
+      }
+      if (mode === "sellingPrice" && !Number.isNaN(up) && up > 0 && !Number.isNaN(mk) && mk >= 0) {
+        const calculatedSp = round2(up * (1 + mk / 100))
+        return { ...prev, sellingPrice: String(calculatedSp) }
+      }
+      if (mode === "markup" && !Number.isNaN(up) && up > 0 && !Number.isNaN(sp) && sp > 0) {
+        const calculatedMk = round2(((sp - up) / up) * 100)
+        return { ...prev, markup: String(calculatedMk) }
+      }
+      return prev
+    })
+  }
 
   const update = (field: string) => (event: { target: { value: string } }) =>
     setForm((previous) => ({ ...previous, [field]: event.target.value }))
@@ -173,36 +202,38 @@ export function ProductFormDialog({
       const mk = parseFloat(prev.markup)
 
       if (!Number.isNaN(up) && up > 0) {
-        if (priceCalcMode === "sellingPrice" && !Number.isNaN(sp) && sp > 0) {
-          const calculatedMarkup = Math.round((((sp - up) / up) * 100) * 100) / 100
+        if (priceCalcMode === "sellingPrice" && !Number.isNaN(mk) && mk >= 0) {
+          const calculatedSelling = round2(up * (1 + mk / 100))
           return {
             ...prev,
             unitPrice: val,
-            markup: String(parseFloat(calculatedMarkup.toFixed(2))),
+            sellingPrice: String(calculatedSelling),
           }
         }
-        if (priceCalcMode === "markup" && !Number.isNaN(mk) && mk >= 0) {
-          const calculatedSelling = Math.round((up * (1 + mk / 100)) * 100) / 100
+        if (priceCalcMode === "markup" && !Number.isNaN(sp) && sp > 0) {
+          const calculatedMarkup = round2(((sp - up) / up) * 100)
           return {
             ...prev,
             unitPrice: val,
-            sellingPrice: String(parseFloat(calculatedSelling.toFixed(2))),
+            markup: String(calculatedMarkup),
           }
         }
+        // When in unitPrice mode, if selling price is present, compute markup
         if (!Number.isNaN(sp) && sp > 0) {
-          const calculatedMarkup = Math.round((((sp - up) / up) * 100) * 100) / 100
+          const calculatedMarkup = round2(((sp - up) / up) * 100)
           return {
             ...prev,
             unitPrice: val,
-            markup: String(parseFloat(calculatedMarkup.toFixed(2))),
+            markup: String(calculatedMarkup),
           }
         }
+        // Otherwise if markup is present, calculate selling price
         if (!Number.isNaN(mk) && mk >= 0) {
-          const calculatedSelling = Math.round((up * (1 + mk / 100)) * 100) / 100
+          const calculatedSelling = round2(up * (1 + mk / 100))
           return {
             ...prev,
             unitPrice: val,
-            sellingPrice: String(parseFloat(calculatedSelling.toFixed(2))),
+            sellingPrice: String(calculatedSelling),
           }
         }
       }
@@ -213,17 +244,43 @@ export function ProductFormDialog({
 
   const handleSellingPriceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const val = event.target.value
-    setPriceCalcMode("sellingPrice")
     setForm((prev) => {
       const sp = parseFloat(val)
       const up = parseFloat(prev.unitPrice)
+      const mk = parseFloat(prev.markup)
 
-      if (!Number.isNaN(up) && up > 0 && !Number.isNaN(sp) && sp >= 0) {
-        const calculatedMarkup = Math.round((((sp - up) / up) * 100) * 100) / 100
-        return {
-          ...prev,
-          sellingPrice: val,
-          markup: String(parseFloat(calculatedMarkup.toFixed(2))),
+      if (!Number.isNaN(sp) && sp >= 0) {
+        if (priceCalcMode === "unitPrice" && !Number.isNaN(mk) && mk >= 0) {
+          const calculatedUp = round2(sp / (1 + mk / 100))
+          return {
+            ...prev,
+            sellingPrice: val,
+            unitPrice: String(calculatedUp),
+          }
+        }
+        if (priceCalcMode === "markup" && !Number.isNaN(up) && up > 0) {
+          const calculatedMarkup = round2(((sp - up) / up) * 100)
+          return {
+            ...prev,
+            sellingPrice: val,
+            markup: String(calculatedMarkup),
+          }
+        }
+        if (!Number.isNaN(up) && up > 0) {
+          const calculatedMarkup = round2(((sp - up) / up) * 100)
+          return {
+            ...prev,
+            sellingPrice: val,
+            markup: String(calculatedMarkup),
+          }
+        }
+        if (!Number.isNaN(mk) && mk >= 0) {
+          const calculatedUp = round2(sp / (1 + mk / 100))
+          return {
+            ...prev,
+            sellingPrice: val,
+            unitPrice: String(calculatedUp),
+          }
         }
       }
 
@@ -233,17 +290,43 @@ export function ProductFormDialog({
 
   const handleMarkupChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const val = event.target.value
-    setPriceCalcMode("markup")
     setForm((prev) => {
       const mk = parseFloat(val)
       const up = parseFloat(prev.unitPrice)
+      const sp = parseFloat(prev.sellingPrice)
 
-      if (!Number.isNaN(up) && up > 0 && !Number.isNaN(mk) && mk >= 0) {
-        const calculatedSelling = Math.round((up * (1 + mk / 100)) * 100) / 100
-        return {
-          ...prev,
-          markup: val,
-          sellingPrice: String(parseFloat(calculatedSelling.toFixed(2))),
+      if (!Number.isNaN(mk) && mk >= 0) {
+        if (priceCalcMode === "unitPrice" && !Number.isNaN(sp) && sp > 0) {
+          const calculatedUp = round2(sp / (1 + mk / 100))
+          return {
+            ...prev,
+            markup: val,
+            unitPrice: String(calculatedUp),
+          }
+        }
+        if (priceCalcMode === "sellingPrice" && !Number.isNaN(up) && up > 0) {
+          const calculatedSelling = round2(up * (1 + mk / 100))
+          return {
+            ...prev,
+            markup: val,
+            sellingPrice: String(calculatedSelling),
+          }
+        }
+        if (!Number.isNaN(up) && up > 0) {
+          const calculatedSelling = round2(up * (1 + mk / 100))
+          return {
+            ...prev,
+            markup: val,
+            sellingPrice: String(calculatedSelling),
+          }
+        }
+        if (!Number.isNaN(sp) && sp > 0) {
+          const calculatedUp = round2(sp / (1 + mk / 100))
+          return {
+            ...prev,
+            markup: val,
+            unitPrice: String(calculatedUp),
+          }
         }
       }
 
@@ -257,8 +340,8 @@ export function ProductFormDialog({
 
     if (Number.isNaN(up) || up <= 0 || Number.isNaN(sp) || sp <= 0) return null
 
-    const profit = Math.round((sp - up) * 100) / 100
-    const marginPct = Math.round(((profit / sp) * 100) * 100) / 100
+    const profit = round2(sp - up)
+    const marginPct = round2((profit / sp) * 100)
 
     return {
       profit,
@@ -273,10 +356,30 @@ export function ProductFormDialog({
     const sp = parseFloat(formToValidate.sellingPrice)
     const mk = parseFloat(formToValidate.markup)
 
-    if (!Number.isNaN(up) && up > 0 && !Number.isNaN(sp) && sp > 0 && (Number.isNaN(mk) || formToValidate.markup === "")) {
-      formToValidate.markup = String(parseFloat((((sp - up) / up) * 100).toFixed(2)))
-    } else if (!Number.isNaN(up) && up > 0 && !Number.isNaN(mk) && mk >= 0 && (Number.isNaN(sp) || formToValidate.sellingPrice === "")) {
-      formToValidate.sellingPrice = String(parseFloat((up * (1 + mk / 100)).toFixed(2)))
+    if (
+      !Number.isNaN(sp) &&
+      sp > 0 &&
+      !Number.isNaN(mk) &&
+      mk >= 0 &&
+      (Number.isNaN(up) || formToValidate.unitPrice === "" || up <= 0)
+    ) {
+      formToValidate.unitPrice = String(round2(sp / (1 + mk / 100)))
+    } else if (
+      !Number.isNaN(up) &&
+      up > 0 &&
+      !Number.isNaN(mk) &&
+      mk >= 0 &&
+      (Number.isNaN(sp) || formToValidate.sellingPrice === "" || sp <= 0)
+    ) {
+      formToValidate.sellingPrice = String(round2(up * (1 + mk / 100)))
+    } else if (
+      !Number.isNaN(up) &&
+      up > 0 &&
+      !Number.isNaN(sp) &&
+      sp > 0 &&
+      (Number.isNaN(mk) || formToValidate.markup === "" || mk < 0)
+    ) {
+      formToValidate.markup = String(round2(((sp - up) / up) * 100))
     }
 
     return formToValidate
@@ -619,17 +722,63 @@ export function ProductFormDialog({
             required
           />
 
-          <div className="sm:col-span-2 rounded-label border border-mist bg-paper-sunken/40 p-3 sm:p-3.5 space-y-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <p className="eyebrow">Pricing &amp; Markup</p>
-              <span className="text-xs text-ink-muted">
-                Enter Unit cost &amp; Selling price to auto-calculate Markup %
-              </span>
+          <div className="sm:col-span-2 rounded-label border border-mist bg-paper-sunken/40 p-3 sm:p-3.5 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <p className="eyebrow">Pricing &amp; Markup</p>
+                <p className="text-xs text-ink-muted">
+                  {priceCalcMode === "unitPrice"
+                    ? "Auto Unit Cost: Enter Selling Price & Markup % → Unit Cost is calculated"
+                    : priceCalcMode === "sellingPrice"
+                    ? "Auto Selling Price: Enter Unit Cost & Markup % → Selling Price is calculated"
+                    : "Auto Markup %: Enter Unit Cost & Selling Price → Markup % is calculated"}
+                </p>
+              </div>
+
+              {/* Mode Toggle Buttons */}
+              <div className="inline-flex rounded-lg border border-mist bg-paper p-0.5 text-xs font-medium self-start sm:self-auto gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setCalcModeAndRecalc("unitPrice")}
+                  className={`px-2.5 py-1 rounded transition-all ${
+                    priceCalcMode === "unitPrice"
+                      ? "bg-brand text-white shadow-xs font-semibold"
+                      : "text-ink-muted hover:text-ink hover:bg-paper-sunken"
+                  }`}
+                  title="Unit Cost = Selling Price ÷ (1 + Markup% / 100)"
+                >
+                  Auto Unit Cost
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalcModeAndRecalc("sellingPrice")}
+                  className={`px-2.5 py-1 rounded transition-all ${
+                    priceCalcMode === "sellingPrice"
+                      ? "bg-brand text-white shadow-xs font-semibold"
+                      : "text-ink-muted hover:text-ink hover:bg-paper-sunken"
+                  }`}
+                  title="Selling Price = Unit Cost × (1 + Markup% / 100)"
+                >
+                  Auto Selling Price
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalcModeAndRecalc("markup")}
+                  className={`px-2.5 py-1 rounded transition-all ${
+                    priceCalcMode === "markup"
+                      ? "bg-brand text-white shadow-xs font-semibold"
+                      : "text-ink-muted hover:text-ink hover:bg-paper-sunken"
+                  }`}
+                  title="Markup % = ((Selling Price − Unit Cost) ÷ Unit Cost) × 100"
+                >
+                  Auto Markup %
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               <Input
-                label="Unit cost"
+                label={priceCalcMode === "unitPrice" ? "Unit cost (Auto)" : "Unit cost"}
                 type="number"
                 numeric
                 step="0.01"
@@ -639,10 +788,11 @@ export function ProductFormDialog({
                 error={errors.unitPrice}
                 placeholder="0.00"
                 required
+                hint={priceCalcMode === "unitPrice" ? "Formula: Selling ÷ (1 + Markup%)" : undefined}
               />
 
               <Input
-                label="Selling price"
+                label={priceCalcMode === "sellingPrice" ? "Selling price (Auto)" : "Selling price"}
                 type="number"
                 numeric
                 step="0.01"
@@ -652,10 +802,11 @@ export function ProductFormDialog({
                 error={errors.sellingPrice}
                 placeholder="0.00"
                 required
+                hint={priceCalcMode === "sellingPrice" ? "Formula: Unit Cost × (1 + Markup%)" : undefined}
               />
 
               <Input
-                label="Markup %"
+                label={priceCalcMode === "markup" ? "Markup % (Auto)" : "Markup %"}
                 type="number"
                 numeric
                 step="any"
@@ -663,8 +814,9 @@ export function ProductFormDialog({
                 value={form.markup}
                 onChange={handleMarkupChange}
                 error={errors.markup}
-                placeholder="0"
+                placeholder="25"
                 required
+                hint={priceCalcMode === "markup" ? "Formula: ((Selling − Cost) ÷ Cost) × 100" : undefined}
               />
             </div>
 

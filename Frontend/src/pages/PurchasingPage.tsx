@@ -59,7 +59,7 @@ const emptyLine = (): PurchaseLineInput => ({
   DosageForms: "",
   quantityOrdered: 1,
   unitCost: 0,
-  markup: 20,
+  markup: 25,
 })
 
 function supplierLabel(value: Supplier | string | undefined): string {
@@ -256,7 +256,7 @@ export default function PurchasingPage() {
                 DosageForms: row.DosageForms || "",
                 quantityOrdered: row.suggestedQty,
                 unitCost: row.unitCost || 0,
-                markup: row.markup || 20,
+                markup: row.markup || 25,
               },
             ])
             setCreatingPo(true)
@@ -526,7 +526,7 @@ function CreatePurchaseOrderDialog({
           ...line,
           quantityOrdered: Number(line.quantityOrdered),
           unitCost: Number(line.unitCost),
-          markup: Number(line.markup ?? 20),
+          markup: Number(line.markup ?? 25),
         })),
       }).unwrap()
       toast("success", result.message)
@@ -666,7 +666,7 @@ function CreatePurchaseOrderDialog({
                 type="number"
                 min={0}
                 numeric
-                value={line.markup ?? 20}
+                value={line.markup ?? 25}
                 onChange={(event) => updateLine(index, { markup: Number(event.target.value) })}
               />
               <div className="flex items-end sm:col-span-4">

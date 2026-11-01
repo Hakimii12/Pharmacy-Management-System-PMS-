@@ -1275,8 +1275,10 @@ export async function BulkImportProducts(req, res) {
     for (const p of products) {
       const batchNo = p.batchNo || `BATCH-${Date.now().toString(36).toUpperCase()}`;
       const unitPrice = Number(p.unitPrice || 0);
-      const markup = Number(p.markup || 20);
-      const sellingPrice = p.sellingPrice ? Number(p.sellingPrice) : unitPrice * (1 + markup / 100);
+      const markup = Number(p.markup || 25);
+      const sellingPrice = p.sellingPrice
+        ? Number(p.sellingPrice)
+        : Math.round(unitPrice * (1 + markup / 100) * 100) / 100;
       const qty = Number(p.quantity || 0);
 
       const prod = await Product.create(
@@ -1286,12 +1288,12 @@ export async function BulkImportProducts(req, res) {
           brand: p.brand || "no_brand",
           unitPrice,
           quantity: qty,
-          totalPrice: unitPrice * qty,
+          totalPrice: Math.round(unitPrice * qty * 100) / 100,
           batchNo,
           expiryDate: new Date(p.expiryDate),
           markup,
           sellingPrice,
-          totalSellingPrice: sellingPrice * qty,
+          totalSellingPrice: Math.round(sellingPrice * qty * 100) / 100,
           DosageForms: p.DosageForms || "",
           category: p.category || "",
           distributor: p.distributor || { name: "Unknown", contact: "0000000000" },
